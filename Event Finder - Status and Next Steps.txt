@@ -1,0 +1,3 @@
+working on scraper in Claude
+not working because of spelling of "organization" vs organization
+next step is to check the APIs
