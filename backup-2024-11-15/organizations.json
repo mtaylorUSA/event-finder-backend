@@ -1,0 +1,43 @@
+{
+  "organizations": [
+    {
+      "name": "CISA",
+      "website": "https://www.cisa.gov",
+      "description": "Cybersecurity and Infrastructure Security Agency",
+      "events_url": "https://www.cisa.gov/news-events/events",
+      "scraper_type": "cisa",
+      "pocketbase_id": "7ogxcgvlck4ljvw",
+      "default_timezone": "EST",
+      "default_event_type": "",
+      "default_cost": "Free",
+      "default_target_audience": "Federal security professionals",
+      "registration_required": true
+    },
+    {
+      "name": "INSA",
+      "website": "https://www.insaonline.org",
+      "description": "Intelligence and National Security Alliance",
+      "events_url": "https://www.insaonline.org/calendar-of-events",
+      "scraper_type": "insa",
+      "pocketbase_id": "3l9igkua694zq4g",
+      "default_timezone": "EST",
+      "default_event_type": "In-person",
+      "default_cost": "Varies by event",
+      "default_target_audience": "Intelligence and national security professionals",
+      "registration_required": true
+    },
+    {
+      "name": "OpenAI",
+      "website": "https://openai.com",
+      "description": "OpenAI Academy public sector events and training",
+      "events_url": "https://academy.openai.com/public/events",
+      "scraper_type": "openai",
+      "pocketbase_id": "k2o2cehyo72rhab",
+      "default_timezone": "EST",
+      "default_event_type": "Virtual",
+      "default_cost": "Free",
+      "default_target_audience": "General public",
+      "registration_required": true
+    }
+  ]
+}

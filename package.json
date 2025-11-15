@@ -1,14 +1,17 @@
-﻿{
-  "name": "natsec-events-backend",
+{
+  "name": "natsec-events",
   "version": "1.0.0",
-  "description": "National security events scraper and embeddings generator",
+  "description": "",
+  "main": "generate-embeddings.js",
   "scripts": {
-    "scrape": "node scrape-cisa-events.js",
-    "embeddings": "node generate-embeddings.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "dotenv": "^16.3.1",
-    "node-fetch": "^2.7.0",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
+    "node-fetch": "^2.7.0"
   }
 }

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 1 Architecture - Event Scraper System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+        }
+        .section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .workflow {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .step-box {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .step-box.config {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .step-box.sync {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .step-box.scrape {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        .step-box.pocketbase {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        .step-number {
+            background: rgba(255,255,255,0.3);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .arrow {
+            text-align: center;
+            font-size: 30px;
+            color: #3498db;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .card {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card h3 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 20px;
+            border-left: 4px solid #ffc107;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .before {
+            background: #ffe5e5;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e74c3c;
+        }
+        .after {
+            background: #e5ffe5;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏗️ Phase 1 Architecture Overview</h1>
+    <p style="text-align: center; font-size: 18px; color: #7f8c8d;">National Security Events Aggregator - Technical Flow</p>
+
+    <div class="section">
+        <h2>📊 System Flow Diagram</h2>
+        
+        <div class="workflow">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-box config">
+                    <h3>📝 organizations.json</h3>
+                    <p><strong>Central Configuration Hub</strong></p>
+                    <p>Contains all organization settings: URLs, PocketBase IDs, default values, timezone, costs, target audience</p>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9;">✅ Single source of truth</p>
+                </div>
+            </div>
+
+            <div class="arrow">⬇️</div>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-box sync">
+                    <h3>🔄 sync-organizations.js</h3>
+                    <p><strong>JSON ↔️ PocketBase Syncer</strong></p>
+                    <p>Reads organizations.json, syncs to PocketBase, updates JSON with PocketBase IDs</p>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9;">✅ Automatic ID management</p>
+                </div>
+            </div>
+
+            <div class="arrow">⬇️</div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-box scrape">
+                    <h3>🕷️ Scrapers</h3>
+                    <p><strong>Event Collectors</strong></p>
+                    <p>Load config from JSON → Scrape websites → Create events in PocketBase</p>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 14px;">CISA</span>
+                        <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 14px;">INSA</span>
+                        <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px; font-size: 14px;">OpenAI</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arrow">⬇️</div>
+
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-box pocketbase">
+                    <h3>🗄️ PocketBase</h3>
+                    <p><strong>Data Storage</strong></p>
+                    <p>Stores organizations, events, and embeddings. Provides API for frontend access.</p>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9;">✅ Hosted on Railway</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Key Improvements</h2>
+        
+        <div class="comparison">
+            <div class="before">
+                <h3>❌ Before Phase 1</h3>
+                <div class="code-block">const CISA_ORG_ID = '7ogxc...';<br>
+const timezone = 'EST';<br>
+const cost = 'Free';<br>
+// Hardcoded everywhere!</div>
+                <ul>
+                    <li>Organization IDs hardcoded</li>
+                    <li>Default values scattered</li>
+                    <li>Hard to add new orgs</li>
+                    <li>Lots of duplicate code</li>
+                </ul>
+            </div>
+            
+            <div class="after">
+                <h3>✅ After Phase 1</h3>
+                <div class="code-block">const CONFIG = orgsData<br>
+  .organizations<br>
+  .find(org => <br>
+    org.scraper_type === 'cisa');</div>
+                <ul>
+                    <li>All config centralized</li>
+                    <li>Easy to add new orgs</li>
+                    <li>Single source of truth</li>
+                    <li>Highly maintainable</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📁 File Relationships</h2>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>📄 organizations.json</h3>
+                <p><strong>Role:</strong> Configuration Store</p>
+                <p><strong>Contains:</strong> 3 organizations</p>
+                <p><strong>Used by:</strong></p>
+                <ul style="margin: 10px 0 0 0;">
+                    <li>sync-organizations.js</li>
+                    <li>All scrapers</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🔄 sync-organizations.js</h3>
+                <p><strong>Role:</strong> Sync Manager</p>
+                <p><strong>Reads:</strong> organizations.json</p>
+                <p><strong>Writes to:</strong> PocketBase + updates JSON</p>
+            </div>
+
+            <div class="card">
+                <h3>🕷️ Scrapers (3 files)</h3>
+                <p><strong>Role:</strong> Event Collectors</p>
+                <p><strong>Reads:</strong> organizations.json</p>
+                <p><strong>Writes to:</strong> PocketBase events</p>
+            </div>
+
+            <div class="card">
+                <h3>🎮 run-all-scrapers.js</h3>
+                <p><strong>Role:</strong> Orchestrator</p>
+                <p><strong>Runs:</strong> All 3 scrapers</p>
+                <p><strong>Output:</strong> Progress logs</p>
+            </div>
+
+            <div class="card">
+                <h3>🤖 generate-embeddings.js</h3>
+                <p><strong>Role:</strong> AI Embeddings</p>
+                <p><strong>Reads:</strong> Events from PocketBase</p>
+                <p><strong>Creates:</strong> Vector embeddings</p>
+            </div>
+
+            <div class="card">
+                <h3>🗄️ PocketBase</h3>
+                <p><strong>Role:</strong> Database</p>
+                <p><strong>Collections:</strong></p>
+                <ul style="margin: 10px 0 0 0;">
+                    <li>organizations</li>
+                    <li>events</li>
+                    <li>event_embeddings</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔄 Typical Workflow</h2>
+        
+        <div class="highlight">
+            <h3>📅 Daily Scraping Process</h3>
+            <ol style="font-size: 16px; line-height: 1.8;">
+                <li><strong>Run Master Script:</strong> <code>node run-all-scrapers.js</code></li>
+                <li><strong>CISA Scraper:</strong> Loads config → Scrapes CISA website → Creates events</li>
+                <li><strong>INSA Scraper:</strong> Loads config → Scrapes INSA website → Creates events</li>
+                <li><strong>OpenAI Scraper:</strong> Loads config → Scrapes OpenAI website → Creates events</li>
+                <li><strong>Generate Embeddings:</strong> <code>node generate-embeddings.js</code></li>
+                <li><strong>Done!</strong> Events are now searchable with AI</li>
+            </ol>
+        </div>
+
+        <div class="highlight" style="background: #e8f4f8; border-left-color: #3498db;">
+            <h3>🆕 Adding New Organization</h3>
+            <ol style="font-size: 16px; line-height: 1.8;">
+                <li><strong>Add to organizations.json:</strong> Copy template, fill in details</li>
+                <li><strong>Sync:</strong> <code>node sync-organizations.js</code></li>
+                <li><strong>Create Scraper:</strong> Copy existing scraper as template</li>
+                <li><strong>Update Master Script:</strong> Add new scraper to list</li>
+                <li><strong>Test:</strong> <code>node scrape-neworg-events.js</code></li>
+                <li><strong>Done!</strong> New org integrated</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>💡 Architecture Benefits</h2>
+        
+        <div class="grid">
+            <div class="card">
+                <h3>🎯 Maintainability</h3>
+                <p>Change defaults once in JSON, affects all scrapers automatically</p>
+            </div>
+
+            <div class="card">
+                <h3>📈 Scalability</h3>
+                <p>Add new organizations without touching existing code</p>
+            </div>
+
+            <div class="card">
+                <h3>🔍 Transparency</h3>
+                <p>All configuration visible in one file</p>
+            </div>
+
+            <div class="card">
+                <h3>🛡️ Error Prevention</h3>
+                <p>Validation ensures org config exists before scraping</p>
+            </div>
+
+            <div class="card">
+                <h3>🔄 Consistency</h3>
+                <p>All scrapers follow same pattern and structure</p>
+            </div>
+
+            <div class="card">
+                <h3>📚 Documentation</h3>
+                <p>Self-documenting through JSON structure</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎓 Understanding the Pattern</h2>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <h3 style="color: #2c3e50;">The Hub-and-Spoke Model</h3>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background: #3498db; color: white; padding: 20px 40px; border-radius: 50%; font-size: 20px; font-weight: bold;">
+                    organizations.json
+                </div>
+                
+                <div style="margin: 20px 0; font-size: 24px; color: #7f8c8d;">
+                    ↓ ↓ ↓
+                </div>
+                
+                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                    <div style="background: #27ae60; color: white; padding: 15px 30px; border-radius: 10px; font-weight: bold;">
+                        sync script
+                    </div>
+                    <div style="background: #e67e22; color: white; padding: 15px 30px; border-radius: 10px; font-weight: bold;">
+                        scrapers
+                    </div>
+                    <div style="background: #9b59b6; color: white; padding: 15px 30px; border-radius: 10px; font-weight: bold;">
+                        utilities
+                    </div>
+                </div>
+            </div>
+            
+            <p style="font-size: 16px; text-align: center; margin-top: 30px;">
+                <strong>organizations.json</strong> is the hub. All other scripts are spokes that read from it.
+                This creates a single source of truth that makes the system predictable and maintainable.
+            </p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🚀 Next Steps</h2>
+        
+        <div class="grid">
+            <div class="card" style="border-color: #27ae60; background: linear-gradient(to bottom, white, #e8f8f5);">
+                <h3 style="color: #27ae60;">Phase 1 ✅ (Current)</h3>
+                <p>Centralize configuration</p>
+                <ul>
+                    <li>✅ Create organizations.json</li>
+                    <li>✅ Update all scrapers</li>
+                    <li>⏳ Test everything works</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-color: #f39c12; background: linear-gradient(to bottom, white, #fef5e7);">
+                <h3 style="color: #f39c12;">Phase 2 🔜 (Next)</h3>
+                <p>Automate scraping</p>
+                <ul>
+                    <li>Set up GitHub Actions</li>
+                    <li>Run scrapers on schedule</li>
+                    <li>Add monitoring/alerts</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-color: #3498db; background: linear-gradient(to bottom, white, #ebf5fb);">
+                <h3 style="color: #3498db;">Phase 3 🔮 (Future)</h3>
+                <p>Build frontend</p>
+                <ul>
+                    <li>Search interface</li>
+                    <li>Filter by organization</li>
+                    <li>AI-powered recommendations</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h2 style="color: white; border-bottom-color: rgba(255,255,255,0.3);">🎯 Ready to Deploy!</h2>
+        <p style="font-size: 18px;">You now have a solid, maintainable architecture for scraping national security events.</p>
+        <p style="font-size: 16px; opacity: 0.9;">Follow the PHASE1-TESTING-GUIDE.md to verify everything works, then you're ready for Phase 2!</p>
+    </div>
+
+</body>
+</html>
