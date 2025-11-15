@@ -1,0 +1,38 @@
+name: Scrape Events Daily
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # Runs daily at 1:00 PM UTC (8:00 AM EST)
+  workflow_dispatch:  # Allows manual triggering from GitHub
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Create .env file
+        run: |
+          echo "POCKETBASE_URL=${{ secrets.POCKETBASE_URL }}" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "POCKETBASE_ADMIN_EMAIL=${{ secrets.POCKETBASE_ADMIN_EMAIL }}" >> .env
+          echo "POCKETBASE_ADMIN_PASSWORD=${{ secrets.POCKETBASE_ADMIN_PASSWORD }}" >> .env
+      
+      - name: Sync organizations
+        run: node sync-organizations.js
+      
+      - name: Run all scrapers
+        run: node run-all-scrapers.js
+      
+      - name: Generate embeddings
+        run: node generate-embeddings.js
