@@ -100,7 +100,7 @@ class BaseScraper {
         items.each((i, element) => {
           try {
             const event = this.extractEventData($, element, organization);
-            if (event && event.title && event.date) {
+            if (event && event.title && event.start_date) {
               events.push(event);
             }
           } catch (error) {
@@ -117,7 +117,7 @@ class BaseScraper {
       console.log('💡 This organization may need a custom scraper');
     }
 
-    // Remove duplicates based on title and date
+    // Remove duplicates based on title and start_date
     const uniqueEvents = this.deduplicateEvents(events);
 
     console.log(`📊 Found ${uniqueEvents.length} unique events`);
@@ -149,14 +149,14 @@ class BaseScraper {
       url = new URL(url, baseUrl.origin).href;
     }
 
-    // Extract date - try multiple patterns
+    // Extract date text - try multiple patterns
     let dateText = 
       $el.find('.date, .event-date, [class*="date"], time').first().text().trim() ||
       $el.find('[datetime]').first().attr('datetime') ||
       '';
 
-    // Parse date
-    const date = this.parseDate(dateText);
+    // Parse date and time
+    const dateTimeInfo = this.parseDateAndTime(dateText);
 
     // Extract description
     let description = 
@@ -170,50 +170,88 @@ class BaseScraper {
 
     return {
       title: title.substring(0, 200), // Limit title length
-      date: date,
+      start_date: dateTimeInfo.start_date,
+      end_date: dateTimeInfo.end_date, // Will be null if not found
+      start_time: dateTimeInfo.start_time, // Will be empty if not found
+      end_time: dateTimeInfo.end_time, // Will be empty if not found
+      timezone: dateTimeInfo.timezone || 'EST', // Default to EST
       url: url.substring(0, 500), // Limit URL length
       description: description
     };
   }
 
   /**
-   * Parse various date formats and return in PocketBase-compatible format
+   * Parse date and time information from text
+   * Returns: { start_date, end_date, start_time, end_time, timezone }
+   */
+  parseDateAndTime(dateText) {
+    if (!dateText) {
+      return { start_date: null, end_date: null, start_time: '', end_time: '', timezone: '' };
+    }
+
+    const result = {
+      start_date: null,
+      end_date: null,
+      start_time: '',
+      end_time: '',
+      timezone: ''
+    };
+
+    // Extract timezone if present
+    const timezoneMatch = dateText.match(/(EST|EDT|PST|PDT|CST|CDT|MST|MDT|GMT|UTC)/i);
+    if (timezoneMatch) {
+      result.timezone = timezoneMatch[1].toUpperCase();
+    }
+
+    // Extract times (e.g., "2:00 PM", "14:00", "2:00 PM - 3:00 PM")
+    const timeRangeMatch = dateText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*(?:to|-)\s*(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)/i);
+    if (timeRangeMatch) {
+      result.start_time = timeRangeMatch[1].trim();
+      result.end_time = timeRangeMatch[2].trim();
+    } else {
+      // Single time
+      const singleTimeMatch = dateText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)/i);
+      if (singleTimeMatch) {
+        result.start_time = singleTimeMatch[1].trim();
+      }
+    }
+
+    // Remove time and timezone info to isolate date
+    let cleanDateText = dateText
+      .replace(/\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?/gi, '') // Remove times
+      .replace(/\s*(?:to|-)\s*/gi, ' ') // Remove separators
+      .replace(/(EST|EDT|PST|PDT|CST|CDT|MST|MDT|GMT|UTC)/gi, '') // Remove timezone
+      .replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\.?\s+/i, '') // Remove day of week
+      .trim();
+
+    // Try to parse the date
+    const parsedDate = this.parseDate(cleanDateText);
+    if (parsedDate) {
+      result.start_date = parsedDate;
+      // Note: We don't auto-fill end_date - leave it null unless explicitly found
+    }
+
+    return result;
+  }
+
+  /**
+   * Parse date text and return ISO 8601 format for PocketBase
    */
   parseDate(dateText) {
     if (!dateText) return null;
 
     try {
-      // Clean up the date text
-      let cleanDate = dateText
-        .replace(/\s+to\s+.*/i, '') // Remove "to XX:XX" time ranges
-        .replace(/\s+-\s+.*/i, '') // Remove "- XX:XX" time ranges  
-        .replace(/\d{1,2}:\d{2}\s*(AM|PM|am|pm)/gi, '') // Remove times
-        .trim();
-
-      // Try parsing the cleaned date
-      let date = new Date(cleanDate);
+      // Try parsing directly
+      let date = new Date(dateText);
       
       // Check if valid
       if (!isNaN(date.getTime())) {
-        // Return in YYYY-MM-DD format (what PocketBase DateTime field expects)
-        return date.toISOString().split('T')[0] + ' 00:00:00';
+        // Return in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+        return date.toISOString();
       }
 
-      // Try more aggressive cleaning for formats like "Fri. Nov. 14, 2025"
-      cleanDate = dateText
-        .replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\.?\s+/i, '') // Remove day of week
-        .replace(/\s+\d{1,2}:\d{2}\s*(AM|PM|am|pm).*/gi, '') // Remove everything after time
-        .trim();
-
-      date = new Date(cleanDate);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0] + ' 00:00:00';
-      }
-
-      console.warn(`⚠️  Could not parse date: "${dateText}"`);
       return null;
     } catch (error) {
-      console.warn(`⚠️  Date parsing error: ${error.message}`);
       return null;
     }
   }
@@ -224,7 +262,7 @@ class BaseScraper {
   deduplicateEvents(events) {
     const seen = new Set();
     return events.filter(event => {
-      const key = `${event.title}-${event.date}`;
+      const key = `${event.title}-${event.start_date}`;
       if (seen.has(key)) {
         return false;
       }
@@ -243,16 +281,16 @@ class BaseScraper {
 
     for (const event of events) {
       try {
-        // Skip events without valid dates
-        if (!event.date) {
-          console.log(`⚠️  Skipping "${event.title}" - no valid date`);
+        // Skip events without valid start_date
+        if (!event.start_date) {
+          console.log(`⚠️  Skipping "${event.title}" - no valid start date`);
           errors++;
           continue;
         }
 
         // Check if event already exists
         const existing = await this.pb.collection('events').getList(1, 1, {
-          filter: `organization="${organizationId}" && title="${event.title.replace(/"/g, '\\"')}" && date="${event.date}"`
+          filter: `organization="${organizationId}" && title="${event.title.replace(/"/g, '\\"')}" && start_date="${event.start_date}"`
         });
 
         if (existing.items.length > 0) {
@@ -260,18 +298,38 @@ class BaseScraper {
           continue;
         }
 
-        // Create new event
-        await this.pb.collection('events').create({
+        // Prepare event data - only include fields that have values
+        const eventData = {
           organization: organizationId,
           title: event.title,
-          date: event.date,
+          start_date: event.start_date,
           url: event.url || '',
-          description: event.description || ''
-        });
+          description: event.description || '',
+          timezone: event.timezone || 'EST'
+        };
+
+        // Only add end_date if it exists (don't default to start_date)
+        if (event.end_date) {
+          eventData.end_date = event.end_date;
+        }
+
+        // Only add times if they exist
+        if (event.start_time) {
+          eventData.start_time = event.start_time;
+        }
+        if (event.end_time) {
+          eventData.end_time = event.end_time;
+        }
+
+        // Create new event
+        await this.pb.collection('events').create(eventData);
 
         saved++;
       } catch (error) {
         console.error(`❌ Error saving event "${event.title}":`, error.message);
+        if (error.data) {
+          console.error('   Error details:', JSON.stringify(error.data));
+        }
         errors++;
       }
     }
