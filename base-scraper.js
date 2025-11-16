@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const PocketBase = require('pocketbase');
+const PocketBase = require('pocketbase').default;
 
 /**
  * Base Scraper Class
