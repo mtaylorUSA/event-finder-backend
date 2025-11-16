@@ -1,5 +1,7 @@
 require('dotenv').config();
 const BaseScraper = require('./base-scraper');
+const scrapeOpenAIAcademy = require('./scrape-openai-academy');
+const scrapeOpenAIForum = require('./scrape-openai-forum');
 
 /**
  * Main scraper that processes all organizations from PocketBase
@@ -13,8 +15,24 @@ async function scrapeAllOrganizations() {
   const scraper = new BaseScraper();
   
   try {
+    // Run custom OpenAI scrapers first
+    console.log('\n🔧 Running Custom Scrapers...\n');
+    try {
+      await scrapeOpenAIAcademy();
+    } catch (error) {
+      console.error('Error in OpenAI Academy scraper:', error.message);
+    }
+    
+    try {
+      await scrapeOpenAIForum();
+    } catch (error) {
+      console.error('Error in OpenAI Forum scraper:', error.message);
+    }
+
+    console.log('\n========================================');
+    console.log('📥 Running Generic Scraper for All Organizations...\n');
+    
     // Fetch all organizations from PocketBase
-    console.log('📥 Fetching organizations from PocketBase...\n');
     const organizations = await scraper.getAllOrganizations();
     
     console.log(`✅ Found ${organizations.length} organizations\n`);
