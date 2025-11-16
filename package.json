@@ -1,17 +1,30 @@
 {
-  "name": "natsec-events",
-  "version": "1.0.0",
-  "description": "",
-  "main": "generate-embeddings.js",
+  "name": "event-finder-backend",
+  "version": "3.0.0",
+  "description": "National Security Events Aggregator - Dynamic scraping system",
+  "main": "scrape-all-organizations.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "scrape": "node scrape-all-organizations.js",
+    "scrape:cisa": "node scrape-cisa-events.js",
+    "scrape:insa": "node scrape-insa-events.js",
+    "scrape:openai": "node scrape-openai-events.js",
+    "test": "node scrape-all-organizations.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "events",
+    "scraper",
+    "national-security",
+    "defense"
+  ],
+  "author": "mtaylorUSA",
+  "license": "MIT",
   "dependencies": {
-    "cheerio": "^1.1.2",
-    "dotenv": "^17.2.3",
-    "node-fetch": "^2.7.0"
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.3.1",
+    "pocketbase": "^0.19.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
