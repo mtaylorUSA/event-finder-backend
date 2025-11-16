@@ -177,39 +177,37 @@ class BaseScraper {
   }
 
   /**
-   * Parse various date formats
+   * Parse various date formats and return in PocketBase-compatible format
    */
   parseDate(dateText) {
     if (!dateText) return null;
 
     try {
-      // Try ISO format first
-      let date = new Date(dateText);
+      // Clean up the date text
+      let cleanDate = dateText
+        .replace(/\s+to\s+.*/i, '') // Remove "to XX:XX" time ranges
+        .replace(/\s+-\s+.*/i, '') // Remove "- XX:XX" time ranges  
+        .replace(/\d{1,2}:\d{2}\s*(AM|PM|am|pm)/gi, '') // Remove times
+        .trim();
+
+      // Try parsing the cleaned date
+      let date = new Date(cleanDate);
+      
+      // Check if valid
       if (!isNaN(date.getTime())) {
-        return date.toISOString();
+        // Return in YYYY-MM-DD format (what PocketBase DateTime field expects)
+        return date.toISOString().split('T')[0] + ' 00:00:00';
       }
 
-      // Try common US formats
-      const patterns = [
-        /(\w+)\s+(\d{1,2}),?\s+(\d{4})/i, // "November 15, 2024" or "Nov 15 2024"
-        /(\d{1,2})\/(\d{1,2})\/(\d{4})/,   // "11/15/2024"
-        /(\d{4})-(\d{2})-(\d{2})/,         // "2024-11-15"
-      ];
+      // Try more aggressive cleaning for formats like "Fri. Nov. 14, 2025"
+      cleanDate = dateText
+        .replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\.?\s+/i, '') // Remove day of week
+        .replace(/\s+\d{1,2}:\d{2}\s*(AM|PM|am|pm).*/gi, '') // Remove everything after time
+        .trim();
 
-      for (const pattern of patterns) {
-        const match = dateText.match(pattern);
-        if (match) {
-          date = new Date(dateText);
-          if (!isNaN(date.getTime())) {
-            return date.toISOString();
-          }
-        }
-      }
-
-      // If all else fails, try direct parsing
-      date = new Date(dateText);
+      date = new Date(cleanDate);
       if (!isNaN(date.getTime())) {
-        return date.toISOString();
+        return date.toISOString().split('T')[0] + ' 00:00:00';
       }
 
       console.warn(`⚠️  Could not parse date: "${dateText}"`);
@@ -241,9 +239,17 @@ class BaseScraper {
   async saveEvents(events, organizationId) {
     let saved = 0;
     let skipped = 0;
+    let errors = 0;
 
     for (const event of events) {
       try {
+        // Skip events without valid dates
+        if (!event.date) {
+          console.log(`⚠️  Skipping "${event.title}" - no valid date`);
+          errors++;
+          continue;
+        }
+
         // Check if event already exists
         const existing = await this.pb.collection('events').getList(1, 1, {
           filter: `organization="${organizationId}" && title="${event.title.replace(/"/g, '\\"')}" && date="${event.date}"`
@@ -266,10 +272,11 @@ class BaseScraper {
         saved++;
       } catch (error) {
         console.error(`❌ Error saving event "${event.title}":`, error.message);
+        errors++;
       }
     }
 
-    console.log(`💾 Saved ${saved} new events, skipped ${skipped} duplicates`);
+    console.log(`💾 Saved ${saved} new events, skipped ${skipped} duplicates, ${errors} errors`);
   }
 
   /**
