@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Finder - National Security Events</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #a5b4fc;
+            --secondary: #ec4899;
+            --accent: #14b8a6;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --darker: #0f172a;
+            --light: #f1f5f9;
+            --white: #ffffff;
+            --gray-100: #f8fafc;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gradient-1: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            --gradient-2: linear-gradient(135deg, #14b8a6 0%, #6366f1 100%);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --shadow-xl: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-100);
+            color: var(--dark);
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           HEADER - Compact
+           ============================================ */
+        .header {
+            background: var(--gradient-1);
+            color: var(--white);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-brand h1 {
+            font-size: 1.4em;
+            font-weight: 700;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 25px;
+        }
+
+        .header-stat {
+            text-align: center;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+
+        .header-stat:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .header-stat-value {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .header-stat-label {
+            font-size: 0.75em;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============================================
+           SEARCH & FILTER AREA
+           ============================================ */
+        .search-area {
+            background: var(--white);
+            padding: 25px 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .search-box-container {
+            max-width: 600px;
+            margin: 0 auto 15px;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 15px 20px 15px 50px;
+            border: 2px solid var(--gray-200);
+            border-radius: 50px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-box-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--gray-400);
+        }
+
+        .filter-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: var(--gray-100);
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--white);
+        }
+
+        .filter-btn-icon {
+            font-size: 18px;
+        }
+
+        /* Filter Icon SVG */
+        .filter-icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .location-input {
+            padding: 10px 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .location-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .calendar-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: var(--white);
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all 0.3s;
+        }
+
+        .calendar-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .calendar-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--white);
+        }
+
+        /* Active Filters Display */
+        .active-filters {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .active-filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            background: var(--primary);
+            color: var(--white);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .active-filter-tag.region {
+            background: var(--secondary);
+        }
+
+        .active-filter-tag.org {
+            background: var(--accent);
+        }
+
+        .active-filter-tag.type {
+            background: var(--warning);
+        }
+
+        .active-filter-tag.date {
+            background: var(--gray-600);
+        }
+
+        .active-filter-remove {
+            background: none;
+            border: none;
+            color: var(--white);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            opacity: 0.8;
+        }
+
+        .active-filter-remove:hover {
+            opacity: 1;
+        }
+
+        .clear-all-btn {
+            padding: 5px 12px;
+            background: var(--gray-200);
+            color: var(--gray-600);
+            border: none;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .clear-all-btn:hover {
+            background: var(--gray-300);
+        }
+
+        /* ============================================
+           FILTER MODAL
+           ============================================ */
+        .filter-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: none;
+        }
+
+        .filter-modal.active {
+            display: flex;
+        }
+
+        .filter-modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .filter-modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            margin: auto;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .filter-modal-header {
+            padding: 20px;
+            background: var(--gradient-1);
+            color: var(--white);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-modal-header h2 {
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: var(--white);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .filter-modal-body {
+            padding: 20px;
+            max-height: calc(90vh - 140px);
+            overflow-y: auto;
+        }
+
+        .filter-section {
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .filter-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .filter-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Location Filter */
+        .location-filter-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .location-filter-row .location-input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .radius-select {
+            padding: 10px 14px;
+            border: 2px solid var(--gray-200);
+            border-radius: 10px;
+            font-size: 14px;
+            background: var(--white);
+            cursor: pointer;
+        }
+
+        .radius-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Date Range Filter */
+        .date-range-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .date-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-input-group label {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        .date-input {
+            padding: 10px 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Checkbox List Styles */
+        .checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: var(--gray-100);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        /* Side by Side Topics/Regions */
+        .topics-regions-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .topics-regions-container .filter-section {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .filter-modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-modal-footer button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-apply {
+            background: var(--gradient-1);
+            border: none;
+            color: var(--white);
+        }
+
+        .btn-apply:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-reset {
+            background: var(--gray-100);
+            border: 2px solid var(--gray-200);
+            color: var(--gray-600);
+        }
+
+        .btn-reset:hover {
+            background: var(--gray-200);
+        }
+
+        /* ============================================
+           RESULTS INFO
+           ============================================ */
+        .results-info {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .results-count {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .results-count strong {
+            color: var(--dark);
+        }
+
+        /* ============================================
+           EVENT TILES
+           ============================================ */
+        .events-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
+        .events-list-view {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .event-tile {
+            display: flex;
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+
+        .event-tile:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .event-tile-image {
+            width: 140px;
+            min-height: 160px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .event-tile-image .emoji {
+            position: relative;
+            z-index: 1;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* Topic-based gradients */
+        .event-tile-image.cybersecurity { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+        .event-tile-image.defense-policy { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+        .event-tile-image.intelligence { background: linear-gradient(135deg, #1e293b 0%, #475569 100%); }
+        .event-tile-image.nuclear-wmd { background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%); }
+        .event-tile-image.space-satellites { background: linear-gradient(135deg, #0f172a 0%, #6366f1 100%); }
+        .event-tile-image.ai-emerging-tech { background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); }
+        .event-tile-image.counterterrorism { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+        .event-tile-image.military-operations { background: linear-gradient(135deg, #065f46 0%, #047857 100%); }
+        .event-tile-image.homeland-security { background: linear-gradient(135deg, #1e40af 0%, #3730a3 100%); }
+        .event-tile-image.climate-security { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+        .event-tile-image.economic-security { background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); }
+        .event-tile-image.diplomacy-statecraft { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); }
+        .event-tile-image.careers { background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%); }
+        .event-tile-image.default { background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%); }
+
+        .event-tile-content {
+            flex: 1;
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .event-title {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: var(--dark);
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+
+        .event-field {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 6px;
+            line-height: 1.4;
+        }
+
+        .event-field-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            flex-shrink: 0;
+        }
+
+        .event-field-label::after {
+            content: ':';
+        }
+
+        .event-field-value {
+            font-size: 14px;
+            color: var(--dark);
+            line-height: 1.4;
+        }
+
+        .event-field-value a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .event-field-value a:hover {
+            text-decoration: underline;
+        }
+
+        .event-tile-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: auto;
+            padding-top: 10px;
+        }
+
+        .event-tile-tag {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .event-tile-tag.topic {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+        }
+
+        .event-tile-tag.region {
+            background: rgba(236, 72, 153, 0.1);
+            color: var(--secondary);
+        }
+
+        /* ============================================
+           CALENDAR VIEW
+           ============================================ */
+        .calendar-container {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
+        .calendar-container.active {
+            display: block;
+        }
+
+        .events-list-view.hidden {
+            display: none;
+        }
+
+        .calendar-box {
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: var(--gradient-1);
+            color: var(--white);
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .calendar-nav-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: var(--white);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .calendar-nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .calendar-title {
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .calendar-day-header {
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .calendar-day {
+            min-height: 100px;
+            padding: 8px;
+            border-right: 1px solid var(--gray-100);
+            border-bottom: 1px solid var(--gray-100);
+            background: var(--white);
+        }
+
+        .calendar-day:nth-child(7n) {
+            border-right: none;
+        }
+
+        .calendar-day.other-month {
+            background: var(--gray-50);
+        }
+
+        .calendar-day.today {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .calendar-date {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--gray-400);
+            margin-bottom: 6px;
+        }
+
+        .calendar-day.today .calendar-date {
+            background: var(--primary);
+            color: var(--white);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .calendar-event {
+            padding: 3px 6px;
+            margin-bottom: 3px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+        }
+
+        .calendar-event:hover {
+            background: rgba(99, 102, 241, 0.25);
+        }
+
+        .calendar-more {
+            font-size: 10px;
+            color: var(--gray-500);
+            padding: 2px 6px;
+        }
+
+        /* ============================================
+           ORGANIZATIONS MODAL
+           ============================================ */
+        .orgs-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: none;
+        }
+
+        .orgs-modal.active {
+            display: flex;
+        }
+
+        .orgs-modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .orgs-modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            margin: auto;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .orgs-modal-header {
+            padding: 20px;
+            background: var(--gradient-2);
+            color: var(--white);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .orgs-modal-header h2 {
+            font-size: 1.2em;
+        }
+
+        .orgs-modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: var(--white);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .orgs-modal-body {
+            padding: 20px;
+            max-height: calc(85vh - 80px);
+            overflow-y: auto;
+        }
+
+        .org-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            background: var(--gray-50);
+            transition: all 0.3s;
+        }
+
+        .org-item:hover {
+            background: var(--gray-100);
+        }
+
+        .org-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .org-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            background: var(--gradient-1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .org-info {
+            flex: 1;
+        }
+
+        .org-name {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+
+        .org-name a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .org-name a:hover {
+            color: var(--primary);
+        }
+
+        .org-type {
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
+        .org-event-count {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        /* ============================================
+           EMPTY STATE
+           ============================================ */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-400);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3em;
+            color: var(--gray-600);
+            margin-bottom: 10px;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .header-stats {
+                gap: 15px;
+            }
+
+            .event-tile {
+                flex-direction: column;
+            }
+
+            .event-tile-image {
+                width: 100%;
+                min-height: 120px;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .location-input {
+                width: 100%;
+            }
+
+            .topics-regions-container {
+                grid-template-columns: 1fr;
+            }
+
+            .calendar-day {
+                min-height: 60px;
+                padding: 4px;
+            }
+
+            .calendar-day-header {
+                padding: 8px 4px;
+                font-size: 10px;
+            }
+
+            .date-range-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================
+         HEADER
+         ============================================ -->
+    <header class="header">
+        <div class="header-brand">
+            <h1>🔍 Event Finder</h1>
+        </div>
+        <div class="header-stats">
+            <div class="header-stat" onclick="showOrganizations()">
+                <div class="header-stat-value" id="totalOrgs">-</div>
+                <div class="header-stat-label">Organizations</div>
+            </div>
+            <div class="header-stat" onclick="showUpcoming()">
+                <div class="header-stat-value" id="upcomingEvents">-</div>
+                <div class="header-stat-label">Upcoming</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================
+         SEARCH & FILTER AREA
+         ============================================ -->
+    <div class="search-area">
+        <div class="search-box-container">
+            <div class="search-box">
+                <span class="search-box-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search events...">
+            </div>
+        </div>
+        <div class="filter-bar">
+            <button class="filter-btn" id="filterBtn" onclick="openFilterModal()">
+                <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span>Filter & Sort</span>
+            </button>
+            <input type="text" class="location-input" id="locationInput" placeholder="Location (zip or address)">
+            <button class="calendar-btn" id="calendarBtn" onclick="toggleCalendarView()">
+                <span>📅</span>
+                <span>Calendar View</span>
+            </button>
+        </div>
+        <div class="active-filters" id="activeFilters" style="display: none;">
+            <!-- Active filter tags will be inserted here -->
+        </div>
+    </div>
+
+    <!-- ============================================
+         RESULTS INFO
+         ============================================ -->
+    <div class="results-info">
+        <span class="results-count">Showing <strong id="showingCount">0</strong> events</span>
+    </div>
+
+    <!-- ============================================
+         EVENTS CONTAINER
+         ============================================ -->
+    <div class="events-container">
+        <div class="events-list-view" id="eventsListView">
+            <!-- Event tiles will be inserted here -->
+        </div>
+        <div class="calendar-container" id="calendarContainer">
+            <div class="calendar-box">
+                <div class="calendar-header">
+                    <div class="calendar-nav">
+                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">← Prev</button>
+                        <button class="calendar-nav-btn" onclick="goToToday()">Today</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(1)">Next →</button>
+                    </div>
+                    <div class="calendar-title" id="calendarTitle">November 2025</div>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         FILTER MODAL
+         ============================================ -->
+    <div class="filter-modal" id="filterModal">
+        <div class="filter-modal-backdrop" onclick="closeFilterModal()"></div>
+        <div class="filter-modal-content">
+            <div class="filter-modal-header">
+                <h2>
+                    <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px;">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    Filter & Sort
+                </h2>
+                <button class="filter-modal-close" onclick="closeFilterModal()">×</button>
+            </div>
+            <div class="filter-modal-body">
+                <!-- Location -->
+                <div class="filter-section">
+                    <div class="filter-section-title">📍 Location</div>
+                    <div class="location-filter-row">
+                        <input type="text" class="location-input" id="modalLocationInput" placeholder="Location (zip or address)">
+                        <select class="radius-select" id="modalRadiusSelect">
+                            <option value="25" selected>Within 25 miles</option>
+                            <option value="100">Within 100 miles</option>
+                            <option value="us">United States</option>
+                            <option value="worldwide">Worldwide</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date Range -->
+                <div class="filter-section">
+                    <div class="filter-section-title">📅 Date Range</div>
+                    <div class="date-range-row">
+                        <div class="date-input-group">
+                            <label>From:</label>
+                            <input type="date" class="date-input" id="dateFrom">
+                        </div>
+                        <div class="date-input-group">
+                            <label>To:</label>
+                            <input type="date" class="date-input" id="dateTo">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Event Type -->
+                <div class="filter-section">
+                    <div class="filter-section-title">🎯 Event Type</div>
+                    <div class="checkbox-list" id="typeOptions">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="type-virtual" value="Virtual">
+                            <label for="type-virtual">🖥️ Virtual</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="type-inperson" value="In-person">
+                            <label for="type-inperson">📍 In-Person</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="type-hybrid" value="Hybrid">
+                            <label for="type-hybrid">🔄 Hybrid</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Organizations -->
+                <div class="filter-section">
+                    <div class="filter-section-title">🏛️ Organizations</div>
+                    <div class="checkbox-list" id="orgOptions">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Topics & Regions Side by Side -->
+                <div class="topics-regions-container">
+                    <div class="filter-section">
+                        <div class="filter-section-title">🏷️ Topics</div>
+                        <div class="checkbox-list" id="topicOptions">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-section-title">🌍 Regions</div>
+                        <div class="checkbox-list" id="regionOptions">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-modal-footer">
+                <button class="btn-reset" onclick="resetFilters()">Reset All</button>
+                <button class="btn-apply" onclick="applyAndClose()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         ORGANIZATIONS MODAL
+         ============================================ -->
+    <div class="orgs-modal" id="orgsModal">
+        <div class="orgs-modal-backdrop" onclick="closeOrgsModal()"></div>
+        <div class="orgs-modal-content">
+            <div class="orgs-modal-header">
+                <h2>🏛️ Organizations</h2>
+                <button class="orgs-modal-close" onclick="closeOrgsModal()">×</button>
+            </div>
+            <div class="orgs-modal-body" id="orgsModalBody">
+                <!-- Organization list will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         JAVASCRIPT
+         ============================================ -->
+    <script>
+        // ============================================================================
+        // CONFIGURATION
+        // ============================================================================
+        
+        const POCKETBASE_URL = 'https://event-discovery-backend-production.up.railway.app';
+        
+        // Topics sorted alphabetically
+        const TOPICS = [
+            { value: 'AI & Emerging Tech', label: '🤖 AI & Emerging Tech', emoji: '🤖', class: 'ai-emerging-tech' },
+            { value: 'Careers & Professional Development', label: '💼 Careers & Professional Development', emoji: '💼', class: 'careers' },
+            { value: 'Climate & Security', label: '🌍 Climate & Security', emoji: '🌍', class: 'climate-security' },
+            { value: 'Counterterrorism', label: '🎯 Counterterrorism', emoji: '🎯', class: 'counterterrorism' },
+            { value: 'Cybersecurity', label: '🔒 Cybersecurity', emoji: '🔒', class: 'cybersecurity' },
+            { value: 'Defense Policy', label: '🛡️ Defense Policy', emoji: '🛡️', class: 'defense-policy' },
+            { value: 'Diplomacy & Statecraft', label: '🤝 Diplomacy & Statecraft', emoji: '🤝', class: 'diplomacy-statecraft' },
+            { value: 'Economic Security', label: '💰 Economic Security', emoji: '💰', class: 'economic-security' },
+            { value: 'Homeland Security', label: '🏠 Homeland Security', emoji: '🏠', class: 'homeland-security' },
+            { value: 'Intelligence', label: '🕵️ Intelligence', emoji: '🕵️', class: 'intelligence' },
+            { value: 'Military Operations', label: '⚔️ Military Operations', emoji: '⚔️', class: 'military-operations' },
+            { value: 'Nuclear/WMD', label: '☢️ Nuclear/WMD', emoji: '☢️', class: 'nuclear-wmd' },
+            { value: 'Space & Satellites', label: '🛰️ Space & Satellites', emoji: '🛰️', class: 'space-satellites' }
+        ];
+
+        // Regions sorted alphabetically
+        const REGIONS = [
+            { value: 'Africa', label: '🌍 Africa' },
+            { value: 'Arctic', label: '❄️ Arctic' },
+            { value: 'China', label: '🇨🇳 China' },
+            { value: 'Domestic US', label: '🇺🇸 Domestic US' },
+            { value: 'Europe/NATO', label: '🇪🇺 Europe/NATO' },
+            { value: 'Global/Multilateral', label: '🌐 Global/Multilateral' },
+            { value: 'Indo-Pacific', label: '🌏 Indo-Pacific' },
+            { value: 'Latin America', label: '🌎 Latin America' },
+            { value: 'Middle East', label: '🕌 Middle East' },
+            { value: 'Russia', label: '🇷🇺 Russia' }
+        ];
+
+        // ============================================================================
+        // STATE
+        // ============================================================================
+        
+        let allEvents = [];
+        let filteredEvents = [];
+        let organizations = {};
+        let orgsWithEvents = new Set();
+        let selectedTopics = [];
+        let selectedRegions = [];
+        let selectedOrgs = [];
+        let selectedTypes = [];
+        let dateFrom = null;
+        let dateTo = null;
+        let isCalendarView = false;
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            setDefaultDates();
+            await loadOrganizations();
+            await loadEvents();
+            initializeFilterOptions();
+        });
+
+        function setDefaultDates() {
+            const today = new Date();
+            const oneYearLater = new Date();
+            oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+            
+            document.getElementById('dateFrom').value = today.toISOString().split('T')[0];
+            document.getElementById('dateTo').value = oneYearLater.toISOString().split('T')[0];
+            
+            dateFrom = today;
+            dateTo = oneYearLater;
+        }
+
+        function initializeFilterOptions() {
+            // Topics (sorted alphabetically already)
+            const topicContainer = document.getElementById('topicOptions');
+            topicContainer.innerHTML = TOPICS.map(t => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="topic-${t.value.replace(/[^a-z]/gi, '')}" value="${t.value}" onchange="updateTopicSelection()">
+                    <label for="topic-${t.value.replace(/[^a-z]/gi, '')}">${t.label}</label>
+                </div>
+            `).join('');
+
+            // Regions (sorted alphabetically already)
+            const regionContainer = document.getElementById('regionOptions');
+            regionContainer.innerHTML = REGIONS.map(r => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="region-${r.value.replace(/[^a-z]/gi, '')}" value="${r.value}" onchange="updateRegionSelection()">
+                    <label for="region-${r.value.replace(/[^a-z]/gi, '')}">${r.label}</label>
+                </div>
+            `).join('');
+        }
+
+        async function loadOrganizations() {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`);
+                const data = await response.json();
+                
+                console.log('Organizations API response:', data);
+                console.log('Organizations items:', data.items);
+                
+                if (data && data.items && Array.isArray(data.items)) {
+                    data.items.forEach(org => {
+                        organizations[org.id] = org;
+                    });
+                    console.log('Organizations loaded successfully:', data.items.length);
+                } else {
+                    console.error('Unexpected organizations response format:', data);
+                }
+                
+                console.log('Organizations object keys:', Object.keys(organizations).length);
+                console.log('First org in object:', Object.values(organizations)[0]);
+                
+                document.getElementById('totalOrgs').textContent = Object.keys(organizations).length;
+            } catch (error) {
+                console.error('Error loading organizations:', error);
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date`);
+                const data = await response.json();
+                
+                console.log('Events loaded:', data.items?.length);
+                console.log('Sample event organization field:', data.items?.[0]?.organization);
+                console.log('Org lookup test:', organizations[data.items?.[0]?.organization]);
+                
+                allEvents = (data.items || []).map(event => ({
+                    ...event,
+                    startDate: event.start_date ? new Date(event.start_date) : null,
+                    endDate: event.end_date ? new Date(event.end_date) : null
+                }));
+
+                // Track which orgs have events
+                allEvents.forEach(e => {
+                    if (e.organization) orgsWithEvents.add(e.organization);
+                });
+
+                // Populate org filter (only orgs with events, sorted alphabetically)
+                populateOrgFilter();
+                
+                // Count upcoming events
+                const now = new Date();
+                const upcoming = allEvents.filter(e => e.startDate && e.startDate >= now).length;
+                document.getElementById('upcomingEvents').textContent = upcoming;
+                
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading events:', error);
+            }
+        }
+
+        function populateOrgFilter() {
+            const orgContainer = document.getElementById('orgOptions');
+            const orgsArray = Array.from(orgsWithEvents)
+                .map(id => organizations[id])
+                .filter(org => org)
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            orgContainer.innerHTML = orgsArray.map(org => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="org-${org.id}" value="${org.id}" onchange="updateOrgSelection()">
+                    <label for="org-${org.id}">${org.name}</label>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================================
+        // FILTER SELECTION HANDLERS
+        // ============================================================================
+
+        function updateTopicSelection() {
+            selectedTopics = [];
+            document.querySelectorAll('#topicOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedTopics.push(cb.value);
+            });
+        }
+
+        function updateRegionSelection() {
+            selectedRegions = [];
+            document.querySelectorAll('#regionOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedRegions.push(cb.value);
+            });
+        }
+
+        function updateOrgSelection() {
+            selectedOrgs = [];
+            document.querySelectorAll('#orgOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedOrgs.push(cb.value);
+            });
+        }
+
+        function updateTypeSelection() {
+            selectedTypes = [];
+            document.querySelectorAll('#typeOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedTypes.push(cb.value);
+            });
+        }
+
+        // ============================================================================
+        // FILTERING
+        // ============================================================================
+        
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            // Get date values from modal
+            const dateFromValue = document.getElementById('dateFrom').value;
+            const dateToValue = document.getElementById('dateTo').value;
+            dateFrom = dateFromValue ? new Date(dateFromValue) : null;
+            dateTo = dateToValue ? new Date(dateToValue + 'T23:59:59') : null;
+
+            // Update type selection
+            updateTypeSelection();
+
+            filteredEvents = allEvents.filter(event => {
+                // Search filter
+                if (searchTerm) {
+                    const titleMatch = (event.title || '').toLowerCase().includes(searchTerm);
+                    const descMatch = (event.description || '').toLowerCase().includes(searchTerm);
+                    const locMatch = (event.location || '').toLowerCase().includes(searchTerm);
+                    if (!titleMatch && !descMatch && !locMatch) return false;
+                }
+
+                // Date range filter
+                if (dateFrom && event.startDate && event.startDate < dateFrom) return false;
+                if (dateTo && event.startDate && event.startDate > dateTo) return false;
+
+                // Topic filter
+                if (selectedTopics.length > 0) {
+                    const eventTopics = event.topics || [];
+                    const hasMatchingTopic = selectedTopics.some(t => eventTopics.includes(t));
+                    if (!hasMatchingTopic) return false;
+                }
+
+                // Region filter
+                if (selectedRegions.length > 0) {
+                    const eventRegions = event.regions || [];
+                    const hasMatchingRegion = selectedRegions.some(r => eventRegions.includes(r));
+                    if (!hasMatchingRegion) return false;
+                }
+
+                // Organization filter
+                if (selectedOrgs.length > 0) {
+                    if (!selectedOrgs.includes(event.organization)) return false;
+                }
+
+                // Type filter
+                if (selectedTypes.length > 0) {
+                    if (!selectedTypes.includes(event.event_type)) return false;
+                }
+
+                return true;
+            });
+
+            // Sort by date (soonest first)
+            filteredEvents.sort((a, b) => (a.startDate || new Date(0)) - (b.startDate || new Date(0)));
+
+            document.getElementById('showingCount').textContent = filteredEvents.length;
+            updateActiveFiltersDisplay();
+            renderEvents();
+            
+            if (isCalendarView) {
+                renderCalendar();
+            }
+        }
+
+        function updateActiveFiltersDisplay() {
+            const container = document.getElementById('activeFilters');
+            const tags = [];
+
+            // Date range tag
+            if (dateFrom || dateTo) {
+                const fromStr = dateFrom ? dateFrom.toLocaleDateString() : 'Any';
+                const toStr = dateTo ? dateTo.toLocaleDateString() : 'Any';
+                tags.push(`<span class="active-filter-tag date">📅 ${fromStr} - ${toStr}</span>`);
+            }
+
+            selectedTopics.forEach(t => {
+                const topic = TOPICS.find(x => x.value === t);
+                tags.push(`<span class="active-filter-tag">${topic?.label || t}<button class="active-filter-remove" onclick="removeFilter('topic', '${t}')">&times;</button></span>`);
+            });
+
+            selectedRegions.forEach(r => {
+                const region = REGIONS.find(x => x.value === r);
+                tags.push(`<span class="active-filter-tag region">${region?.label || r}<button class="active-filter-remove" onclick="removeFilter('region', '${r}')">&times;</button></span>`);
+            });
+
+            selectedOrgs.forEach(o => {
+                const org = organizations[o];
+                tags.push(`<span class="active-filter-tag org">${org?.name || o}<button class="active-filter-remove" onclick="removeFilter('org', '${o}')">&times;</button></span>`);
+            });
+
+            selectedTypes.forEach(t => {
+                tags.push(`<span class="active-filter-tag type">${t}<button class="active-filter-remove" onclick="removeFilter('type', '${t}')">&times;</button></span>`);
+            });
+
+            if (tags.length > 0) {
+                tags.push(`<button class="clear-all-btn" onclick="resetFilters()">Clear All</button>`);
+                container.innerHTML = tags.join('');
+                container.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function removeFilter(type, value) {
+            if (type === 'topic') {
+                selectedTopics = selectedTopics.filter(t => t !== value);
+                const cb = document.querySelector(`#topicOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            } else if (type === 'region') {
+                selectedRegions = selectedRegions.filter(r => r !== value);
+                const cb = document.querySelector(`#regionOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            } else if (type === 'org') {
+                selectedOrgs = selectedOrgs.filter(o => o !== value);
+                const cb = document.querySelector(`#orgOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            } else if (type === 'type') {
+                selectedTypes = selectedTypes.filter(t => t !== value);
+                const cb = document.querySelector(`#typeOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            }
+            applyFilters();
+        }
+
+        function resetFilters() {
+            selectedTopics = [];
+            selectedRegions = [];
+            selectedOrgs = [];
+            selectedTypes = [];
+            
+            // Uncheck all checkboxes
+            document.querySelectorAll('.filter-modal input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
+            // Reset dates to default
+            setDefaultDates();
+            
+            applyFilters();
+        }
+
+        // ============================================================================
+        // RENDERING
+        // ============================================================================
+        
+        function renderEvents() {
+            const container = document.getElementById('eventsListView');
+            
+            if (filteredEvents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <h3>No events found</h3>
+                        <p>Try adjusting your filters or search terms</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredEvents.map(event => {
+                const topicInfo = getTopicInfo(event.topics);
+                const description = stripHtml(event.description || '').substring(0, 200);
+                const topicTags = (event.topics || []).slice(0, 3).map(t => `<span class="event-tile-tag topic">${t}</span>`).join('');
+                const regionTags = (event.regions || []).slice(0, 2).map(r => `<span class="event-tile-tag region">${r}</span>`).join('');
+                
+                // Get org info directly from organizations object
+                const org = organizations[event.organization];
+                const orgName = org?.name || 'Unknown Organization';
+                const orgWebsite = org?.website || '#';
+                
+                // Build date display (handle date ranges)
+                let dateDisplay = '';
+                const startDate = event.start_date ? new Date(event.start_date) : null;
+                const endDate = event.end_date ? new Date(event.end_date) : null;
+                
+                if (startDate && endDate && startDate.getTime() !== endDate.getTime()) {
+                    // Multi-day event
+                    dateDisplay = `${formatDateLong(startDate)} - ${formatDateLong(endDate)}`;
+                } else if (startDate) {
+                    dateDisplay = formatDateLong(startDate);
+                    if (event.start_time) {
+                        dateDisplay += ` • ${event.start_time}`;
+                    }
+                } else {
+                    dateDisplay = 'Date TBD';
+                }
+                
+                // Build location display
+                let locationDisplay = '';
+                const eventType = (event.event_type || '').toLowerCase();
+                const location = event.location || '';
+                
+                if (eventType === 'virtual') {
+                    locationDisplay = event.url 
+                        ? `<a href="${event.url}" target="_blank">Virtual Event</a>`
+                        : 'Virtual';
+                } else if (eventType === 'hybrid') {
+                    locationDisplay = location 
+                        ? `Hybrid: ${escapeHtml(location)}`
+                        : 'Hybrid';
+                    if (event.url) {
+                        locationDisplay += ` | <a href="${event.url}" target="_blank">Virtual Link</a>`;
+                    }
+                } else if (eventType === 'in-person') {
+                    locationDisplay = location ? escapeHtml(location) : 'Address TBD';
+                } else {
+                    locationDisplay = location ? escapeHtml(location) : 'Location TBD';
+                }
+
+                return `
+                    <div class="event-tile">
+                        <div class="event-tile-image ${topicInfo.class}">
+                            <span class="emoji">${topicInfo.emoji}</span>
+                        </div>
+                        <div class="event-tile-content">
+                            <div class="event-title">${escapeHtml(event.title)}</div>
+                            ${description ? `
+                                <div class="event-field">
+                                    <span class="event-field-label">Description</span>
+                                    <span class="event-field-value">${escapeHtml(description)}${description.length >= 200 ? '...' : ''}</span>
+                                </div>
+                            ` : ''}
+                            <div class="event-field">
+                                <span class="event-field-label">Organization</span>
+                                <span class="event-field-value"><a href="${orgWebsite}" target="_blank">${escapeHtml(orgName)}</a></span>
+                            </div>
+                            <div class="event-field">
+                                <span class="event-field-label">Date & Time</span>
+                                <span class="event-field-value">${dateDisplay}</span>
+                            </div>
+                            <div class="event-field">
+                                <span class="event-field-label">Location</span>
+                                <span class="event-field-value">${locationDisplay}</span>
+                            </div>
+                            ${event.url ? `
+                                <div class="event-field">
+                                    <span class="event-field-label">Register</span>
+                                    <span class="event-field-value"><a href="${event.url}" target="_blank">Register for this event</a></span>
+                                </div>
+                            ` : ''}
+                            <div class="event-tile-tags">
+                                ${topicTags}${regionTags}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDateLong(date) {
+            if (!date) return '';
+            return date.toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+
+        function getTopicInfo(topics) {
+            if (!topics || topics.length === 0) {
+                return { emoji: '📅', class: 'default' };
+            }
+            const topic = TOPICS.find(t => t.value === topics[0]);
+            return topic ? { emoji: topic.emoji, class: topic.class } : { emoji: '📅', class: 'default' };
+        }
+
+        // ============================================================================
+        // CALENDAR VIEW
+        // ============================================================================
+        
+        function toggleCalendarView() {
+            isCalendarView = !isCalendarView;
+            const calendarBtn = document.getElementById('calendarBtn');
+            const listView = document.getElementById('eventsListView');
+            const calendarView = document.getElementById('calendarContainer');
+
+            if (isCalendarView) {
+                calendarBtn.classList.add('active');
+                listView.classList.add('hidden');
+                calendarView.classList.add('active');
+                renderCalendar();
+            } else {
+                calendarBtn.classList.remove('active');
+                listView.classList.remove('hidden');
+                calendarView.classList.remove('active');
+            }
+        }
+
+        function renderCalendar() {
+            const title = document.getElementById('calendarTitle');
+            const grid = document.getElementById('calendarGrid');
+            
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            title.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const startDayOfWeek = firstDay.getDay();
+            const totalDays = lastDay.getDate();
+
+            // Get events for this month
+            const monthEvents = filteredEvents.filter(e => {
+                if (!e.startDate) return false;
+                return e.startDate.getMonth() === currentMonth && 
+                       e.startDate.getFullYear() === currentYear;
+            });
+
+            // Group events by date
+            const eventsByDate = {};
+            monthEvents.forEach(e => {
+                const dateKey = e.startDate.getDate();
+                if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+                eventsByDate[dateKey].push(e);
+            });
+
+            let html = `
+                <div class="calendar-day-header">Sun</div>
+                <div class="calendar-day-header">Mon</div>
+                <div class="calendar-day-header">Tue</div>
+                <div class="calendar-day-header">Wed</div>
+                <div class="calendar-day-header">Thu</div>
+                <div class="calendar-day-header">Fri</div>
+                <div class="calendar-day-header">Sat</div>
+            `;
+
+            // Previous month days
+            const prevMonth = new Date(currentYear, currentMonth, 0);
+            for (let i = startDayOfWeek - 1; i >= 0; i--) {
+                html += `<div class="calendar-day other-month">
+                    <div class="calendar-date">${prevMonth.getDate() - i}</div>
+                </div>`;
+            }
+
+            // Current month days
+            const today = new Date();
+            for (let day = 1; day <= totalDays; day++) {
+                const isToday = day === today.getDate() && 
+                               currentMonth === today.getMonth() && 
+                               currentYear === today.getFullYear();
+                
+                const dayEvents = eventsByDate[day] || [];
+                const displayEvents = dayEvents.slice(0, 2);
+                const moreCount = dayEvents.length - 2;
+
+                html += `
+                    <div class="calendar-day ${isToday ? 'today' : ''}">
+                        <div class="calendar-date">${day}</div>
+                        ${displayEvents.map(e => 
+                            `<div class="calendar-event" title="${escapeHtml(e.title)}">${escapeHtml(e.title.substring(0, 20))}${e.title.length > 20 ? '...' : ''}</div>`
+                        ).join('')}
+                        ${moreCount > 0 ? `<div class="calendar-more">+${moreCount} more</div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Next month days
+            const remainingCells = 42 - (startDayOfWeek + totalDays);
+            for (let day = 1; day <= remainingCells && remainingCells < 7; day++) {
+                html += `<div class="calendar-day other-month">
+                    <div class="calendar-date">${day}</div>
+                </div>`;
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        function goToToday() {
+            const today = new Date();
+            currentMonth = today.getMonth();
+            currentYear = today.getFullYear();
+            renderCalendar();
+        }
+
+        // ============================================================================
+        // MODALS
+        // ============================================================================
+        
+        function openFilterModal() {
+            document.getElementById('filterModal').classList.add('active');
+        }
+
+        function closeFilterModal() {
+            document.getElementById('filterModal').classList.remove('active');
+        }
+
+        function applyAndClose() {
+            applyFilters();
+            closeFilterModal();
+        }
+
+        function showOrganizations() {
+            const container = document.getElementById('orgsModalBody');
+            const sortedOrgs = Object.values(organizations).sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Count events per org
+            const eventCounts = {};
+            allEvents.forEach(e => {
+                eventCounts[e.organization] = (eventCounts[e.organization] || 0) + 1;
+            });
+
+            container.innerHTML = sortedOrgs.map(org => `
+                <div class="org-item">
+                    <div class="org-icon">🏛️</div>
+                    <div class="org-info">
+                        <div class="org-name"><a href="${org.website || '#'}" target="_blank">${escapeHtml(org.name)}</a></div>
+                        <div class="org-type">${org.org_type || 'Organization'}</div>
+                    </div>
+                    <div class="org-event-count">${eventCounts[org.id] || 0} events</div>
+                </div>
+            `).join('');
+
+            document.getElementById('orgsModal').classList.add('active');
+        }
+
+        function closeOrgsModal() {
+            document.getElementById('orgsModal').classList.remove('active');
+        }
+
+        function showUpcoming() {
+            // Reset filters and show only upcoming
+            resetFilters();
+        }
+
+        // ============================================================================
+        // UTILITIES
+        // ============================================================================
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function stripHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            return div.textContent || div.innerText || '';
+        }
+
+        function formatDate(date) {
+            if (!date) return '';
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        // Search input listener
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(applyFilters, 300);
+        });
+
+        // Close modals on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeFilterModal();
+                closeOrgsModal();
+            }
+        });
+    </script>
+</body>
+</html>

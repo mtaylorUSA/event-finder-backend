@@ -1,0 +1,376 @@
+﻿New Chat Background Prompt
+
+* My Preferences for Claude Interactions *
+** Always provide step-by-step instructions, including Names of the platform (e.g., Firefox or Powershell)  Name of App or tool (e.g., Pocketbase)  specific action to perform (e.g., "click the sprocket icon")
+** Ask me what I should see after each command/step.
+** Prompt me to paste what I see after each step.
+** Use clear visual formatting with emojis (✅ ❌ 📊 💾 📡 ⚠️)
+** Console output should follow pattern: `\\\[Emoji] \\\[Action] \\\[Target]...`
+
+Example: `📡 Fetching: https://example.com`
+
+** Use separators like `────────────────` between major sections
+** Provide structured explanations with headers (##) and bullet points
+** Show progress/counts in output: `💾 Saved 5 new events`
+** Include both high-level summaries AND technical details
+** When showing code, explain what it does before/after the code block
+** Never ask me to render API Keys in ways that are not secure
+** Highlight potential legal, ethical risks as necessary, such as legal risks of scraping websites.
+** Prompt me periodically to generate and update user agreements/terms of use, program documentation, etc.
+** Experience: Beginner
+
+* Event Finder – Business Objectives and Parameters *
+** Build an automated system (app and website) to:
+*** Scrape and aggregate national security, defense, and intelligence community events from multiple sources
+
+*** Use AI to continuously discover new event sources based on previous AI-generated results.
+
+*** Automate every step of the process to the greatest extent possible.
+
+*** Minimize costs
+
+*** Before scraping a new organization, check its terms of use and identify if it prohibits scraping. If it does, DO NOT SCRAPE and notify me.
+
+*** OpenAI organizations have been removed from database (November 21, 2025)
+
+* Event Finder - Project Implementation And Status *
+** Phase 1: Proof of Concept / MVP Phase:
+*** We are in exploratory/proof of concept phase. This project may or may not lead to a commercial platform with subscriptions/advertisements to cover costs.
+
+*** Database: Done.
+
+*** Scrapers: Need to be reactivated one by one as source organizations grant permission
+
+*** AI Embeddings: Need to be re-tested
+
+*** Automation: Needs to be reactivated and tested
+
+*** Workflow ***
+**** Daily Automated: GitHub Actions → Run scrapers → Add events to PocketBase → Generate embeddings
+
+**** Manual (Admin): Open admin-interface.html → Login → Discover/Add orgs → Approve → Events auto-scraped next day
+
+**** Analyzes existing organizations and events in database
+
+**** API suggests 20 similar national security/defense organizations
+
+**** Presents suggestions with: name, website, similarity score, 2 sample events, reasoning
+
+**** Admin reviews and approves/rejects organizations (not individual events)
+
+**** Approved organizations added to database with one click
+
+**** Next daily scraper run automatically collects all events from approved organizations
+
+*** Current Status of Scrapers (as of November 21, 2025) ***
+**** ALL SCRAPERS ARE DISABLED - No automated scraping is running
+
+**** GitHub Actions workflow "Scrape Events Daily" – DISABLED
+
+**** Windows Task Scheduler tasks - BOTH DISABLED:
+
+***** "Conference Finder Agent" (10:11 AM daily) – DISABLED
+
+***** "Finder Agent" (12:01 PM daily) – DISABLED
+**** Legal consultation recommended before any scraping resumes
+**** Zero scraping happening anywhere (verified November 21, 2025)
+
+*** Organizations in PocketBase Database (14 total) ***
+**** Category A: Research Think Tanks - US (9)
+***** Organization: CSIS (Center for Strategic and International Studies)
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: Atlantic Council
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: Brookings Institution
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: Council on Foreign Relations
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: CNAS (Center for a New American Security)
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: New America
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: Stimson Center
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: Hoover Institution
+****** Type: Nonprofit (Stanford)
+****** Status: ✅ Request permission
+
+***** Organization: Belfer Center
+****** Type: Nonprofit (Harvard Kennedy School)
+****** Status: ✅ Request permission
+
+**** Category B: Research Think Tanks - International (2)
+***** Organization: Chatham House
+****** Type: Nonprofit (UK-based)
+****** Status: ✅ Request permission
+
+***** Organization: IISS (International Institute for Strategic Studies)
+****** Type: Nonprofit (UK-based)
+****** Status: ✅ Request permission
+
+**** Category C: Government (1)
+***** Organization: CISA (Cybersecurity & Infrastructure Security Agency)
+****** Type: US Government Agency
+****** Status: ✅ Check terms, likely OK (government work is public domain)
+
+**** Category D: Professional Associations (2)
+***** Organization: INSA (Intelligence & National Security Alliance)
+****** Type: Nonprofit
+****** Status: ✅ Request permission
+
+***** Organization: Potomac Officers Club
+****** Type: 501(c)(6) Nonprofit (Business League/Professional Association)
+****** Status: ✅ Request permission (different from research think tanks but still nonprofit)
+
+      *** Scraper Architecture ***
+**** Universal base-scraper.js: Works for ANY organization
+       ***** Uses common HTML patterns to find events
+***** Tries multiple selectors automatically
+***** No custom code needed per organization
+**** Master script: scrape-all-organizations.js
+***** Fetches ALL organizations from PocketBase
+***** Loops through and scrapes each one
+***** 2-second delay between organizations (polite scraping)
+**** Scrapers deduplicate events before saving (checks title + start_date)
+
+      *** Legal & Compliance Status ***
+       **** Current Status: ZERO LEGAL RISK
+       ***** All scraping disabled (November 21, 2025)
+       ***** No automated processes running
+       ***** GitHub Actions: Disabled
+       ***** Task Scheduler: Disabled
+       ***** Railway: No scraper deployments active
+
+       **** Risk Assessment by Source Type:
+***** Think Tanks & Nonprofits (13 orgs): LOW RISK - Will seek permission
+       ****** Nonprofit public service mission
+****** Want events publicized (share on LinkedIn/social media)
+****** Event data mostly factual (not copyrightable)
+****** No ToS prohibitions found
+****** Regularly repost events themselves
+
+***** Government (CISA): VERY LOW RISK
+       ****** Government work is public domain
+       ****** Federal websites generally permissive
+       ****** Check specific terms to be safe
+
+       ***** OpenAI (REMOVED): Was HIGH RISK - Now excluded
+       ****** For-profit tech company
+****** Explicit ToS prohibiting automated extraction
+****** Active bot protection
+****** Decision: NOT WORTH IT - removed from database (Nov 21, 2025)
+
+       **** Permission Strategy:
+***** Approach: Personal email from YOU (not lawyer initially)
+
+***** Transparency: Mention potential monetization (subscriptions/ads to cover costs)
+
+***** Emphasis: Mutual benefit (drive attendance, free promotion)
+
+***** Expected outcomes:
+       ****** 30-40% explicit "yes”
+       ****** 10-20% "yes with conditions"
+****** 30-40% no response (proceed cautiously after documenting good faith effort)
+****** 5-10% explicit "no" (exclude them)
+***** Lawyer consultation: Only if needed for negotiations or terms of service
+
+      *** Immediate Next Steps ***
+       **** Week of November 25, 2025:
+***** ✅ Research contact emails for ALL 14 organizations
+
+***** ✅ Draft customized permission emails
+       ****** Personal email from YOU (not lawyer)
+       
+       ****** Transparent about potential monetization
+       
+       ****** Emphasize mutual benefit
+***** ✅ Send permission requests to all 14 organizations
+
+       **** December 2025:
+       ***** ⏸️ Wait for responses (2-4 weeks)
+       ***** 📧 Follow up once after 2 weeks if no response
+       ***** 📊 Track all responses in spreadsheet
+
+       **** January 2026:
+***** ✅ Re-enable scrapers ONLY for organizations that approve
+
+***** ❌ Exclude organizations that explicitly decline
+***** ⚠️ Consult lawyer if:
+       ****** Need to negotiate conditions
+       ****** Want to proceed with non-responders
+       ****** Ready to monetize
+****** Need terms of service drafted for YOUR platform
+**** Technical Challenges:
+***** Date/Time format complexity across different websites
+       
+       ***** Preserve timezone: America/New_York
+       ***** Generic scraper may not work for all organizations (some may need custom scrapers)
+
+** Phase 2: Develop Frontend and Features **
+*** Enable email notifications
+*** Enable calendar integrations (Outlook, Google calendar, iCal, etc)
+*** Enable advanced filtering (e.g. user location, proximity, topic)
+*** Enable user search interface with AI-powered recommendations
+
+** Phase 3: Expand User Base **
+*** Develop user subscriptions with database management, security, etc.
+
+** Phase 4 (Possible - Assess Viability First) **
+*** Assess business viability
+*** Enable paid subscriptions
+*** Enable advertising
+
+** Commercial Viability Reality Check **
+*** Current Assessment: Probably NOT viable as major business
+**** Small niche: ~5,000 potential users (national security professionals in DC area)
+**** Realistic paying users: 20-100 max
+**** Revenue potential: $1,200-12,000/year
+**** Licensing costs (if required): $5,000-15,000/year
+**** Result: Likely loses money OR barely breaks even
+
+*** Recommended Approach:
+**** Phase 1: Personal Tool (2025-2026)
+***** Keep it free
+***** Use for yourself
+***** Share with 10-20 colleagues
+***** Zero monetization = lower legal risk
+***** Build and refine the tool
+
+**** Phase 2: Public Free Service (2026)
+***** Make publicly available
+***** Still free (no subscriptions/ads)
+***** Build user base organically
+***** Assess actual demand and usage
+***** Get user feedback
+
+**** Phase 3: Assess Viability (Late 2026)
+***** If 100+ active users who love it
+***** If clear willingness to pay
+***** If revenue >$50k/year seems realistic
+***** THEN consider monetization
+
+**** Phase 4: Monetize (Maybe 2027+)
+***** Only if Phase 3 shows strong demand
+***** Get formal licensing agreements with all sources
+***** Hire lawyer for proper terms of service
+***** Incorporate as business (LLC or C-Corp)
+***** Implement payment processing
+***** Professional infrastructure
+
+*** Permission Request Transparency:
+**** Be honest: "Personal project that may have modest subscriptions/ads to cover costs"
+**** Don't oversell: NOT "building a major business"
+**** Honesty increases likelihood of approval
+**** Most nonprofits will appreciate transparency
+
+* Technical Architecture and Tools *
+** Backend: PocketBase (SQLite) **
+*** Hosted on Railway at https://event-discovery-backend-production.up.railway.app
+*** PocketBase backend stores events from 14 organizations (think tanks, research orgs, professional associations, government)
+*** Collections: organizations, events, event_embeddings
+
+** Development Tools **
+*** Powershell (Windows command line)
+*** Node.js (JavaScript runtime for scrapers)
+*** Git/GitHub for version control and automation
+*** OneDrive for document storage
+
+** File Locations **
+*** Project files: C:\Users\mtayl\OneDrive\AI Stuff-OneDrive\Event Finder
+*** Browser: Firefox
+*** Computer: HP Envy x360; Windows 11 Personal
+*** Office: Microsoft Office 365
+*** Password Manager: Bitwarden
+
+** Scrapers: Node.js **
+*** Scripts extract events from 14 organization websites
+*** Technology: Axios + Cheerio for web scraping
+*** Universal scraper (base-scraper.js) works for most organizations
+*** Master script (scrape-all-organizations.js) processes all orgs from database
+
+** AI Layer **
+*** OpenAI embeddings API for semantic search
+*** Organization discovery (suggests similar organizations)
+*** Event similarity and recommendations
+
+** Automation **
+*** GitHub Actions: Runs scrapers daily at 8:00 AM EST (13:00 UTC)
+*** Currently DISABLED (November 21, 2025)
+*** Workflow file: scrape-events.yml
+*** Will remain disabled until permissions obtained
+
+** Admin Interface **
+*** Single-file HTML web app (admin-interface.html)
+*** Manual organization management
+*** Approve/reject AI-suggested organizations
+*** View and manage events
+
+** Repository **
+*** Private GitHub repo: https://github.com/mtaylorUSA/event-finder-backend
+*** Contains: scrapers, automation workflows, admin interface
+*** .env file with credentials (NOT committed to git)
+
+** Data Model **
+*** organizations collection:
+**** name (string)
+**** website (URL)
+**** events_url (URL - optional specific events page)
+**** description (text)
+**** created/updated timestamps
+
+*** events collection:
+**** organization (relation to organizations)
+**** title (string)
+**** date (datetime)
+**** url (URL to event page)
+**** description (text)
+**** location (string - optional)
+**** event_type (string - optional)
+**** cost (string - optional)
+**** audience (string - optional)
+**** created/updated timestamps
+
+*** event_embeddings collection:
+**** Vector embeddings for AI-powered similarity search
+**** Generated using OpenAI embeddings API
+
+** Environment Variables **
+*** Stored in .env file (not committed to git)
+*** Required variables:
+**** POCKETBASE_URL
+**** POCKETBASE_ADMIN_EMAIL
+**** POCKETBASE_ADMIN_PASSWORD
+**** OPENAI_API_KEY (for embeddings)
+
+** Security & Best Practices **
+*** API keys stored in .env (never committed)
+*** PocketBase admin panel password-protected
+*** GitHub repo is private
+*** Rate limiting on scrapers (2-second delay between orgs)
+*** Respectful User-Agent in scraper headers
+*** Deduplication prevents duplicate events
+
+* Project Timeline *
+** November 2024: Initial development and testing
+** November 16, 2025: Scrapers built and tested
+** November 21, 2025: ALL SCRAPING DISABLED (legal precaution)
+** Week of Nov 25, 2025: Research contacts, draft permission emails
+** December 2025: Send permission requests, wait for responses
+** January 2026: Re-enable approved scrapers (optimistic timeline)
+** Q1 2026: Assess commercial viability based on user feedback
+** 2026-2027: Decide on monetization strategy (if viable)
+
