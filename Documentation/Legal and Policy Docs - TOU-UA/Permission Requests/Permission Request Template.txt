@@ -1,0 +1,25 @@
+Dear [POC_NAME],
+
+I am developing a research tool to aggregate publicly available event information from national security and foreign policy organizations. I am writing to request permission to:
+- Programmatically access your public events list page and/or individual events' pages;
+- Extract basic event information (title, date, time, location, URL);
+- Store this information in a personal database;
+- Display event titles with links back to your original event pages.
+
+I want to emphasize:
+- This is currently a personal/research project, intended for me and a small number of users;
+- All events would link back to your website for registration;
+- No content beyond basic event metadata would be reproduced;
+- I would respect any rate limits or technical restrictions;
+- I would immediately cease if requested.
+
+I have reviewed your website's terms of use and wanted to explicitly request permission rather than make assumptions.
+
+Would you be willing to grant permission for this use?
+
+Thank you for your consideration.
+
+Regards,
+[MY_NAME]
+[MY_EMAIL]
+[MY_MOBILE]
