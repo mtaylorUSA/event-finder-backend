@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Finder - National Security Events</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #dbeafe;
+            --accent: #0891b2;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --dark: #1e293b;
+            --darker: #0f172a;
+            --white: #ffffff;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --sidebar-width: 260px;
+            --header-height: 50px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-100);
+            color: var(--dark);
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           HEADER - Compact
+           ============================================ */
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-200);
+            padding: 0 20px;
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .header-brand:hover {
+            background: var(--gray-100);
+        }
+
+        .header-brand h1 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .header-brand-icon {
+            font-size: 1.3rem;
+        }
+
+        /* ============================================
+           MAIN LAYOUT - Sidebar + Content
+           ============================================ */
+        .main-layout {
+            display: flex;
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        /* ============================================
+           LEFT SIDEBAR
+           ============================================ */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--white);
+            border-right: 1px solid var(--gray-200);
+            padding: 24px 20px;
+            position: sticky;
+            top: var(--header-height);
+            height: calc(100vh - var(--header-height));
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .filter-section {
+            margin-bottom: 28px;
+        }
+
+        .filter-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Event Format Filter (Virtual/In-Person) */
+        .format-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .format-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .format-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .format-option label {
+            font-size: 0.9rem;
+            color: var(--gray-700);
+            cursor: pointer;
+        }
+
+        /* Location Filter */
+        .location-filter {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .location-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .location-row span {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+        }
+
+        .radius-select {
+            padding: 5px 8px;
+            border: 1px solid var(--gray-300);
+            border-radius: 5px;
+            font-size: 0.85rem;
+            background: var(--white);
+            cursor: pointer;
+        }
+
+        .radius-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .zip-input {
+            padding: 5px 8px;
+            border: 1px solid var(--gray-300);
+            border-radius: 5px;
+            font-size: 0.85rem;
+            width: 75px;
+        }
+
+        .zip-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .use-location {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--gray-600);
+            cursor: pointer;
+        }
+
+        .use-location input {
+            cursor: pointer;
+        }
+
+        /* Date Range */
+        .date-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .date-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .date-row label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            min-width: 45px;
+        }
+
+        .date-input {
+            padding: 8px 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            flex: 1;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+
+        /* More Filters Button */
+        .more-filters-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--gray-50);
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--gray-700);
+            transition: all 0.2s;
+        }
+
+        .more-filters-btn:hover {
+            background: var(--gray-100);
+            border-color: var(--gray-400);
+        }
+
+        .more-filters-btn.has-filters {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+
+        .filter-count-badge {
+            background: var(--primary);
+            color: var(--white);
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+
+        /* Clear Filters Button */
+        .clear-filters-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--white);
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            transition: all 0.2s;
+            margin-top: 16px;
+        }
+
+        .clear-filters-btn:hover {
+            background: var(--gray-100);
+            border-color: var(--gray-400);
+        }
+
+        /* Active Filters Display */
+        .active-filters-sidebar {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .active-filters-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .active-filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin: 0 4px 6px 0;
+        }
+
+        .active-filter-tag button {
+            background: none;
+            border: none;
+            color: var(--primary-dark);
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1;
+            padding: 0;
+            opacity: 0.7;
+        }
+
+        .active-filter-tag button:hover {
+            opacity: 1;
+        }
+
+        /* ============================================
+           MAIN CONTENT AREA
+           ============================================ */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            max-width: 950px;
+        }
+
+        /* Search Box */
+        .search-container {
+            margin-bottom: 16px;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 14px 10px 40px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: var(--white);
+            transition: all 0.2s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+
+        .search-box-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            color: var(--gray-400);
+        }
+
+        /* Results Info */
+        .results-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding: 0 2px;
+        }
+
+        .results-count {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        .results-count strong {
+            color: var(--dark);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 2px;
+        }
+
+        .view-toggle button {
+            padding: 6px 12px;
+            border: 1px solid var(--gray-300);
+            background: var(--white);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .view-toggle button:first-child {
+            border-radius: 6px 0 0 6px;
+        }
+
+        .view-toggle button:last-child {
+            border-radius: 0 6px 6px 0;
+            border-left: none;
+        }
+
+        .view-toggle button.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--white);
+        }
+
+        /* ============================================
+           EVENT CARDS
+           ============================================ */
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .event-card {
+            display: flex;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .event-card:hover {
+            border-color: var(--gray-300);
+            box-shadow: var(--shadow-md);
+        }
+
+        .event-card-image {
+            width: 90px;
+            min-height: 130px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border-right: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+
+        /* Topic-based backgrounds */
+        .event-card-image.cybersecurity { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+        .event-card-image.defense-policy { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+        .event-card-image.intelligence { background: linear-gradient(135deg, #1e293b 0%, #475569 100%); }
+        .event-card-image.nuclear-wmd { background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%); }
+        .event-card-image.space-satellites { background: linear-gradient(135deg, #0f172a 0%, #6366f1 100%); }
+        .event-card-image.ai-emerging-tech { background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); }
+        .event-card-image.counterterrorism { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+        .event-card-image.military-operations { background: linear-gradient(135deg, #065f46 0%, #047857 100%); }
+        .event-card-image.homeland-security { background: linear-gradient(135deg, #1e40af 0%, #3730a3 100%); }
+        .event-card-image.climate-security { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+        .event-card-image.economic-security { background: linear-gradient(135deg, #ca8a04 0%, #eab308 100%); }
+        .event-card-image.diplomacy-statecraft { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); }
+        .event-card-image.careers { background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%); }
+        .event-card-image.default { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
+
+        .event-card-content {
+            flex: 1;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .event-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--dark);
+            line-height: 1.3;
+            margin-bottom: 2px;
+        }
+
+        .event-description {
+            font-size: 0.8rem;
+            color: var(--gray-600);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .event-detail {
+            display: flex;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .event-detail-label {
+            font-weight: 600;
+            color: var(--gray-500);
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+
+        .event-detail-value {
+            color: var(--gray-700);
+        }
+
+        .event-detail-value a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .event-detail-value a:hover {
+            text-decoration: underline;
+        }
+
+        .event-register-link {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 5px 12px;
+            background: var(--primary);
+            color: var(--white);
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: background 0.2s;
+            align-self: flex-start;
+        }
+
+        .event-register-link:hover {
+            background: var(--primary-dark);
+        }
+
+        /* ============================================
+           PAGINATION
+           ============================================ */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 24px;
+            padding: 16px 0;
+        }
+
+        .pagination-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--gray-300);
+            background: var(--white);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--gray-100);
+            border-color: var(--gray-400);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--white);
+        }
+
+        .pagination-info {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            margin: 0 8px;
+        }
+
+        /* ============================================
+           CALENDAR VIEW
+           ============================================ */
+        .calendar-container {
+            display: none;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-container.active {
+            display: block;
+        }
+
+        .events-list.hidden {
+            display: none;
+        }
+
+        .pagination.hidden {
+            display: none;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        .calendar-nav-btn {
+            background: var(--white);
+            border: 1px solid var(--gray-300);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .calendar-nav-btn:hover {
+            background: var(--gray-100);
+        }
+
+        .calendar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .calendar-day-header {
+            padding: 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .calendar-day {
+            min-height: 80px;
+            padding: 5px;
+            border-right: 1px solid var(--gray-100);
+            border-bottom: 1px solid var(--gray-100);
+            background: var(--white);
+        }
+
+        .calendar-day:nth-child(7n) {
+            border-right: none;
+        }
+
+        .calendar-day.other-month {
+            background: var(--gray-50);
+        }
+
+        .calendar-day.today {
+            background: var(--primary-light);
+        }
+
+        .calendar-date {
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            margin-bottom: 3px;
+        }
+
+        .calendar-day.today .calendar-date {
+            background: var(--primary);
+            color: var(--white);
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .calendar-event {
+            padding: 2px 4px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .calendar-event:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .calendar-more {
+            font-size: 0.65rem;
+            color: var(--gray-500);
+            padding: 2px 4px;
+        }
+
+        /* ============================================
+           FILTER MODAL
+           ============================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--white);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 550px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: var(--gray-400);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--gray-600);
+        }
+
+        .modal-body {
+            padding: 18px;
+            max-height: calc(80vh - 120px);
+            overflow-y: auto;
+        }
+
+        .modal-section {
+            margin-bottom: 22px;
+        }
+
+        .modal-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: var(--gray-100);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--gray-700);
+        }
+
+        .modal-footer {
+            padding: 14px 18px;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: var(--white);
+            border: 1px solid var(--gray-300);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-100);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border: 1px solid var(--primary);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        /* ============================================
+           EMPTY STATE
+           ============================================ */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--gray-400);
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+            margin-bottom: 14px;
+        }
+
+        .empty-state h3 {
+            font-size: 1rem;
+            color: var(--gray-600);
+            margin-bottom: 6px;
+        }
+
+        .empty-state p {
+            font-size: 0.85rem;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 900px) {
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: relative;
+                top: 0;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--gray-200);
+                padding: 16px;
+            }
+
+            .filter-section {
+                margin-bottom: 16px;
+            }
+
+            .main-content {
+                max-width: 100%;
+            }
+
+            .checkbox-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                padding: 0 12px;
+            }
+
+            .event-card {
+                flex-direction: column;
+            }
+
+            .event-card-image {
+                width: 100%;
+                min-height: 60px;
+                border-right: none;
+                border-bottom: 1px solid var(--gray-200);
+            }
+
+            .event-detail {
+                flex-direction: column;
+                gap: 1px;
+            }
+
+            .event-detail-label {
+                min-width: auto;
+            }
+
+            .calendar-day {
+                min-height: 55px;
+                padding: 3px;
+            }
+
+            .calendar-day-header {
+                padding: 5px 2px;
+                font-size: 0.6rem;
+            }
+
+            .pagination {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ============================================
+         HEADER
+         ============================================ -->
+    <header class="header">
+        <div class="header-brand" onclick="goHome()" title="Home - Clear all filters">
+            <span class="header-brand-icon">🔍</span>
+            <h1>Event Finder</h1>
+        </div>
+    </header>
+
+    <!-- ============================================
+         MAIN LAYOUT
+         ============================================ -->
+    <div class="main-layout">
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar">
+            <!-- Event Format Filter -->
+            <div class="filter-section">
+                <div class="filter-section-title">📍 Event Format</div>
+                <div class="format-options">
+                    <div class="format-option">
+                        <input type="checkbox" id="format-virtual" checked onchange="applyFilters()">
+                        <label for="format-virtual">🖥️ Virtual Events</label>
+                    </div>
+                    <div class="format-option">
+                        <input type="checkbox" id="format-inperson" checked onchange="toggleLocationFilter()">
+                        <label for="format-inperson">📍 In-Person Events</label>
+                    </div>
+                </div>
+                
+                <!-- Location Filter (shown when In-Person selected) -->
+                <div class="location-filter" id="locationFilter">
+                    <div class="location-row">
+                        <span>Within</span>
+                        <select class="radius-select" id="radiusSelect" onchange="applyFilters()">
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="us">US</option>
+                            <option value="worldwide" selected>Any</option>
+                        </select>
+                        <span>miles of</span>
+                        <input type="text" class="zip-input" id="zipInput" placeholder="zip">
+                    </div>
+                    <label class="use-location">
+                        <input type="checkbox" id="useMyLocation">
+                        Use my location
+                    </label>
+                </div>
+            </div>
+
+            <!-- Date Range -->
+            <div class="filter-section">
+                <div class="filter-section-title">📅 Date Range</div>
+                <div class="date-row">
+                    <label>Start:</label>
+                    <input type="date" class="date-input" id="dateFrom" onchange="applyFilters()">
+                </div>
+                <div class="date-row">
+                    <label>End:</label>
+                    <input type="date" class="date-input" id="dateTo" onchange="applyFilters()">
+                </div>
+            </div>
+
+            <!-- More Filters Button -->
+            <div class="filter-section">
+                <button class="more-filters-btn" id="moreFiltersBtn" onclick="openFilterModal()">
+                    <span>⚙️</span>
+                    <span>More Filters</span>
+                    <span class="filter-count-badge" id="filterCountBadge" style="display: none;">0</span>
+                </button>
+            </div>
+
+            <!-- Clear Filters Button -->
+            <button class="clear-filters-btn" onclick="clearAllFilters()">
+                <span>🗑️</span>
+                <span>Clear All Filters</span>
+            </button>
+
+            <!-- Active Filters -->
+            <div class="active-filters-sidebar" id="activeFiltersSidebar" style="display: none;">
+                <div class="active-filters-title">Active Filters</div>
+                <div id="activeFilterTags"></div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <!-- Search Box -->
+            <div class="search-container">
+                <div class="search-box">
+                    <span class="search-box-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Search events by keyword...">
+                </div>
+            </div>
+
+            <!-- Results Info -->
+            <div class="results-info">
+                <span class="results-count">Showing <strong id="showingCount">0</strong> of <strong id="totalCount">0</strong> events</span>
+                <div class="view-toggle">
+                    <button id="listViewBtn" class="active" onclick="setView('list')">📋 List</button>
+                    <button id="calendarViewBtn" onclick="setView('calendar')">📅 Calendar</button>
+                </div>
+            </div>
+
+            <!-- Events List -->
+            <div class="events-list" id="eventsList">
+                <!-- Event cards inserted here -->
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination">
+                <!-- Pagination controls inserted here -->
+            </div>
+
+            <!-- Calendar View -->
+            <div class="calendar-container" id="calendarContainer">
+                <div class="calendar-header">
+                    <div class="calendar-nav">
+                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">◀ Prev</button>
+                        <button class="calendar-nav-btn" onclick="goToToday()">Today</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(1)">Next ▶</button>
+                    </div>
+                    <div class="calendar-title" id="calendarTitle">December 2025</div>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ============================================
+         MORE FILTERS MODAL
+         ============================================ -->
+    <div class="modal-overlay" id="filterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ More Filters</h2>
+                <button class="modal-close" onclick="closeFilterModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Organizations -->
+                <div class="modal-section">
+                    <div class="modal-section-title">🏛️ Organizations</div>
+                    <div class="checkbox-grid" id="orgOptions">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Topics -->
+                <div class="modal-section">
+                    <div class="modal-section-title">🏷️ Topics</div>
+                    <div class="checkbox-grid" id="topicOptions">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Regions -->
+                <div class="modal-section">
+                    <div class="modal-section-title">🌍 Regions</div>
+                    <div class="checkbox-grid" id="regionOptions">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="resetModalFilters()">Reset</button>
+                <button class="btn btn-primary" onclick="applyAndClose()">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         JAVASCRIPT
+         ============================================ -->
+    <script>
+        // ============================================================================
+        // CONFIGURATION
+        // ============================================================================
+        
+        const POCKETBASE_URL = 'https://event-discovery-backend-production.up.railway.app';
+        const EVENTS_PER_PAGE = 15;
+        
+        // Topics sorted alphabetically
+        const TOPICS = [
+            { value: 'AI & Emerging Tech', label: '🤖 AI & Emerging Tech', emoji: '🤖', class: 'ai-emerging-tech' },
+            { value: 'Careers & Professional Development', label: '💼 Careers', emoji: '💼', class: 'careers' },
+            { value: 'Climate & Security', label: '🌍 Climate & Security', emoji: '🌍', class: 'climate-security' },
+            { value: 'Counterterrorism', label: '🎯 Counterterrorism', emoji: '🎯', class: 'counterterrorism' },
+            { value: 'Cybersecurity', label: '🔒 Cybersecurity', emoji: '🔒', class: 'cybersecurity' },
+            { value: 'Defense Policy', label: '🛡️ Defense Policy', emoji: '🛡️', class: 'defense-policy' },
+            { value: 'Diplomacy & Statecraft', label: '🤝 Diplomacy', emoji: '🤝', class: 'diplomacy-statecraft' },
+            { value: 'Economic Security', label: '💰 Economic Security', emoji: '💰', class: 'economic-security' },
+            { value: 'Homeland Security', label: '🏠 Homeland Security', emoji: '🏠', class: 'homeland-security' },
+            { value: 'Intelligence', label: '🕵️ Intelligence', emoji: '🕵️', class: 'intelligence' },
+            { value: 'Military Operations', label: '⚔️ Military Ops', emoji: '⚔️', class: 'military-operations' },
+            { value: 'Nuclear/WMD', label: '☢️ Nuclear/WMD', emoji: '☢️', class: 'nuclear-wmd' },
+            { value: 'Space & Satellites', label: '🛰️ Space', emoji: '🛰️', class: 'space-satellites' }
+        ];
+
+        // Regions sorted alphabetically
+        const REGIONS = [
+            { value: 'Africa', label: '🌍 Africa' },
+            { value: 'Arctic', label: '❄️ Arctic' },
+            { value: 'China', label: '🇨🇳 China' },
+            { value: 'Domestic US', label: '🇺🇸 Domestic US' },
+            { value: 'Europe/NATO', label: '🇪🇺 Europe/NATO' },
+            { value: 'Global/Multilateral', label: '🌐 Global' },
+            { value: 'Indo-Pacific', label: '🌏 Indo-Pacific' },
+            { value: 'Latin America', label: '🌎 Latin America' },
+            { value: 'Middle East', label: '🕌 Middle East' },
+            { value: 'Russia', label: '🇷🇺 Russia' }
+        ];
+
+        // ============================================================================
+        // STATE
+        // ============================================================================
+        
+        let allEvents = [];
+        let filteredEvents = [];
+        let organizations = {};
+        let orgsWithEvents = new Set();
+        let selectedTopics = [];
+        let selectedRegions = [];
+        let selectedOrgs = [];
+        let dateFrom = null;
+        let dateTo = null;
+        let currentView = 'list';
+        let currentPage = 1;
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            setDefaultDates();
+            await loadOrganizations();
+            await loadEvents();
+            initializeFilterOptions();
+            
+            // Add event listeners
+            document.getElementById('searchInput').addEventListener('input', debounce(() => {
+                currentPage = 1;
+                applyFilters();
+            }, 300));
+            document.getElementById('zipInput').addEventListener('input', debounce(applyFilters, 500));
+        });
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function setDefaultDates() {
+            const today = new Date();
+            document.getElementById('dateFrom').value = today.toISOString().split('T')[0];
+            // Leave end date empty (means "onward")
+            document.getElementById('dateTo').value = '';
+            dateFrom = today;
+            dateTo = null;
+        }
+
+        function initializeFilterOptions() {
+            // Topics
+            const topicContainer = document.getElementById('topicOptions');
+            topicContainer.innerHTML = TOPICS.map(t => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="topic-${t.value.replace(/[^a-z]/gi, '')}" value="${t.value}" onchange="updateTopicSelection()">
+                    <label for="topic-${t.value.replace(/[^a-z]/gi, '')}">${t.label}</label>
+                </div>
+            `).join('');
+
+            // Regions
+            const regionContainer = document.getElementById('regionOptions');
+            regionContainer.innerHTML = REGIONS.map(r => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="region-${r.value.replace(/[^a-z]/gi, '')}" value="${r.value}" onchange="updateRegionSelection()">
+                    <label for="region-${r.value.replace(/[^a-z]/gi, '')}">${r.label}</label>
+                </div>
+            `).join('');
+        }
+
+        async function loadOrganizations() {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`);
+                const data = await response.json();
+                
+                if (data && data.items && Array.isArray(data.items)) {
+                    data.items.forEach(org => {
+                        organizations[org.id] = org;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading organizations:', error);
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date`);
+                const data = await response.json();
+                
+                allEvents = (data.items || []).map(event => ({
+                    ...event,
+                    startDate: event.start_date ? new Date(event.start_date) : null,
+                    endDate: event.end_date ? new Date(event.end_date) : null
+                }));
+
+                // Track which orgs have events
+                allEvents.forEach(e => {
+                    if (e.organization) orgsWithEvents.add(e.organization);
+                });
+
+                // Populate org filter
+                populateOrgFilter();
+                
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading events:', error);
+            }
+        }
+
+        function populateOrgFilter() {
+            const orgContainer = document.getElementById('orgOptions');
+            const orgsArray = Array.from(orgsWithEvents)
+                .map(id => organizations[id])
+                .filter(org => org)
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            orgContainer.innerHTML = orgsArray.map(org => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="org-${org.id}" value="${org.id}" onchange="updateOrgSelection()">
+                    <label for="org-${org.id}">${org.name}</label>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================================
+        // FILTER SELECTION HANDLERS
+        // ============================================================================
+
+        function updateTopicSelection() {
+            selectedTopics = [];
+            document.querySelectorAll('#topicOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedTopics.push(cb.value);
+            });
+        }
+
+        function updateRegionSelection() {
+            selectedRegions = [];
+            document.querySelectorAll('#regionOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedRegions.push(cb.value);
+            });
+        }
+
+        function updateOrgSelection() {
+            selectedOrgs = [];
+            document.querySelectorAll('#orgOptions input[type="checkbox"]:checked').forEach(cb => {
+                selectedOrgs.push(cb.value);
+            });
+        }
+
+        function toggleLocationFilter() {
+            const inPersonChecked = document.getElementById('format-inperson').checked;
+            const locationFilter = document.getElementById('locationFilter');
+            locationFilter.style.display = inPersonChecked ? 'block' : 'none';
+            applyFilters();
+        }
+
+        // ============================================================================
+        // FILTERING
+        // ============================================================================
+        
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            // Get date values
+            const dateFromValue = document.getElementById('dateFrom').value;
+            const dateToValue = document.getElementById('dateTo').value;
+            dateFrom = dateFromValue ? new Date(dateFromValue) : null;
+            dateTo = dateToValue ? new Date(dateToValue + 'T23:59:59') : null;
+
+            // Get format filters
+            const showVirtual = document.getElementById('format-virtual').checked;
+            const showInPerson = document.getElementById('format-inperson').checked;
+
+            filteredEvents = allEvents.filter(event => {
+                // Search filter - search in title, description, location, and org name
+                if (searchTerm) {
+                    const org = organizations[event.organization];
+                    const orgName = org?.name || '';
+                    
+                    const searchFields = [
+                        event.title || '',
+                        event.description || '',
+                        event.location || '',
+                        orgName
+                    ].join(' ').toLowerCase();
+                    
+                    // Split search term by spaces for multi-word search
+                    const searchWords = searchTerm.split(/\s+/);
+                    const matchesSearch = searchWords.every(word => searchFields.includes(word));
+                    
+                    if (!matchesSearch) return false;
+                }
+
+                // Date range filter
+                if (dateFrom && event.startDate && event.startDate < dateFrom) return false;
+                if (dateTo && event.startDate && event.startDate > dateTo) return false;
+
+                // Format filter (Virtual / In-Person)
+                const eventType = (event.event_type || '').toLowerCase();
+                const isVirtual = eventType === 'virtual' || eventType === 'webinar';
+                const isInPerson = eventType === 'in-person' || eventType === 'in person';
+                const isHybrid = eventType === 'hybrid';
+                
+                if (!showVirtual && !showInPerson) {
+                    // If neither checked, show nothing
+                    return false;
+                } else if (showVirtual && !showInPerson) {
+                    // Only virtual
+                    if (!isVirtual && !isHybrid) return false;
+                } else if (!showVirtual && showInPerson) {
+                    // Only in-person
+                    if (!isInPerson && !isHybrid) return false;
+                }
+                // If both checked, show all
+
+                // Topic filter
+                if (selectedTopics.length > 0) {
+                    const eventTopics = event.topics || [];
+                    const hasMatchingTopic = selectedTopics.some(t => eventTopics.includes(t));
+                    if (!hasMatchingTopic) return false;
+                }
+
+                // Region filter
+                if (selectedRegions.length > 0) {
+                    const eventRegions = event.regions || [];
+                    const hasMatchingRegion = selectedRegions.some(r => eventRegions.includes(r));
+                    if (!hasMatchingRegion) return false;
+                }
+
+                // Organization filter
+                if (selectedOrgs.length > 0) {
+                    if (!selectedOrgs.includes(event.organization)) return false;
+                }
+
+                return true;
+            });
+
+            document.getElementById('totalCount').textContent = filteredEvents.length;
+            
+            renderEvents();
+            renderPagination();
+            updateActiveFiltersDisplay();
+            updateFilterBadge();
+            
+            if (currentView === 'calendar') {
+                renderCalendar();
+            }
+        }
+
+        function updateActiveFiltersDisplay() {
+            const container = document.getElementById('activeFilterTags');
+            const sidebar = document.getElementById('activeFiltersSidebar');
+            const tags = [];
+
+            selectedTopics.forEach(t => {
+                const topic = TOPICS.find(tp => tp.value === t);
+                tags.push(`<span class="active-filter-tag">${topic?.label || t}<button onclick="removeFilter('topic', '${t}')">&times;</button></span>`);
+            });
+
+            selectedRegions.forEach(r => {
+                const region = REGIONS.find(rg => rg.value === r);
+                tags.push(`<span class="active-filter-tag">${region?.label || r}<button onclick="removeFilter('region', '${r}')">&times;</button></span>`);
+            });
+
+            selectedOrgs.forEach(o => {
+                const org = organizations[o];
+                tags.push(`<span class="active-filter-tag">${org?.name || o}<button onclick="removeFilter('org', '${o}')">&times;</button></span>`);
+            });
+
+            if (tags.length > 0) {
+                container.innerHTML = tags.join('');
+                sidebar.style.display = 'block';
+            } else {
+                sidebar.style.display = 'none';
+            }
+        }
+
+        function updateFilterBadge() {
+            const count = selectedTopics.length + selectedRegions.length + selectedOrgs.length;
+            const badge = document.getElementById('filterCountBadge');
+            const btn = document.getElementById('moreFiltersBtn');
+            
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'inline';
+                btn.classList.add('has-filters');
+            } else {
+                badge.style.display = 'none';
+                btn.classList.remove('has-filters');
+            }
+        }
+
+        function removeFilter(type, value) {
+            if (type === 'topic') {
+                selectedTopics = selectedTopics.filter(t => t !== value);
+                const cb = document.querySelector(`#topicOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            } else if (type === 'region') {
+                selectedRegions = selectedRegions.filter(r => r !== value);
+                const cb = document.querySelector(`#regionOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            } else if (type === 'org') {
+                selectedOrgs = selectedOrgs.filter(o => o !== value);
+                const cb = document.querySelector(`#orgOptions input[value="${value}"]`);
+                if (cb) cb.checked = false;
+            }
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function clearAllFilters() {
+            selectedTopics = [];
+            selectedRegions = [];
+            selectedOrgs = [];
+            
+            document.querySelectorAll('#filterModal input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.getElementById('searchInput').value = '';
+            document.getElementById('zipInput').value = '';
+            document.getElementById('radiusSelect').value = 'worldwide';
+            document.getElementById('format-virtual').checked = true;
+            document.getElementById('format-inperson').checked = true;
+            document.getElementById('locationFilter').style.display = 'block';
+            
+            setDefaultDates();
+            currentPage = 1;
+            applyFilters();
+        }
+
+        function goHome() {
+            clearAllFilters();
+            setView('list');
+        }
+
+        function resetModalFilters() {
+            selectedTopics = [];
+            selectedRegions = [];
+            selectedOrgs = [];
+            document.querySelectorAll('#filterModal input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+
+        // ============================================================================
+        // RENDERING
+        // ============================================================================
+        
+        function renderEvents() {
+            const container = document.getElementById('eventsList');
+            
+            if (filteredEvents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <h3>No events found</h3>
+                        <p>Try adjusting your filters or search terms</p>
+                    </div>
+                `;
+                document.getElementById('showingCount').textContent = '0';
+                return;
+            }
+
+            // Calculate pagination
+            const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
+            const endIndex = startIndex + EVENTS_PER_PAGE;
+            const pageEvents = filteredEvents.slice(startIndex, endIndex);
+            
+            document.getElementById('showingCount').textContent = `${startIndex + 1}-${Math.min(endIndex, filteredEvents.length)}`;
+
+            container.innerHTML = pageEvents.map(event => {
+                const topicInfo = getTopicInfo(event.topics);
+                const org = organizations[event.organization];
+                const orgName = org?.name || 'Unknown Organization';
+                const orgWebsite = org?.website || '#';
+                
+                // Build date display - handle multi-day events
+                let dateDisplay = buildDateDisplay(event);
+                
+                // Build location display based on event type
+                let locationDisplay = buildLocationDisplay(event);
+
+                // Get description (2 lines max handled by CSS)
+                const description = stripHtml(event.description || '');
+
+                // Get registration URL - use url field or registration_url
+                const registerUrl = event.registration_url || event.url || '';
+
+                return `
+                    <div class="event-card">
+                        <div class="event-card-image ${topicInfo.class}">
+                            <span>${topicInfo.emoji}</span>
+                        </div>
+                        <div class="event-card-content">
+                            <div class="event-title">${escapeHtml(event.title)}</div>
+                            ${description ? `<div class="event-description">${escapeHtml(description)}</div>` : ''}
+                            <div class="event-detail">
+                                <span class="event-detail-label">Dates:</span>
+                                <span class="event-detail-value">${dateDisplay}</span>
+                            </div>
+                            <div class="event-detail">
+                                <span class="event-detail-label">Organization:</span>
+                                <span class="event-detail-value"><a href="${orgWebsite}" target="_blank">${escapeHtml(orgName)}</a></span>
+                            </div>
+                            <div class="event-detail">
+                                <span class="event-detail-label">Location:</span>
+                                <span class="event-detail-value">${locationDisplay}</span>
+                            </div>
+                            ${registerUrl ? `<a href="${registerUrl}" target="_blank" class="event-register-link">Register</a>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function buildDateDisplay(event) {
+            const startDate = event.start_date ? new Date(event.start_date) : null;
+            const endDate = event.end_date ? new Date(event.end_date) : null;
+            
+            if (!startDate) {
+                return 'Date TBD';
+            }
+            
+            // Check if multi-day event
+            if (endDate && startDate.getTime() !== endDate.getTime()) {
+                // Check if same month
+                if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
+                    // Same month: "Dec 4-6, 2025"
+                    return `${startDate.toLocaleDateString('en-US', { month: 'short' })} ${startDate.getDate()}-${endDate.getDate()}, ${startDate.getFullYear()}`;
+                } else {
+                    // Different months: "Dec 30, 2025 - Jan 2, 2026"
+                    return `${formatDateShort(startDate)} - ${formatDateShort(endDate)}`;
+                }
+            } else {
+                // Single day event
+                let display = formatDateShort(startDate);
+                if (event.start_time) {
+                    display += ` • ${event.start_time}`;
+                }
+                return display;
+            }
+        }
+
+        function buildLocationDisplay(event) {
+            const eventType = (event.event_type || '').toLowerCase();
+            const location = event.location || '';
+            
+            if (eventType === 'virtual' || eventType === 'webinar') {
+                return '🖥️ Virtual Event';
+            } else if (eventType === 'hybrid') {
+                if (location && location.toLowerCase() !== 'tbd' && location.toLowerCase() !== 'location tbd') {
+                    return `🔄 Hybrid: ${escapeHtml(location)}`;
+                }
+                return '🔄 Hybrid Event';
+            } else if (eventType === 'in-person' || eventType === 'in person') {
+                if (location && location.toLowerCase() !== 'tbd' && location.toLowerCase() !== 'location tbd') {
+                    return `📍 ${escapeHtml(location)}`;
+                }
+                return '📍 In-Person Event (Location TBD)';
+            } else {
+                // Unknown type - show what we have
+                if (location && location.toLowerCase() !== 'tbd' && location.toLowerCase() !== 'location tbd') {
+                    return escapeHtml(location);
+                }
+                return 'Location TBD';
+            }
+        }
+
+        function formatDateShort(date) {
+            if (!date) return '';
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        function getTopicInfo(topics) {
+            if (!topics || topics.length === 0) {
+                return { emoji: '📅', class: 'default' };
+            }
+            const topic = TOPICS.find(t => t.value === topics[0]);
+            return topic ? { emoji: topic.emoji, class: topic.class } : { emoji: '📅', class: 'default' };
+        }
+
+        function stripHtml(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            return div.textContent || div.innerText || '';
+        }
+
+        // ============================================================================
+        // PAGINATION
+        // ============================================================================
+        
+        function renderPagination() {
+            const container = document.getElementById('pagination');
+            const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            
+            // Previous button
+            html += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>← Prev</button>`;
+            
+            // Page numbers
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) {
+                    html += `<span class="pagination-info">...</span>`;
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span class="pagination-info">...</span>`;
+                }
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            
+            // Next button
+            html += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next →</button>`;
+            
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
+            if (page < 1 || page > totalPages) return;
+            
+            currentPage = page;
+            renderEvents();
+            renderPagination();
+            
+            // Scroll to top of events
+            document.getElementById('eventsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ============================================================================
+        // VIEW TOGGLE
+        // ============================================================================
+        
+        function setView(view) {
+            currentView = view;
+            const listBtn = document.getElementById('listViewBtn');
+            const calBtn = document.getElementById('calendarViewBtn');
+            const listView = document.getElementById('eventsList');
+            const calView = document.getElementById('calendarContainer');
+            const pagination = document.getElementById('pagination');
+
+            if (view === 'list') {
+                listBtn.classList.add('active');
+                calBtn.classList.remove('active');
+                listView.classList.remove('hidden');
+                pagination.classList.remove('hidden');
+                calView.classList.remove('active');
+            } else {
+                listBtn.classList.remove('active');
+                calBtn.classList.add('active');
+                listView.classList.add('hidden');
+                pagination.classList.add('hidden');
+                calView.classList.add('active');
+                renderCalendar();
+            }
+        }
+
+        // ============================================================================
+        // CALENDAR VIEW
+        // ============================================================================
+        
+        function renderCalendar() {
+            const title = document.getElementById('calendarTitle');
+            const grid = document.getElementById('calendarGrid');
+            
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            title.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const startDayOfWeek = firstDay.getDay();
+            const totalDays = lastDay.getDate();
+
+            // Get events for this month
+            const monthEvents = filteredEvents.filter(e => {
+                if (!e.startDate) return false;
+                return e.startDate.getMonth() === currentMonth && 
+                       e.startDate.getFullYear() === currentYear;
+            });
+
+            // Group events by date
+            const eventsByDate = {};
+            monthEvents.forEach(e => {
+                const dateKey = e.startDate.getDate();
+                if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+                eventsByDate[dateKey].push(e);
+            });
+
+            let html = `
+                <div class="calendar-day-header">Sun</div>
+                <div class="calendar-day-header">Mon</div>
+                <div class="calendar-day-header">Tue</div>
+                <div class="calendar-day-header">Wed</div>
+                <div class="calendar-day-header">Thu</div>
+                <div class="calendar-day-header">Fri</div>
+                <div class="calendar-day-header">Sat</div>
+            `;
+
+            // Previous month days
+            const prevMonth = new Date(currentYear, currentMonth, 0);
+            for (let i = startDayOfWeek - 1; i >= 0; i--) {
+                html += `<div class="calendar-day other-month">
+                    <div class="calendar-date">${prevMonth.getDate() - i}</div>
+                </div>`;
+            }
+
+            // Current month days
+            const today = new Date();
+            for (let day = 1; day <= totalDays; day++) {
+                const isToday = day === today.getDate() && 
+                               currentMonth === today.getMonth() && 
+                               currentYear === today.getFullYear();
+                
+                const dayEvents = eventsByDate[day] || [];
+                const displayEvents = dayEvents.slice(0, 2);
+                const moreCount = dayEvents.length - 2;
+
+                html += `
+                    <div class="calendar-day ${isToday ? 'today' : ''}">
+                        <div class="calendar-date">${day}</div>
+                        ${displayEvents.map(e => 
+                            `<div class="calendar-event" title="${escapeHtml(e.title)}">${escapeHtml(e.title.substring(0, 12))}${e.title.length > 12 ? '...' : ''}</div>`
+                        ).join('')}
+                        ${moreCount > 0 ? `<div class="calendar-more">+${moreCount} more</div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Next month days
+            const remainingCells = 42 - (startDayOfWeek + totalDays);
+            for (let day = 1; day <= remainingCells && remainingCells < 7; day++) {
+                html += `<div class="calendar-day other-month">
+                    <div class="calendar-date">${day}</div>
+                </div>`;
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        function goToToday() {
+            const today = new Date();
+            currentMonth = today.getMonth();
+            currentYear = today.getFullYear();
+            renderCalendar();
+        }
+
+        // ============================================================================
+        // MODALS
+        // ============================================================================
+        
+        function openFilterModal() {
+            document.getElementById('filterModal').classList.add('active');
+        }
+
+        function closeFilterModal() {
+            document.getElementById('filterModal').classList.remove('active');
+        }
+
+        function applyAndClose() {
+            currentPage = 1;
+            applyFilters();
+            closeFilterModal();
+        }
+
+        // ============================================================================
+        // UTILITIES
+        // ============================================================================
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Close modals on escape or backdrop click
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeFilterModal();
+            }
+        });
+
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
