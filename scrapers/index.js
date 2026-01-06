@@ -6,6 +6,13 @@
  * Maps scraper_key field from PocketBase to custom scrapers.
  * The database is the single source of truth for organization names.
  * 
+ * Scrape Flow:
+ * 1. Safety gate check (status, flags)
+ * 2. TOU check (if tou_url exists)
+ * 3. Wait 5-8 seconds (respectful delay)
+ * 4. Scrape events
+ * 5. Save events + update last_scraped
+ * 
  * To add a new custom scraper:
  * 1. Create file in scrapers/custom/[key].js
  * 2. Export { scrape, name, key } 
@@ -82,6 +89,13 @@ function listCustomScrapers() {
 /**
  * Scrape an organization (uses custom scraper if available, otherwise generic)
  * 
+ * Flow:
+ * 1. Safety gate check
+ * 2. TOU check (if tou_url exists)
+ * 3. Wait 5-8 seconds
+ * 4. Scrape events
+ * 5. Save events + update last_scraped
+ * 
  * @param {Object} org - Organization record from PocketBase
  * @param {Object} options - { deep: boolean }
  * @returns {Object} { events: Array, created: number, skipped: number, errors: number }
@@ -97,11 +111,15 @@ async function scrapeOrganization(org, options = {}) {
     console.log('════════════════════════════════════════════════════════════════');
     console.log(`   Website: ${org.website || 'N/A'}`);
     console.log(`   Events URL: ${org.events_url || 'N/A'}`);
+    console.log(`   TOU URL: ${org.tou_url || 'N/A'}`);
     console.log(`   Scraper Key: ${org.scraper_key || '(none - using generic)'}`);
     console.log(`   Last Scraped: ${org.last_scraped || 'Never'}`);
     console.log('');
 
-    // Safety gate check
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STEP 1: Safety Gate Check
+    // ═══════════════════════════════════════════════════════════════════════════
+
     const safetyCheck = base.checkSafetyGates(org);
     if (!safetyCheck.canScrape) {
         console.log('════════════════════════════════════════════════════════════════');
@@ -112,7 +130,35 @@ async function scrapeOrganization(org, options = {}) {
         return { events: [], created: 0, skipped: 0, errors: 0, blocked: true };
     }
 
-    // Get scraper (custom or generic)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STEP 2: TOU Check
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const touResult = await base.checkTOU(org);
+
+    if (!touResult.passed) {
+        if (touResult.blocked) {
+            console.log('⛔ Scraping halted - site blocked access to TOU page');
+        } else {
+            console.log('⛔ Scraping halted - TOU restrictions detected');
+        }
+        return { events: [], created: 0, skipped: 0, errors: 0, blocked: true };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STEP 3: Respectful Delay Before Scraping
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    if (org.tou_url) {
+        console.log(`⏳ Waiting ${base.getDelayRange()} before scraping (respectful delay)...`);
+        await base.sleep();
+        console.log('');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STEP 4: Scrape Events
+    // ═══════════════════════════════════════════════════════════════════════════
+
     const customScraper = getScraperForOrg(org);
     let events = [];
 
@@ -126,7 +172,10 @@ async function scrapeOrganization(org, options = {}) {
         events = await base.genericScrape(org);
     }
 
-    // Save events
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STEP 5: Save Events
+    // ═══════════════════════════════════════════════════════════════════════════
+
     let result = { created: 0, skipped: 0, errors: 0 };
     if (events.length > 0) {
         result = await base.saveEvents(events);
@@ -170,6 +219,7 @@ async function scrapeAllOrganizations(options = {}) {
     console.log('════════════════════════════════════════════════════════════════');
     console.log(`   Mode: ${deep ? 'Deep Scrape' : 'Basic Scrape'}`);
     console.log(`   Delay between orgs: ${delayBetweenOrgs / 1000}s`);
+    console.log(`   TOU Check: ✅ Enabled (before each scrape)`);
     console.log('');
 
     // Initialize
@@ -209,10 +259,11 @@ async function scrapeAllOrganizations(options = {}) {
     organizations.forEach((org, i) => {
         const hasCustom = hasCustomScraper(org) ? '🔧' : '📦';
         const scraperInfo = org.scraper_key ? `[${org.scraper_key}]` : '';
-        console.log(`   ${i + 1}. ${hasCustom} ${org.name} ${scraperInfo}`);
+        const touInfo = org.tou_url ? '📜' : '';
+        console.log(`   ${i + 1}. ${hasCustom} ${touInfo} ${org.name} ${scraperInfo}`);
     });
     console.log('');
-    console.log('   🔧 = Custom scraper | 📦 = Generic scraper');
+    console.log('   🔧 = Custom scraper | 📦 = Generic scraper | 📜 = TOU check enabled');
     console.log('');
 
     // Scrape each organization

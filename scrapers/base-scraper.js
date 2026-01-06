@@ -6,12 +6,13 @@
  * 
  * Features:
  * - Safety gate checks (status, flags)
+ * - TOU check before every scrape
  * - 403 detection and auto-blocking
  * - Rate limiting (5-8 seconds randomized)
  * - Custom User-Agent with contact info
  * - Backoff on server errors
  * 
- * Last Updated: 2026-01-05
+ * Last Updated: 2026-01-06
  */
 
 require('dotenv').config();
@@ -34,6 +35,32 @@ const USER_AGENT = 'EventFinderBot/1.0 (Personal research tool; Contact: matthew
 // Backoff settings
 const BACKOFF_MULTIPLIER = 2;
 const MAX_BACKOFF_MS = 60000;
+
+// TOU restriction keywords (lowercase for matching)
+const TOU_RESTRICTION_KEYWORDS = [
+    'scraping is prohibited',
+    'scraping is not permitted',
+    'automated access is prohibited',
+    'automated access is not permitted',
+    'crawling is prohibited',
+    'crawling is not permitted',
+    'bots are prohibited',
+    'bots are not permitted',
+    'no scraping',
+    'no crawling',
+    'no automated',
+    'do not scrape',
+    'do not crawl',
+    'prohibits scraping',
+    'prohibits crawling',
+    'prohibits automated',
+    'scraping prohibited',
+    'crawling prohibited',
+    'automated access prohibited',
+    'web scraping is strictly prohibited',
+    'data mining is prohibited',
+    'data mining is not permitted'
+];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -206,6 +233,32 @@ async function updateLastScraped(orgId) {
     }
 }
 
+/**
+ * Update organization's tou_scanned_date
+ */
+async function updateTOUScannedDate(orgId) {
+    await authenticate();
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        await fetchModule(
+            `${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify({
+                    tou_scanned_date: today
+                })
+            }
+        );
+    } catch (error) {
+        console.log('   ⚠️ Could not update tou_scanned_date');
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SAFETY GATE FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -273,7 +326,9 @@ async function markAsTechBlocked(orgId, errorMessage) {
                     tech_block_flag: true,
                     tou_scanned_date: today,
                     tou_notes: `⛔ TECHNICAL BLOCK DETECTED:\n\n${errorMessage}`,
-                    scraping_enabled: false
+                    scraping_enabled: false,
+                    alert_type: 'tech_block',
+                    alert_date: new Date().toISOString()
                 })
             }
         );
@@ -286,11 +341,204 @@ async function markAsTechBlocked(orgId, errorMessage) {
         console.log('   • tech_block_flag → TRUE');
         console.log('   • scraping_enabled → FALSE');
         console.log(`   • tou_scanned_date → ${today}`);
+        console.log('   • alert_type → tech_block');
         console.log('════════════════════════════════════════════════════════════════\n');
 
     } catch (error) {
         console.error('❌ Error marking org as blocked:', error.message);
     }
+}
+
+/**
+ * Mark organization as having TOU restrictions
+ */
+async function markAsTOURestricted(orgId, foundKeywords) {
+    await authenticate();
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        await fetchModule(
+            `${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify({
+                    status: 'Rejected (By Mission or Org)',
+                    tou_flag: true,
+                    tou_scanned_date: today,
+                    tou_notes: `⚠️ TOU RESTRICTION DETECTED:\n\nKeywords found:\n${foundKeywords.map(k => `• "${k}"`).join('\n')}`,
+                    scraping_enabled: false,
+                    alert_type: 'tou_restriction',
+                    alert_date: new Date().toISOString()
+                })
+            }
+        );
+
+        console.log('');
+        console.log('════════════════════════════════════════════════════════════════');
+        console.log('⚠️ ORGANIZATION MARKED AS TOU RESTRICTED');
+        console.log('════════════════════════════════════════════════════════════════');
+        console.log('   • status → Rejected (By Mission or Org)');
+        console.log('   • tou_flag → TRUE');
+        console.log('   • scraping_enabled → FALSE');
+        console.log(`   • tou_scanned_date → ${today}`);
+        console.log('   • alert_type → tou_restriction');
+        console.log('   Keywords found:');
+        foundKeywords.forEach(k => console.log(`     • "${k}"`));
+        console.log('════════════════════════════════════════════════════════════════\n');
+
+    } catch (error) {
+        console.error('❌ Error marking org as TOU restricted:', error.message);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOU CHECK FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Check a single URL for scraping restrictions
+ * @param {string} url - URL to check
+ * @param {string} urlType - 'TOU' or 'Privacy' for logging
+ * @param {string} orgId - Organization ID
+ * @returns {Object} { passed: boolean, blocked: boolean, keywords: string[], checked: boolean }
+ */
+async function checkSingleURL(url, urlType, orgId) {
+    if (!url) {
+        return { passed: true, blocked: false, keywords: [], checked: false };
+    }
+
+    console.log(`   📡 Fetching ${urlType}: ${url}`);
+
+    try {
+        const response = await fetchModule(url, {
+            headers: { 'User-Agent': USER_AGENT }
+        });
+
+        // Check for blocking responses
+        if (response.status === 403 || response.status === 401) {
+            console.log(`   ⛔ BLOCKED: HTTP ${response.status}`);
+            await markAsTechBlocked(orgId, `HTTP ${response.status} when fetching ${urlType} page: ${url}`);
+            return { passed: false, blocked: true, keywords: [], checked: true };
+        }
+
+        if (!response.ok) {
+            console.log(`   ⚠️ Could not fetch ${urlType} page (HTTP ${response.status})`);
+            return { passed: true, blocked: false, keywords: [], checked: false };
+        }
+
+        const html = await response.text();
+        const textContent = html.toLowerCase();
+
+        // Check for restriction keywords
+        const foundKeywords = [];
+        for (const keyword of TOU_RESTRICTION_KEYWORDS) {
+            if (textContent.includes(keyword)) {
+                foundKeywords.push(keyword);
+            }
+        }
+
+        if (foundKeywords.length > 0) {
+            console.log(`   ⚠️ RESTRICTIONS FOUND in ${urlType}:`);
+            foundKeywords.forEach(k => console.log(`      • "${k}"`));
+            return { passed: false, blocked: false, keywords: foundKeywords, checked: true };
+        }
+
+        console.log(`   ✅ No restrictions found in ${urlType}`);
+        return { passed: true, blocked: false, keywords: [], checked: true };
+
+    } catch (error) {
+        const errorMsg = error.message.toLowerCase();
+        if (errorMsg.includes('403') || errorMsg.includes('forbidden') || errorMsg.includes('blocked')) {
+            console.log(`   ⛔ BLOCKED: ${error.message}`);
+            await markAsTechBlocked(orgId, error.message);
+            return { passed: false, blocked: true, keywords: [], checked: true };
+        }
+
+        console.log(`   ⚠️ Error fetching ${urlType}: ${error.message}`);
+        return { passed: true, blocked: false, keywords: [], checked: false };
+    }
+}
+
+/**
+ * Check TOU and Privacy pages for scraping restrictions
+ * @param {Object} org - Organization record from PocketBase
+ * @returns {Object} { passed: boolean, blocked: boolean, keywords: string[] }
+ */
+async function checkTOU(org) {
+    await init();
+
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log('📜 TOU & PRIVACY CHECK');
+    console.log('════════════════════════════════════════════════════════════════\n');
+
+    // Check if either URL exists
+    if (!org.tou_url && !org.privacy_url) {
+        console.log('   ⚠️ No TOU or Privacy URL configured - skipping check');
+        console.log('   💡 Set tou_url and/or privacy_url in PocketBase to enable scanning\n');
+        return { passed: true, blocked: false, keywords: [] };
+    }
+
+    let allKeywords = [];
+    let wasBlocked = false;
+    let anyChecked = false;
+
+    // Check TOU page
+    if (org.tou_url) {
+        const touResult = await checkSingleURL(org.tou_url, 'TOU', org.id);
+        if (touResult.checked) anyChecked = true;
+        if (touResult.blocked) {
+            wasBlocked = true;
+        }
+        if (touResult.keywords.length > 0) {
+            allKeywords = allKeywords.concat(touResult.keywords.map(k => `[TOU] ${k}`));
+        }
+        if (!touResult.passed && !touResult.blocked) {
+            // TOU had restrictions, don't continue
+        }
+    }
+
+    // Check Privacy page (only if not already blocked)
+    if (org.privacy_url && !wasBlocked) {
+        // Small delay between requests
+        if (org.tou_url) {
+            console.log('   ⏳ Brief delay before checking Privacy page...');
+            await sleep(2000, 3000);
+        }
+        
+        const privacyResult = await checkSingleURL(org.privacy_url, 'Privacy', org.id);
+        if (privacyResult.checked) anyChecked = true;
+        if (privacyResult.blocked) {
+            wasBlocked = true;
+        }
+        if (privacyResult.keywords.length > 0) {
+            allKeywords = allKeywords.concat(privacyResult.keywords.map(k => `[Privacy] ${k}`));
+        }
+    }
+
+    // Update TOU scanned date if we checked anything
+    if (anyChecked) {
+        await updateTOUScannedDate(org.id);
+        console.log('   ✅ TOU scanned date updated');
+    }
+
+    // If blocked, return immediately
+    if (wasBlocked) {
+        return { passed: false, blocked: true, keywords: [] };
+    }
+
+    // If restrictions found, mark as restricted
+    if (allKeywords.length > 0) {
+        console.log('');
+        await markAsTOURestricted(org.id, allKeywords);
+        return { passed: false, blocked: false, keywords: allKeywords };
+    }
+
+    console.log('');
+    return { passed: true, blocked: false, keywords: [] };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -616,10 +864,17 @@ module.exports = {
     getOrganization,
     getScrapableOrganizations,
     updateLastScraped,
+    updateTOUScannedDate,
 
     // Safety gates
     checkSafetyGates,
     markAsTechBlocked,
+    markAsTOURestricted,
+
+    // TOU checking
+    checkTOU,
+    checkSingleURL,
+    TOU_RESTRICTION_KEYWORDS,
 
     // HTTP fetching
     fetchWithBlockDetection,
