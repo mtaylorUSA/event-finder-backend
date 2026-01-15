@@ -316,54 +316,96 @@ async function fetchUrl(url, options = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TOU SCANNING
+// TOU SCANNING (MULTI-PAGE - Updated 2026-01-15)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Find TOU page URL from homepage HTML or by trying common paths
+ * Find ALL legal page URLs from homepage HTML and common paths
+ * Returns array of URLs to scan (not just the first one!)
  */
-async function findTouUrl(html, baseUrl) {
-    // First, look for TOU links in the HTML
+async function findAllLegalUrls(html, baseUrl) {
+    const foundUrls = new Set(); // Use Set to avoid duplicates
+    const urlDetails = []; // Track details for logging
+    
+    // STEP 1: Look for ALL legal links in the homepage HTML
     if (html) {
         const patterns = [
-            /href=["']([^"']*(?:terms|tos|legal|privacy|acceptable|conditions|agreement)[^"']*)["']/gi
+            /href=["']([^"']*(?:terms|tos|legal|privacy|acceptable|conditions|agreement|copyright|policy)[^"']*)["']/gi
         ];
         
         for (const pattern of patterns) {
             const matches = html.matchAll(pattern);
             for (const match of matches) {
                 let url = match[1];
-                if (url && !url.startsWith('http')) {
+                
+                // Skip anchors, javascript, mailto
+                if (!url || url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('mailto:')) {
+                    continue;
+                }
+                
+                // Make relative URLs absolute
+                if (!url.startsWith('http')) {
                     try {
                         url = new URL(url, baseUrl).href;
                     } catch (e) {
                         continue;
                     }
                 }
-                if (url && (url.includes('term') || url.includes('legal') || url.includes('privacy'))) {
-                    return { found: true, url, method: 'link' };
+                
+                // Check if it looks like a legal page
+                const lowerUrl = url.toLowerCase();
+                if (lowerUrl.includes('term') || lowerUrl.includes('legal') || 
+                    lowerUrl.includes('privacy') || lowerUrl.includes('agreement') ||
+                    lowerUrl.includes('acceptable') || lowerUrl.includes('conditions') ||
+                    lowerUrl.includes('copyright') || lowerUrl.includes('policy') ||
+                    lowerUrl.includes('tos')) {
+                    
+                    if (!foundUrls.has(url)) {
+                        foundUrls.add(url);
+                        urlDetails.push({ url, method: 'link' });
+                    }
                 }
             }
         }
     }
     
-    // Try common TOU paths
+    // STEP 2: Try common TOU paths that weren't already found
     for (const path of TOU_PATHS) {
         const testUrl = baseUrl.replace(/\/$/, '') + path;
+        
+        // Skip if we already found this URL from links
+        if (foundUrls.has(testUrl)) {
+            continue;
+        }
+        
+        // Check if the path exists
         const result = await fetchUrl(testUrl);
         
         if (result.isBlocked) {
-            return { found: false, url: testUrl, isBlocked: true, error: result.error };
+            // Return immediately on tech block
+            return { 
+                urls: [], 
+                urlDetails: [],
+                isBlocked: true, 
+                blockedUrl: testUrl,
+                error: result.error 
+            };
         }
         
         if (result.success) {
-            return { found: true, url: testUrl, method: 'path' };
+            foundUrls.add(testUrl);
+            urlDetails.push({ url: testUrl, method: 'path' });
         }
         
-        await sleep(1000);
+        await sleep(800); // Respectful delay between path checks
     }
     
-    return { found: false, url: null, isBlocked: false, error: 'No TOU page found' };
+    return { 
+        urls: Array.from(foundUrls), 
+        urlDetails,
+        isBlocked: false, 
+        error: null 
+    };
 }
 
 /**
@@ -410,75 +452,160 @@ function findRestrictions(text) {
 }
 
 /**
- * Full TOU scan for an organization
+ * Full TOU scan for an organization - SCANS ALL LEGAL PAGES
+ * 
+ * Checks: Terms of Use, Terms of Service, Privacy Policy, User Agreement,
+ *         Acceptable Use Policy, Website Terms, Copyright Notice, etc.
+ * 
+ * Sets tou_flag = TRUE if ANY page contains restrictions
  */
 async function scanTOU(website, html = null) {
-    console.log('   📜 Scanning for TOU restrictions...');
+    console.log('   📜 Scanning ALL legal pages for restrictions...');
     
     const result = {
-        touUrl: null,
+        touUrl: null,           // Primary TOU URL (first one with restrictions, or first scanned)
+        touUrls: [],            // ALL legal URLs scanned
         touFlag: false,
         techBlockFlag: false,
         touNotes: '',
         foundKeywords: [],
-        context: []
+        context: [],
+        pagesScanned: 0,
+        pagesWithRestrictions: []
     };
     
     const baseUrl = website.replace(/\/$/, '');
     
-    // Find TOU page
-    const touSearch = await findTouUrl(html, baseUrl);
+    // Find ALL legal page URLs
+    console.log('      🔍 Discovering legal pages...');
+    const legalSearch = await findAllLegalUrls(html, baseUrl);
     
-    if (touSearch.isBlocked) {
-        console.log('      ⛔ Technical block detected while searching for TOU');
+    if (legalSearch.isBlocked) {
+        console.log(`      ⛔ Technical block detected at: ${legalSearch.blockedUrl}`);
         result.techBlockFlag = true;
         result.touFlag = true;
-        result.touNotes = `Technical block: ${touSearch.error}`;
+        result.touNotes = `Technical block: ${legalSearch.error} at ${legalSearch.blockedUrl}`;
         return result;
     }
     
-    if (!touSearch.found) {
-        console.log('      ℹ️ No TOU page found (no prohibition assumed)');
-        result.touNotes = 'No TOU page found - no explicit prohibition';
+    if (legalSearch.urls.length === 0) {
+        console.log('      ℹ️ No legal pages found (no prohibition assumed)');
+        result.touNotes = 'No legal pages found - no explicit prohibition';
         return result;
     }
     
-    result.touUrl = touSearch.url;
-    console.log(`      📄 Found TOU at: ${touSearch.url}`);
+    console.log(`      📄 Found ${legalSearch.urls.length} legal page(s) to scan`);
+    result.touUrls = legalSearch.urls;
     
-    // Fetch and scan TOU page
-    const touResult = await fetchUrl(touSearch.url);
+    // Scan EACH legal page
+    const scannedPages = [];
+    const allFoundKeywords = [];
+    const allContext = [];
     
-    if (touResult.isBlocked) {
-        console.log('      ⛔ Technical block when accessing TOU page');
-        result.techBlockFlag = true;
-        result.touFlag = true;
-        result.touNotes = `Technical block accessing TOU page: ${touResult.error}`;
-        return result;
+    for (const urlInfo of legalSearch.urlDetails) {
+        const url = urlInfo.url;
+        const pageType = getPageType(url);
+        
+        console.log(`      📜 Scanning ${pageType}: ${url.substring(0, 60)}...`);
+        
+        const pageResult = await fetchUrl(url);
+        
+        if (pageResult.isBlocked) {
+            console.log(`         ⛔ Blocked`);
+            result.techBlockFlag = true;
+            result.touFlag = true;
+            result.pagesWithRestrictions.push({ url, type: pageType, reason: 'Technical block' });
+            scannedPages.push(`❌ ${pageType}: BLOCKED`);
+            continue;
+        }
+        
+        if (!pageResult.success) {
+            console.log(`         ⚠️ Could not fetch`);
+            scannedPages.push(`⚠️ ${pageType}: Could not fetch`);
+            continue;
+        }
+        
+        result.pagesScanned++;
+        
+        // Scan for restrictions
+        const text = extractText(pageResult.body);
+        const restrictions = findRestrictions(text);
+        
+        if (restrictions.hasRestrictions) {
+            console.log(`         ⚠️ RESTRICTIONS FOUND: ${restrictions.foundKeywords.slice(0, 3).join(', ')}`);
+            result.touFlag = true;
+            result.pagesWithRestrictions.push({ 
+                url, 
+                type: pageType, 
+                keywords: restrictions.foundKeywords 
+            });
+            
+            // Set primary TOU URL to first page with restrictions
+            if (!result.touUrl) {
+                result.touUrl = url;
+            }
+            
+            allFoundKeywords.push(...restrictions.foundKeywords);
+            allContext.push(...restrictions.context.map(c => `[${pageType}] ${c}`));
+            scannedPages.push(`⚠️ ${pageType}: RESTRICTIONS (${restrictions.foundKeywords.length} keywords)`);
+        } else {
+            console.log(`         ✅ No restrictions`);
+            scannedPages.push(`✅ ${pageType}: Clear`);
+        }
+        
+        await sleep(1000); // Respectful delay between pages
     }
     
-    if (!touResult.success) {
-        console.log(`      ⚠️ Could not fetch TOU page (${touResult.error})`);
-        result.touNotes = `Could not fetch TOU page: ${touResult.error}`;
-        return result;
+    // Set primary TOU URL if none had restrictions
+    if (!result.touUrl && result.touUrls.length > 0) {
+        result.touUrl = result.touUrls[0];
     }
     
-    // Scan for restrictions
-    const text = extractText(touResult.body);
-    const restrictions = findRestrictions(text);
+    // Compile results
+    result.foundKeywords = [...new Set(allFoundKeywords)];
+    result.context = allContext.slice(0, 15);
     
-    if (restrictions.hasRestrictions) {
-        console.log(`      ⚠️ TOU restrictions found: ${restrictions.foundKeywords.slice(0, 3).join(', ')}...`);
-        result.touFlag = true;
-        result.foundKeywords = restrictions.foundKeywords;
-        result.context = restrictions.context;
-        result.touNotes = `⚠️ TOU RESTRICTIONS DETECTED:\n\nKeywords found: ${restrictions.foundKeywords.join(', ')}\n\nContext:\n${restrictions.context.slice(0, 3).join('\n')}`;
+    // Build detailed notes
+    if (result.touFlag) {
+        const restrictedPages = result.pagesWithRestrictions.map(p => p.type).join(', ');
+        result.touNotes = `⚠️ TOU RESTRICTIONS DETECTED
+
+Pages with restrictions: ${restrictedPages}
+
+Pages scanned (${result.pagesScanned} total):
+${scannedPages.join('\n')}
+
+Keywords found: ${result.foundKeywords.slice(0, 10).join(', ')}
+
+Context:
+${result.context.slice(0, 5).join('\n')}`;
     } else {
-        console.log('      ✅ No TOU restrictions found');
-        result.touNotes = `✅ TOU scanned - No restrictions found.\n\nTOU URL: ${touSearch.url}`;
+        result.touNotes = `✅ ALL LEGAL PAGES SCANNED - No restrictions found
+
+Pages scanned (${result.pagesScanned} total):
+${scannedPages.join('\n')}`;
     }
+    
+    // Summary log
+    console.log(`      📊 Scanned ${result.pagesScanned} page(s), ${result.pagesWithRestrictions.length} with restrictions`);
     
     return result;
+}
+
+/**
+ * Helper: Determine page type from URL for logging
+ */
+function getPageType(url) {
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('privacy')) return 'Privacy Policy';
+    if (lowerUrl.includes('terms-of-service') || lowerUrl.includes('tos')) return 'Terms of Service';
+    if (lowerUrl.includes('terms-of-use')) return 'Terms of Use';
+    if (lowerUrl.includes('terms') || lowerUrl.includes('conditions')) return 'Terms & Conditions';
+    if (lowerUrl.includes('acceptable-use')) return 'Acceptable Use Policy';
+    if (lowerUrl.includes('user-agreement') || lowerUrl.includes('agreement')) return 'User Agreement';
+    if (lowerUrl.includes('legal')) return 'Legal';
+    if (lowerUrl.includes('copyright')) return 'Copyright Notice';
+    return 'Legal Page';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1276,6 +1403,7 @@ module.exports = {
     
     // Individual scan components (for use by other scripts)
     scanTOU,
+    findAllLegalUrls,
     findEventsUrl,
     extractEventsUrlFromTriggeringUrl,
     validateEventsUrl,
@@ -1291,6 +1419,7 @@ module.exports = {
     fetchUrl,
     extractText,
     sleep,
+    getPageType,
     
     // Constants
     TOU_RESTRICTION_KEYWORDS,
