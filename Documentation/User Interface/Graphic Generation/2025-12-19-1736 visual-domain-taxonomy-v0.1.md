@@ -3,7 +3,7 @@
 ---
 
 ## Purpose
-     * This document defines a reusable **Visual Domain Taxonomy** for generating consistent, abstract, editorial-style images across sensitive national security, geopolitical, and global topics.
+     * This document defines a reusable **Visual Domain Taxonomy** for generating consistent, abstract, editorial-style images across national security, geopolitical, and global topics.
      * Domains constrain *how* visual metaphors are rendered, independent of topic semantics.
      * All content is proprietary and subject to the project owner’s copyright.
 
@@ -24,6 +24,8 @@
           ** Natural resources
           ** Energy transition
           ** Environmental risk
+          ** Pollution and contamination
+          ** Wildlife 
 
      * **Visual Language**
           ** Atmosphere, sky, land, water, terrain

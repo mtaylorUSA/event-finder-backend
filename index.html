@@ -86,6 +86,11 @@
             font-size: 1.1rem;
         }
 
+        .header-brand-logo {
+            height: 32px;
+            width: auto;
+        }
+
         .header-search {
             width: 500px;
             flex-shrink: 0;
@@ -1017,6 +1022,10 @@
                 width: 280px;
                 flex: 1;
             }
+
+            .header-brand-logo {
+                height: 28px;
+            }
         }
 
         @media (max-width: 550px) {
@@ -1027,6 +1036,10 @@
 
             .header-brand h1 {
                 font-size: 0.9rem;
+            }
+
+            .header-brand-logo {
+                height: 24px;
             }
 
             .header-search {
@@ -1087,7 +1100,7 @@
     <header class="header">
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Open filters">☰</button>
         <div class="header-brand" onclick="goHome()" title="Home - Clear all filters">
-            <span class="header-brand-icon">🔍</span>
+            <img src="logo.png" alt="Event Finder Logo" class="header-brand-logo">
             <h1>Event Finder</h1>
         </div>
         <div class="header-search">

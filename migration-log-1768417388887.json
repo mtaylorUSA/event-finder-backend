@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-01-14T19:03:08.863Z",
+  "mode": "live",
+  "moved": [
+    {
+      "from": "scrape-all-organizations.js",
+      "to": "scrapers/scrape-all-organizations.js"
+    },
+    {
+      "from": "discover-orgs-by-events.js",
+      "to": "scrapers/discover-orgs-by-events.js"
+    },
+    {
+      "from": "suggest-organizations.js",
+      "to": "scrapers/suggest-organizations.js"
+    },
+    {
+      "from": "generate-embeddings.js",
+      "to": "scrapers/generate-embeddings.js"
+    },
+    {
+      "from": "enrich-events.js",
+      "to": "scrapers/enrich-events.js"
+    }
+  ],
+  "deprecated": [
+    "tou-scanner.js"
+  ],
+  "updated": [
+    "scrapers/index.js",
+    "scrapers/scrape-all-organizations.js",
+    "scrapers/org-scanner.js",
+    "scrapers/custom/insa.js"
+  ],
+  "skipped": [
+    {
+      "file": "scanners/org-scanner.js",
+      "reason": "not found or already exists"
+    },
+    {
+      "file": "base-scraper.js",
+      "reason": "not found or already exists"
+    }
+  ]
+}

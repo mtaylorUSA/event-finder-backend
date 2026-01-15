@@ -1,0 +1,144 @@
+# Admin Interface
+
+I would like to update the admin interface to facilitate navigation and workflow.  Let's do this:
+
+
+-----
+ 
+
+# Add a Tab called "Organization By Status." This tab page shows links to lists based on the status of the Organization.  Links are as follows:
+
+     * Nominated/Pending Mission Review: 0  <-- Make this a link to a list of any organizations that are pending mission review
+
+     * Mission Approved/Pending Permission: 4  <-- Make this a link to a page with a list of any organizations that are pending Permission,  I think this would essentially be the "Permission Requests" tab content
+          ** Destination Page has a sortable list
+          ** Each Organization entry has these items:
+               ** Organization - Link to the Organization's Profile Page
+               ** Website Link
+               ** Warnings or Alerts
+               ** email address(es)
+               ** Email text
+               ** "Copy Draft" button
+               ** "Preview" button 
+               ** "Edit Draft" button
+               ** Add POC Info button
+               ** "Change Status" Dropdown <-- Allows me to change the status to any of our defined statuses.
+
+
+     * Permission Requested: 13 <-- Make this a link to a page with a list of any organizations that are Permission Requested.  On the destination page, it shows organizations requested by Self or requested by Lawyer.
+          ** Destination Page has a sortable list
+          ** Each Organization entry has these items:
+               ** Organization - Link to the Organization's Profile Page (This is currently the "Edit Organization" page
+               ** Website Link
+               ** email address(es)
+               ** Any other helpful information (e.g., date of request, etc.) 
+               ** "Change Status" Dropdown <-- Allows me to change the status to any of our defined statuses.
+
+
+     * Permission Granted (Not Live): 0 <-- Make this a link to a page with a list of any organizations that are Permission Granted. 
+          ** Each Organization entry has these items:
+               ** Organization - Link to the Organization's Profile Page (This is currently the "Edit Organization" page
+               ** Website Link
+               ** email address(es)
+               ** Email text
+               ** Any other helpful information (e.g., date of request, etc.) 
+               ** "Change Status" Dropdown <-- Allows me to change the status to any of our defined statuses.
+
+
+     * Rejected: 0 <-- Make this a link to a page with a list of any organizations that have been rejected.  The destination page can include Orgs that have been Mission Rejected or Permission Rejected. 
+          ** Each Organization entry has these items:
+               ** Organization - Link to the Organization's Profile Page (This is currently the "Edit Organization" page
+               ** Website Link
+               ** email address(es)
+               ** Email text
+               ** Reason for rejection: Mission Rejected or Permission Rejected"
+               ** Any other helpful information (e.g., date of request, etc.) 
+               ** "Change Status" Dropdown <-- Allows me to change the status to any of our defined statuses.
+
+
+     * Live / Scraping Active: 0 <-- Make this a link to a page with a list of any organizations that are actively being scraped.
+          ** Each Organization entry has these items:
+               ** Organization - Link to the Organization's Profile Page (This is currently the "Edit Organization" page
+               ** Website Link
+               ** email address(es)
+               ** Email text
+               ** Any other helpful information (e.g., date of request, etc.) 
+               ** "Change Status" Dropdown <-- Allows me to change the status to any of our defined statuses.
+
+
+-----
+ 
+
+# Organization Tab Page
+     * A-Z hyperlinks to name of the organization
+     * Sortable by name, status 
+     * Quick Search by name
+     * Add Organization button
+
+     * Each organization Listing has:
+          ** Name (Link to "Organization Profile Page")
+          ** Status notes (Mission Rejected, X Scraping off, etc.)
+          ** website
+          ** Description
+          ** Edit button (Link to "Edit" button goes to "Organization Profile Page"
+          ** Note: Source Id not needed
+          ** Note: Contacts button not needed.
+
+-----
+ 
+
+# Organization Profile Page (currently the "Edit Organization" page)
+     * Tabs
+          ** Organization Tab
+               *** Name
+               *** Description
+               *** Website
+               *** Type
+               *** Source Id (domain)
+               *** Events URL
+               *** Status
+
+          ** Contacts Tab
+               *** Name, Role/Position, email, phone number, notes 
+               *** Name, Role/Position, email, phone number, notes
+               *** Name, Role/Position, email, phone number, notes
+
+          ** Status and History Tab
+               *** Status
+               *** AI Reasoning (why AI suggested this org...)
+               *** TOU/User Agreement Scanned Date
+               *** TOU Flag (May Prohibit Scraping)
+               *** TOU Notes
+               *** Permission Requested Date
+               *** Permission Request Text
+               *** Permission Response Date
+               *** Permission Response Text
+               *** Last Scraped
+               *** Other Notes
+
+          ** Events Tab
+
+ - Link to the Organization's Profile Page (This is currently the "Edit Organization" page
+               ** Website Link
+               ** email address(es)
+               ** Email text
+               ** Any other helpful information (e.g., date of request, etc.) 
+               ** "Change Status" Dropdown <-- Allows me to change the status to any of our 
+
+
+
+-----
+ 
+
+
+# Contacts Tab Page
+
+
+
+
+
+-----
+ 
+
+
+# Contact Profile Page (TBD)

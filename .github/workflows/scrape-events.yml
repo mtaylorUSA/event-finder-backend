@@ -1,31 +1,25 @@
 name: Scrape Events Daily
-
 on:
   schedule:
-    # Run daily at 8:00 AM EST (13:00 UTC)
-    - cron: '0 13 * * *'
+    # Run daily at 11:30 PM EST (04:30 UTC)
+    - cron: '30 4 * * *'
   workflow_dispatch: # Allow manual triggering
-
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Install dependencies
         run: npm install
-
       - name: Run dynamic scraper
         env:
           POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
           POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
           POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: node scrape-all-organizations.js
+        run: node scrapers/scrape-all-organizations.js

@@ -11,8 +11,9 @@
  * - Rate limiting (5-8 seconds randomized)
  * - Custom User-Agent with contact info
  * - Backoff on server errors
+ * - Event updates (not just creates) when data changes
  * 
- * Last Updated: 2026-01-06
+ * Last Updated: 2026-01-14
  */
 
 require('dotenv').config();
@@ -157,7 +158,7 @@ function getUserAgent() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Fetch organization record from PocketBase
+ * Fetch organization record from PocketBase by ID
  */
 async function getOrganization(orgId) {
     await authenticate();
@@ -180,6 +181,51 @@ async function getOrganization(orgId) {
 }
 
 /**
+ * Search for organization by name (NEW - fixes the --org bug)
+ * @param {string} name - Organization name to search for
+ * @returns {Object|null} Organization record, or null if not found
+ */
+async function getOrganizationByName(name) {
+    await authenticate();
+
+    try {
+        // Search with exact match first
+        const filter = encodeURIComponent(`name = "${name}"`);
+        const response = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}`,
+            { headers: { 'Authorization': authToken } }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.items && data.items.length > 0) {
+            return data.items[0];
+        }
+
+        // Try partial match if exact match fails
+        const partialFilter = encodeURIComponent(`name ~ "${name}"`);
+        const partialResponse = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/organizations/records?filter=${partialFilter}`,
+            { headers: { 'Authorization': authToken } }
+        );
+
+        if (!partialResponse.ok) {
+            return null;
+        }
+
+        const partialData = await partialResponse.json();
+        return partialData.items && partialData.items.length > 0 ? partialData.items[0] : null;
+
+    } catch (error) {
+        console.error('❌ Could not search organization:', error.message);
+        return null;
+    }
+}
+
+/**
  * Get all organizations eligible for scraping
  */
 async function getScrapableOrganizations() {
@@ -187,7 +233,7 @@ async function getScrapableOrganizations() {
 
     try {
         const filter = encodeURIComponent(
-            'scraping_enabled = true && status = "Live (Scraping Active)" && tou_flag != true && tech_block_flag != true'
+            'status = "Live (Scraping Active)" && tou_flag != true && tech_block_flag != true'
         );
 
         const response = await fetchModule(
@@ -280,21 +326,14 @@ function checkSafetyGates(org) {
     }
     console.log(`   ✅ Status: "${org.status}"`);
 
-    // Check 2: Scraping enabled
-    if (!org.scraping_enabled) {
-        console.log('   ❌ scraping_enabled: FALSE');
-        return { canScrape: false, reason: 'Scraping is disabled' };
-    }
-    console.log('   ✅ scraping_enabled: TRUE');
-
-    // Check 3: TOU flag
+    // Check 2: TOU flag
     if (org.tou_flag === true) {
         console.log('   ❌ tou_flag: TRUE (TOU prohibits scraping)');
         return { canScrape: false, reason: 'TOU flag is set' };
     }
     console.log('   ✅ tou_flag: FALSE');
 
-    // Check 4: Tech block flag
+    // Check 3: Tech block flag
     if (org.tech_block_flag === true) {
         console.log('   ❌ tech_block_flag: TRUE (Site blocks access)');
         return { canScrape: false, reason: 'Technical block flag is set' };
@@ -603,6 +642,7 @@ async function fetchWithBlockDetection(url, orgId) {
 
 /**
  * Check if event already exists by source_id
+ * @returns {Object|null} The existing event record, or null if not found
  */
 async function eventExists(sourceId) {
     await authenticate();
@@ -678,9 +718,82 @@ async function updateEvent(eventId, updates) {
 }
 
 /**
- * Save events to PocketBase (create or skip duplicates)
+ * Check if a value is meaningful (not empty, not "N/A", not placeholder)
+ * @param {string} value - Value to check
+ * @returns {boolean} True if the value is meaningful
+ */
+function isMeaningfulValue(value) {
+    if (!value) return false;
+    if (typeof value !== 'string') return true; // Non-strings (booleans, etc.) are OK
+    
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === '') return false;
+    if (trimmed === 'n/a') return false;
+    if (trimmed === 'na') return false;
+    if (trimmed === 'tbd') return false;
+    if (trimmed === 'unknown') return false;
+    
+    return true;
+}
+
+/**
+ * Compare existing event with new data and return fields that need updating
+ * Only updates if new value is meaningful (not empty, not "N/A")
+ * @param {Object} existing - Existing event from database
+ * @param {Object} newEvent - New event data from scraper
+ * @returns {Object|null} Updates object if changes found, null if no changes
+ */
+function getEventUpdates(existing, newEvent) {
+    // Fields that can be updated (not source_id, organization, or id)
+    const updatableFields = [
+        'title',
+        'description',
+        'start_date',
+        'end_date',
+        'start_time',
+        'end_time',
+        'timezone',
+        'location',
+        'url',
+        'event_type',
+        'registration_required',
+        'cost',
+        'target_audience'
+    ];
+
+    const updates = {};
+    const changedFields = [];
+
+    for (const field of updatableFields) {
+        const existingValue = existing[field];
+        const newValue = newEvent[field];
+
+        // Only update if:
+        // 1. New value is meaningful (not empty, not "N/A")
+        // 2. New value is different from existing value
+        if (isMeaningfulValue(newValue)) {
+            // Normalize for comparison (handle dates, strings, etc.)
+            const existingNorm = existingValue ? String(existingValue).trim() : '';
+            const newNorm = String(newValue).trim();
+
+            if (existingNorm !== newNorm) {
+                updates[field] = newValue;
+                changedFields.push(field);
+            }
+        }
+    }
+
+    if (Object.keys(updates).length > 0) {
+        return { updates, changedFields };
+    }
+
+    return null;
+}
+
+/**
+ * Save events to PocketBase (create new, update existing if changed)
  * @param {Array} events - Array of event objects
- * @returns {Object} { created, skipped, errors }
+ * @returns {Object} { created, updated, unchanged, errors }
  */
 async function saveEvents(events) {
     console.log('════════════════════════════════════════════════════════════════');
@@ -688,7 +801,8 @@ async function saveEvents(events) {
     console.log('════════════════════════════════════════════════════════════════\n');
 
     let created = 0;
-    let skipped = 0;
+    let updated = 0;
+    let unchanged = 0;
     let errors = 0;
 
     for (const event of events) {
@@ -697,20 +811,37 @@ async function saveEvents(events) {
             const existing = await eventExists(event.source_id);
 
             if (existing) {
-                console.log(`   ⏭️ Exists: "${event.title.substring(0, 50)}..."`);
-                skipped++;
-                continue;
-            }
+                // Event exists - check if it needs updating
+                const updateResult = getEventUpdates(existing, event);
 
-            // Create new event
-            const result = await createEvent(event);
+                if (updateResult) {
+                    // Has changes - update the event
+                    const success = await updateEvent(existing.id, updateResult.updates);
 
-            if (result.success) {
-                console.log(`   ✅ Created: "${event.title.substring(0, 50)}..."`);
-                created++;
+                    if (success) {
+                        console.log(`   🔄 Updated: "${event.title.substring(0, 50)}..."`);
+                        console.log(`      Changed: ${updateResult.changedFields.join(', ')}`);
+                        updated++;
+                    } else {
+                        console.error(`   ❌ Update failed: "${event.title.substring(0, 50)}..."`);
+                        errors++;
+                    }
+                } else {
+                    // No changes needed
+                    console.log(`   ✓ Unchanged: "${event.title.substring(0, 50)}..."`);
+                    unchanged++;
+                }
             } else {
-                console.error(`   ❌ Failed: "${event.title}" - ${result.error}`);
-                errors++;
+                // New event - create it
+                const result = await createEvent(event);
+
+                if (result.success) {
+                    console.log(`   ✅ Created: "${event.title.substring(0, 50)}..."`);
+                    created++;
+                } else {
+                    console.error(`   ❌ Failed: "${event.title}" - ${result.error}`);
+                    errors++;
+                }
             }
         } catch (err) {
             console.error(`   ❌ Error: "${event.title}" - ${err.message}`);
@@ -718,7 +849,7 @@ async function saveEvents(events) {
         }
     }
 
-    return { created, skipped, errors };
+    return { created, updated, unchanged, errors };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -862,6 +993,7 @@ module.exports = {
 
     // Organization functions
     getOrganization,
+    getOrganizationByName,
     getScrapableOrganizations,
     updateLastScraped,
     updateTOUScannedDate,
@@ -884,6 +1016,8 @@ module.exports = {
     createEvent,
     updateEvent,
     saveEvents,
+    isMeaningfulValue,
+    getEventUpdates,
 
     // Generic scraper
     genericScrape,

@@ -1,0 +1,17 @@
+{
+  "name": "eventfinder-icon-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node src/generate-topic-icons.js",
+    "create-records": "node src/create-topic-icon-records.js",
+    "cleanup": "node src/cleanup-topic-combinations.js",
+    "clear-icons": "node src/clear-icons.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "sharp": "^0.33.5",
+    "tesseract.js": "^5.1.1"
+  }
+}
