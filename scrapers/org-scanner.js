@@ -8,8 +8,10 @@
  * 
  * Features:
  * - TOU page discovery and restriction scanning
+ * - Context-aware restriction detection (avoids false positives) - UPDATED 2026-01-16
+ * - JavaScript rendering detection (SPAs, React, Vue, etc.) - NEW 2026-01-16
  * - Technical block detection (403/401)
- * - Events URL discovery (NEW)
+ * - Events URL discovery
  * - POC info gathering
  * - AI-powered org analysis
  * 
@@ -18,7 +20,7 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-14
+ * Last Updated: 2026-01-16
  */
 
 require('dotenv').config();
@@ -42,69 +44,207 @@ const TIMEOUT = 30000;
 const MIN_DELAY_MS = 2000;
 const MAX_DELAY_MS = 4000;
 
+// Context window for checking proximity of terms (characters)
+const CONTEXT_WINDOW = 150;
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// TOU RESTRICTION KEYWORDS
+// CONTEXT-AWARE RESTRICTION DETECTION (Updated 2026-01-16)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const TOU_RESTRICTION_KEYWORDS = [
-    // Direct scraping mentions
-    'scraping',
-    'scrape',
+/**
+ * HIGH CONFIDENCE RESTRICTION TERMS
+ * These terms are specific enough to flag immediately without needing additional context.
+ * If found, they indicate a clear prohibition on scraping/automation.
+ */
+const HIGH_CONFIDENCE_RESTRICTION_TERMS = [
+    // Direct scraping phrases
     'web scraping',
     'screen scraping',
     'data scraping',
+    'content scraping',
+    'automated scraping',
     
-    // Bot/crawler mentions
-    'automated access',
-    'automated system',
-    'automated means',
-    'automated queries',
+    // Explicit bot restrictions
+    'no bots',
+    'no robots',
+    'use of bots',
+    'using bots',
+    'employ bots',
+    'deploy bots',
+    
+    // Data mining phrases
+    'data mining',
+    'data harvesting',
+    'text mining',
+    'content mining',
+    
+    // Bulk access phrases
+    'bulk download',
+    'bulk access',
+    'mass download',
+    'bulk collection',
+    
+    // AI/ML training restrictions
+    'train ai',
+    'ai training',
+    'train artificial intelligence',
+    'model training',
+    'machine learning training',
+    'language model',
+    'train machine learning',
+    'training data',
+    
+    // Explicit automation restrictions
     'automated data collection',
+    'automated extraction',
+    'automated access is prohibited',
+    'automated queries',
+    'programmatic access is prohibited',
+    'systematic retrieval',
+    'systematic collection',
+    'systematic access'
+];
+
+/**
+ * CONTEXT REQUIRED TERMS
+ * These single words or short phrases can appear in innocent contexts.
+ * Only flag if they appear near a PROHIBITION_PHRASE.
+ */
+const CONTEXT_REQUIRED_TERMS = [
     'bot',
     'bots',
     'robot',
     'robots',
+    'scraping',
+    'scrape',
     'crawler',
     'crawlers',
     'spider',
     'spiders',
-    
-    // Data mining
-    'data mining',
-    'data harvesting',
     'harvest',
     'harvesting',
-    'data extraction',
-    
-    // Machine/programmatic access
-    'machine readable',
-    'machine-readable',
-    'programmatic access',
+    'automated',
+    'automation',
+    'programmatic',
     'programmatically',
     'systematic',
-    'systematically',
-    'bulk download',
-    'bulk access',
-    'mass download'
+    'systematically'
 ];
 
-const TOU_RESTRICTION_PHRASES = [
-    'may not use',
-    'shall not use',
-    'do not use',
-    'must not use',
-    'prohibited from',
-    'not authorized',
-    'without authorization',
-    'consent required',
-    'permission required',
-    'prior approval',
-    'written consent',
-    'written permission',
+/**
+ * PROHIBITION PHRASES
+ * These phrases indicate something is being forbidden/restricted.
+ * Used to validate CONTEXT_REQUIRED_TERMS.
+ */
+const PROHIBITION_PHRASES = [
+    // Direct prohibitions
+    'may not',
+    'shall not',
+    'must not',
+    'do not',
+    'cannot',
+    'can not',
+    'prohibited',
+    'not permitted',
+    'not allowed',
+    'forbidden',
+    'restricted',
+    'unauthorized',
+    
+    // Agreement language
     'agree not to',
     'you agree not',
-    'refrain from'
+    'covenant not to',
+    'refrain from',
+    'abstain from',
+    
+    // Permission language
+    'without permission',
+    'without authorization',
+    'without consent',
+    'without prior',
+    'without express',
+    'without written',
+    'requires permission',
+    'requires authorization',
+    'requires consent',
+    
+    // Legal language
+    'strictly prohibited',
+    'expressly prohibited',
+    'is prohibited',
+    'are prohibited',
+    'will not be permitted'
 ];
+
+/**
+ * EXCLUDED CONTEXTS
+ * If these phrases appear near a keyword, it's likely a false positive.
+ * Skip flagging in these cases.
+ */
+const EXCLUDED_CONTEXTS = [
+    // Staff/HR policy language (not about visitors)
+    'staff should',
+    'staff must',
+    'staff may',
+    'employees should',
+    'employees must',
+    'employees may',
+    'personnel should',
+    'personnel must',
+    'personnel may',
+    'team members',
+    'our staff',
+    'our employees',
+    
+    // Product/feature descriptions (describing their own bots)
+    'our bot',
+    'our bots',
+    'our chatbot',
+    'our chat bot',
+    'the chatbot',
+    'this chatbot',
+    'virtual assistant',
+    'ai assistant',
+    'automated assistant',
+    'our automated',
+    'we use automated',
+    
+    // Content about topics (not restrictions)
+    'policy on',
+    'research on',
+    'article about',
+    'report on',
+    'study on',
+    'paper on',
+    'analysis of',
+    'discussion of',
+    'coverage of',
+    
+    // Describing external entities
+    'threat actors',
+    'malicious bots',
+    'bad bots',
+    'bot attacks',
+    'bot detection',
+    'bot traffic',
+    'combat bots',
+    'fighting bots',
+    'protect against',
+    
+    // Political/representation context (New America false positive)
+    'representing candidates',
+    'political candidates',
+    'represent candidates',
+    'endorse candidates'
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY CONSTANTS (kept for backward compatibility with exports)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TOU_RESTRICTION_KEYWORDS = HIGH_CONFIDENCE_RESTRICTION_TERMS;
+const TOU_RESTRICTION_PHRASES = PROHIBITION_PHRASES;
 
 // Common TOU page paths
 const TOU_PATHS = [
@@ -121,7 +261,12 @@ const TOU_PATHS = [
     '/site-terms',
     '/website-terms',
     '/conditions',
-    '/terms-and-conditions'
+    '/terms-and-conditions',
+    '/policies-and-procedures',
+    '/policies',
+    '/site-policies',
+    '/disclaimer',
+    '/legal-notice'
 ];
 
 // Common events page paths
@@ -154,6 +299,84 @@ const EVENTS_PAGE_INDICATORS = [
     'join us',
     'rsvp'
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JAVASCRIPT RENDERING DETECTION (NEW - 2026-01-16)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Indicators that a page uses JavaScript to render content
+ * These patterns suggest the page content is loaded dynamically via JS
+ * and cannot be scraped with standard HTTP requests
+ */
+const JS_RENDER_INDICATORS = {
+    // SPA Framework Root Elements (high confidence)
+    FRAMEWORK_ROOTS: [
+        '<div id="root"></div>',
+        '<div id="root">',
+        "<div id='root'>",
+        '<div id="app"></div>',
+        '<div id="app">',
+        "<div id='app'>",
+        '<div id="__next">',
+        '<div id="__nuxt">',
+        '<div id="gatsby-focus-wrapper">',
+        '<main id="main"></main>',
+        '<div id="main"></div>'
+    ],
+    
+    // Framework-specific attributes (high confidence)
+    FRAMEWORK_ATTRIBUTES: [
+        'data-reactroot',
+        'data-react-helmet',
+        'ng-app',
+        'ng-controller',
+        'v-app',
+        'data-v-',
+        '_ngcontent-',
+        'data-server-rendered',
+        '__NEXT_DATA__',
+        '__NUXT__',
+        'window.__INITIAL_STATE__',
+        'window.__PRELOADED_STATE__'
+    ],
+    
+    // Noscript warnings (high confidence)
+    NOSCRIPT_WARNINGS: [
+        'you need to enable javascript',
+        'please enable javascript',
+        'javascript is required',
+        'javascript must be enabled',
+        'this site requires javascript',
+        'this app requires javascript',
+        'enable javascript to run this app',
+        'javascript is disabled',
+        'browser does not support javascript'
+    ],
+    
+    // Loading placeholders (medium confidence - need multiple)
+    LOADING_INDICATORS: [
+        'loading...</div>',
+        'loading...',
+        '<div class="loading">',
+        '<div class="spinner">',
+        '<div class="loader">',
+        'please wait while',
+        'content is loading'
+    ]
+};
+
+/**
+ * Minimum text content length (characters) expected for a real homepage
+ * Pages with less text content after removing scripts/styles are likely JS-rendered
+ */
+const MIN_CONTENT_LENGTH = 500;
+
+/**
+ * Maximum ratio of script tags to content length
+ * High ratio suggests JS-heavy page with little static content
+ */
+const MAX_SCRIPT_RATIO = 0.8;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -245,6 +468,151 @@ function extractText(html) {
 }
 
 /**
+ * Detect if a page uses JavaScript to render its content
+ * 
+ * This detects Single Page Applications (SPAs) and other JS-heavy sites
+ * that serve minimal HTML and load content dynamically via JavaScript.
+ * Such sites cannot be scraped with standard HTTP requests.
+ * 
+ * @param {string} html - Raw HTML content from the page
+ * @returns {Object} { isJsRendered: boolean, confidence: string, reasons: string[], notes: string }
+ * 
+ * Added: 2026-01-16
+ */
+function detectJavaScriptRendering(html) {
+    if (!html || typeof html !== 'string') {
+        return {
+            isJsRendered: false,
+            confidence: 'none',
+            reasons: ['No HTML to analyze'],
+            notes: 'Could not analyze - no HTML content'
+        };
+    }
+    
+    const lowerHtml = html.toLowerCase();
+    const reasons = [];
+    let highConfidenceHits = 0;
+    let mediumConfidenceHits = 0;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check 1: Framework Root Elements (HIGH confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const pattern of JS_RENDER_INDICATORS.FRAMEWORK_ROOTS) {
+        if (lowerHtml.includes(pattern.toLowerCase())) {
+            // Verify it's actually empty or near-empty (not just an ID that has content)
+            const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('><', '>([^<]{0,50})<'), 'i');
+            const match = html.match(regex);
+            if (match && (!match[1] || match[1].trim().length < 50)) {
+                reasons.push(`Framework root element found: ${pattern}`);
+                highConfidenceHits++;
+            }
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check 2: Framework-specific Attributes (HIGH confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const attr of JS_RENDER_INDICATORS.FRAMEWORK_ATTRIBUTES) {
+        if (lowerHtml.includes(attr.toLowerCase())) {
+            reasons.push(`Framework attribute found: ${attr}`);
+            highConfidenceHits++;
+            break; // One is enough for high confidence
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check 3: Noscript Warnings (HIGH confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Extract noscript content
+    const noscriptMatch = html.match(/<noscript[^>]*>([\s\S]*?)<\/noscript>/gi);
+    if (noscriptMatch) {
+        const noscriptContent = noscriptMatch.join(' ').toLowerCase();
+        for (const warning of JS_RENDER_INDICATORS.NOSCRIPT_WARNINGS) {
+            if (noscriptContent.includes(warning)) {
+                reasons.push(`Noscript warning: "${warning}"`);
+                highConfidenceHits++;
+                break;
+            }
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check 4: Content Analysis (MEDIUM confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    const textContent = extractText(html);
+    const textLength = textContent.length;
+    const htmlLength = html.length;
+    
+    // Check for very little actual text content
+    if (textLength < MIN_CONTENT_LENGTH && htmlLength > 1000) {
+        reasons.push(`Very little text content (${textLength} chars) despite large HTML (${htmlLength} chars)`);
+        mediumConfidenceHits++;
+    }
+    
+    // Count script tags vs content
+    const scriptMatches = html.match(/<script[^>]*>/gi) || [];
+    const scriptCount = scriptMatches.length;
+    
+    if (scriptCount > 10 && textLength < 1000) {
+        reasons.push(`High script count (${scriptCount}) with minimal text content`);
+        mediumConfidenceHits++;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check 5: Loading Indicators (MEDIUM confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    let loadingHits = 0;
+    for (const indicator of JS_RENDER_INDICATORS.LOADING_INDICATORS) {
+        if (lowerHtml.includes(indicator)) {
+            loadingHits++;
+        }
+    }
+    if (loadingHits >= 2) {
+        reasons.push(`Multiple loading indicators found (${loadingHits})`);
+        mediumConfidenceHits++;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Determine Result
+    // ─────────────────────────────────────────────────────────────────────────
+    let isJsRendered = false;
+    let confidence = 'none';
+    
+    if (highConfidenceHits >= 1) {
+        isJsRendered = true;
+        confidence = 'high';
+    } else if (mediumConfidenceHits >= 2) {
+        isJsRendered = true;
+        confidence = 'medium';
+    }
+    
+    // Build notes string
+    let notes = '';
+    if (isJsRendered) {
+        notes = `JavaScript-rendered site detected (${confidence} confidence). `;
+        notes += `Indicators: ${reasons.join('; ')}. `;
+        notes += `This site likely uses a JavaScript framework (React, Vue, Angular, Next.js, etc.) `;
+        notes += `and may require a headless browser for scraping.`;
+    } else {
+        notes = 'No JavaScript rendering detected - site appears to use server-side rendering.';
+    }
+    
+    return {
+        isJsRendered,
+        confidence,
+        reasons,
+        notes,
+        stats: {
+            textLength,
+            htmlLength,
+            scriptCount,
+            highConfidenceHits,
+            mediumConfidenceHits
+        }
+    };
+}
+
+/**
  * Fetch URL with error handling
  */
 async function fetchUrl(url, options = {}) {
@@ -320,8 +688,160 @@ async function fetchUrl(url, options = {}) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Content path prefixes to EXCLUDE from legal page scanning
+ * These are sections of websites that contain articles/content, not legal terms
+ */
+const CONTENT_PATH_PREFIXES = [
+    '/topics/',
+    '/topic/',
+    '/programs/',
+    '/program/',
+    '/events/',
+    '/event/',
+    '/news/',
+    '/blog/',
+    '/articles/',
+    '/article/',
+    '/research/',
+    '/publications/',
+    '/publication/',
+    '/reports/',
+    '/report/',
+    '/experts/',
+    '/expert/',
+    '/people/',
+    '/person/',
+    '/authors/',
+    '/author/',
+    '/issues/',
+    '/issue/',
+    '/regions/',
+    '/region/',
+    '/podcasts/',
+    '/videos/',
+    '/projects/',
+    '/initiatives/',
+    '/centers/',
+    '/commentary/',
+    '/analysis/',
+    '/briefs/',
+    '/papers/'
+];
+
+/**
+ * Check if a URL is actually a legal/terms page vs a content page
+ * Returns true if it's a genuine legal page
+ */
+function isLegalPageUrl(url) {
+    const lowerUrl = url.toLowerCase();
+    
+    // FIRST: Exclude content paths (these are NOT legal pages even if they contain "policy")
+    for (const prefix of CONTENT_PATH_PREFIXES) {
+        if (lowerUrl.includes(prefix)) {
+            return false;
+        }
+    }
+    
+    // SECOND: Check for specific legal page patterns
+    // These patterns should match the END of the path or be standalone segments
+    const legalPatterns = [
+        // Terms pages
+        /\/terms[-_]?of[-_]?use\/?$/i,
+        /\/terms[-_]?of[-_]?service\/?$/i,
+        /\/terms[-_]?and[-_]?conditions\/?$/i,
+        /\/terms[-_]?conditions\/?$/i,
+        /\/terms\/?$/i,
+        /\/tos\/?$/i,
+        
+        // Privacy pages
+        /\/privacy[-_]?policy\/?$/i,
+        /\/privacy\/?$/i,
+        /\/data[-_]?privacy\/?$/i,
+        
+        // Cookie pages
+        /\/cookie[-_]?policy\/?$/i,
+        /\/cookies\/?$/i,
+        
+        // Legal pages
+        /\/legal\/?$/i,
+        /\/legal\/terms\/?$/i,
+        /\/legal\/privacy\/?$/i,
+        /\/legal[-_]?notices?\/?$/i,
+        
+        // User agreement pages
+        /\/user[-_]?agreement\/?$/i,
+        /\/acceptable[-_]?use\/?$/i,
+        /\/acceptable[-_]?use[-_]?policy\/?$/i,
+        
+        // Copyright pages
+        /\/copyright\/?$/i,
+        /\/copyright[-_]?notice\/?$/i,
+        
+        // Site terms
+        /\/site[-_]?terms\/?$/i,
+        /\/website[-_]?terms\/?$/i,
+        
+        // Conditions
+        /\/conditions[-_]?of[-_]?use\/?$/i,
+        
+        // Policies pages (NEW - catches /policies-and-procedures/, /policies/, etc.)
+        /\/policies[-_]?and[-_]?procedures\/?$/i,
+        /\/policies\/?$/i,
+        /\/site[-_]?policies\/?$/i,
+        /\/website[-_]?policies\/?$/i,
+        
+        // Disclaimer
+        /\/disclaimer\/?$/i,
+        /\/disclaimers\/?$/i
+    ];
+    
+    // Check if URL matches any legal pattern
+    for (const pattern of legalPatterns) {
+        if (pattern.test(lowerUrl)) {
+            return true;
+        }
+    }
+    
+    // THIRD: Check for legal keywords in the LAST path segment only
+    // This prevents matching /topics/foreign-policy/ but allows /privacy-policy/
+    try {
+        const urlObj = new URL(url);
+        const pathSegments = urlObj.pathname.split('/').filter(s => s.length > 0);
+        const lastSegment = pathSegments[pathSegments.length - 1] || '';
+        
+        // Only match if the last segment IS the legal term (not just contains it)
+        const legalLastSegments = [
+            'terms', 'tos', 'legal', 'privacy', 'copyright',
+            'terms-of-use', 'terms-of-service', 'privacy-policy',
+            'cookie-policy', 'user-agreement', 'acceptable-use',
+            'terms-and-conditions', 'site-terms', 'website-terms'
+        ];
+        
+        if (legalLastSegments.includes(lastSegment.toLowerCase())) {
+            return true;
+        }
+        
+        // Check for patterns like "brookings-institution-privacy-policy"
+        if (lastSegment.toLowerCase().endsWith('-privacy-policy') ||
+            lastSegment.toLowerCase().endsWith('-terms-of-use') ||
+            lastSegment.toLowerCase().endsWith('-terms-of-service') ||
+            lastSegment.toLowerCase().endsWith('-cookie-policy') ||
+            lastSegment.toLowerCase().endsWith('-user-agreement')) {
+            return true;
+        }
+    } catch (e) {
+        // URL parsing failed, be conservative
+        return false;
+    }
+    
+    return false;
+}
+
+/**
  * Find ALL legal page URLs from homepage HTML and common paths
  * Returns array of URLs to scan (not just the first one!)
+ * 
+ * Updated 2026-01-15: Now excludes content pages (e.g., /topics/foreign-policy/)
  */
 async function findAllLegalUrls(html, baseUrl) {
     const foundUrls = new Set(); // Use Set to avoid duplicates
@@ -329,41 +849,32 @@ async function findAllLegalUrls(html, baseUrl) {
     
     // STEP 1: Look for ALL legal links in the homepage HTML
     if (html) {
-        const patterns = [
-            /href=["']([^"']*(?:terms|tos|legal|privacy|acceptable|conditions|agreement|copyright|policy)[^"']*)["']/gi
-        ];
+        // Match href attributes that might contain legal page URLs
+        const hrefPattern = /href=["']([^"']+)["']/gi;
+        const matches = html.matchAll(hrefPattern);
         
-        for (const pattern of patterns) {
-            const matches = html.matchAll(pattern);
-            for (const match of matches) {
-                let url = match[1];
-                
-                // Skip anchors, javascript, mailto
-                if (!url || url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('mailto:')) {
+        for (const match of matches) {
+            let url = match[1];
+            
+            // Skip anchors, javascript, mailto
+            if (!url || url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('mailto:')) {
+                continue;
+            }
+            
+            // Make relative URLs absolute
+            if (!url.startsWith('http')) {
+                try {
+                    url = new URL(url, baseUrl).href;
+                } catch (e) {
                     continue;
                 }
-                
-                // Make relative URLs absolute
-                if (!url.startsWith('http')) {
-                    try {
-                        url = new URL(url, baseUrl).href;
-                    } catch (e) {
-                        continue;
-                    }
-                }
-                
-                // Check if it looks like a legal page
-                const lowerUrl = url.toLowerCase();
-                if (lowerUrl.includes('term') || lowerUrl.includes('legal') || 
-                    lowerUrl.includes('privacy') || lowerUrl.includes('agreement') ||
-                    lowerUrl.includes('acceptable') || lowerUrl.includes('conditions') ||
-                    lowerUrl.includes('copyright') || lowerUrl.includes('policy') ||
-                    lowerUrl.includes('tos')) {
-                    
-                    if (!foundUrls.has(url)) {
-                        foundUrls.add(url);
-                        urlDetails.push({ url, method: 'link' });
-                    }
+            }
+            
+            // Check if it's a genuine legal page (not a content page)
+            if (isLegalPageUrl(url)) {
+                if (!foundUrls.has(url)) {
+                    foundUrls.add(url);
+                    urlDetails.push({ url, method: 'link' });
                 }
             }
         }
@@ -408,46 +919,190 @@ async function findAllLegalUrls(html, baseUrl) {
     };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTEXT-AWARE RESTRICTION DETECTION (NEW - 2026-01-16)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
- * Scan text for TOU restriction keywords
+ * Check if a term appears near an excluded context (false positive filter)
+ * 
+ * @param {string} text - Full text to search
+ * @param {number} keywordIndex - Index where keyword was found
+ * @param {number} keywordLength - Length of the keyword
+ * @returns {Object} { isExcluded: boolean, excludedContext: string|null }
+ */
+function checkForExcludedContext(text, keywordIndex, keywordLength) {
+    const lowerText = text.toLowerCase();
+    
+    // Define the window to check around the keyword
+    const windowStart = Math.max(0, keywordIndex - CONTEXT_WINDOW);
+    const windowEnd = Math.min(lowerText.length, keywordIndex + keywordLength + CONTEXT_WINDOW);
+    const contextWindow = lowerText.substring(windowStart, windowEnd);
+    
+    // Check each excluded context
+    for (const excludedPhrase of EXCLUDED_CONTEXTS) {
+        if (contextWindow.includes(excludedPhrase.toLowerCase())) {
+            return { isExcluded: true, excludedContext: excludedPhrase };
+        }
+    }
+    
+    return { isExcluded: false, excludedContext: null };
+}
+
+/**
+ * Check if a term appears near a prohibition phrase
+ * 
+ * @param {string} text - Full text to search
+ * @param {number} keywordIndex - Index where keyword was found
+ * @param {number} keywordLength - Length of the keyword
+ * @returns {Object} { hasProhibition: boolean, prohibitionPhrase: string|null }
+ */
+function checkForProhibitionPhrase(text, keywordIndex, keywordLength) {
+    const lowerText = text.toLowerCase();
+    
+    // Define the window to check around the keyword
+    const windowStart = Math.max(0, keywordIndex - CONTEXT_WINDOW);
+    const windowEnd = Math.min(lowerText.length, keywordIndex + keywordLength + CONTEXT_WINDOW);
+    const contextWindow = lowerText.substring(windowStart, windowEnd);
+    
+    // Check each prohibition phrase
+    for (const phrase of PROHIBITION_PHRASES) {
+        if (contextWindow.includes(phrase.toLowerCase())) {
+            return { hasProhibition: true, prohibitionPhrase: phrase };
+        }
+    }
+    
+    return { hasProhibition: false, prohibitionPhrase: null };
+}
+
+/**
+ * Extract context snippet around a keyword for logging
+ */
+function getContextSnippet(text, keywordIndex, keywordLength, snippetRadius = 80) {
+    const start = Math.max(0, keywordIndex - snippetRadius);
+    const end = Math.min(text.length, keywordIndex + keywordLength + snippetRadius);
+    return '...' + text.substring(start, end).trim().replace(/\s+/g, ' ') + '...';
+}
+
+/**
+ * Scan text for TOU restriction keywords using CONTEXT-AWARE detection
+ * 
+ * Two-tier detection:
+ * 1. HIGH_CONFIDENCE terms → Flag immediately
+ * 2. CONTEXT_REQUIRED terms → Only flag if near a PROHIBITION_PHRASE and NOT near EXCLUDED_CONTEXT
+ * 
+ * Updated 2026-01-16
  */
 function findRestrictions(text) {
     const lowerText = text.toLowerCase();
-    const foundKeywords = [];
-    const context = [];
+    const foundRestrictions = [];
+    const contextDetails = [];
+    const skippedFalsePositives = [];
     
-    // Check keywords
-    for (const keyword of TOU_RESTRICTION_KEYWORDS) {
-        if (lowerText.includes(keyword.toLowerCase())) {
-            foundKeywords.push(keyword);
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 1: Check HIGH CONFIDENCE terms (flag immediately)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    for (const term of HIGH_CONFIDENCE_RESTRICTION_TERMS) {
+        const termLower = term.toLowerCase();
+        let searchIndex = 0;
+        
+        while ((searchIndex = lowerText.indexOf(termLower, searchIndex)) !== -1) {
+            // Even high-confidence terms should check for excluded contexts
+            const exclusionCheck = checkForExcludedContext(text, searchIndex, term.length);
             
-            const index = lowerText.indexOf(keyword.toLowerCase());
-            const start = Math.max(0, index - 80);
-            const end = Math.min(text.length, index + keyword.length + 80);
-            const contextSnippet = '...' + text.substring(start, end).trim() + '...';
-            context.push(`"${keyword}": ${contextSnippet}`);
+            if (exclusionCheck.isExcluded) {
+                skippedFalsePositives.push({
+                    term,
+                    reason: `Near excluded context: "${exclusionCheck.excludedContext}"`,
+                    snippet: getContextSnippet(text, searchIndex, term.length)
+                });
+                searchIndex += term.length;
+                continue;
+            }
+            
+            // Flag this as a restriction
+            const snippet = getContextSnippet(text, searchIndex, term.length);
+            foundRestrictions.push({
+                term,
+                type: 'HIGH_CONFIDENCE',
+                snippet
+            });
+            contextDetails.push(`[HIGH_CONFIDENCE] "${term}": ${snippet}`);
+            
+            searchIndex += term.length;
         }
     }
     
-    // Check phrases
-    for (const phrase of TOU_RESTRICTION_PHRASES) {
-        if (lowerText.includes(phrase.toLowerCase())) {
-            foundKeywords.push(phrase);
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 2: Check CONTEXT REQUIRED terms (need prohibition phrase nearby)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    for (const term of CONTEXT_REQUIRED_TERMS) {
+        const termLower = term.toLowerCase();
+        let searchIndex = 0;
+        
+        // Use word boundary matching for short terms to avoid partial matches
+        // e.g., "bot" should not match "robot" or "botany"
+        const wordBoundaryRegex = new RegExp(`\\b${termLower}\\b`, 'gi');
+        let match;
+        
+        while ((match = wordBoundaryRegex.exec(lowerText)) !== null) {
+            const matchIndex = match.index;
             
-            const index = lowerText.indexOf(phrase.toLowerCase());
-            const start = Math.max(0, index - 80);
-            const end = Math.min(text.length, index + phrase.length + 80);
-            const contextSnippet = '...' + text.substring(start, end).trim() + '...';
-            context.push(`"${phrase}": ${contextSnippet}`);
+            // Check for excluded context first
+            const exclusionCheck = checkForExcludedContext(text, matchIndex, term.length);
+            
+            if (exclusionCheck.isExcluded) {
+                skippedFalsePositives.push({
+                    term,
+                    reason: `Near excluded context: "${exclusionCheck.excludedContext}"`,
+                    snippet: getContextSnippet(text, matchIndex, term.length)
+                });
+                continue;
+            }
+            
+            // Check for prohibition phrase nearby
+            const prohibitionCheck = checkForProhibitionPhrase(text, matchIndex, term.length);
+            
+            if (prohibitionCheck.hasProhibition) {
+                // Found a real restriction!
+                const snippet = getContextSnippet(text, matchIndex, term.length);
+                foundRestrictions.push({
+                    term,
+                    type: 'CONTEXT_CONFIRMED',
+                    prohibitionPhrase: prohibitionCheck.prohibitionPhrase,
+                    snippet
+                });
+                contextDetails.push(`[CONTEXT_CONFIRMED] "${term}" + "${prohibitionCheck.prohibitionPhrase}": ${snippet}`);
+            } else {
+                // Term found but no prohibition phrase nearby - skip
+                skippedFalsePositives.push({
+                    term,
+                    reason: 'No prohibition phrase nearby',
+                    snippet: getContextSnippet(text, matchIndex, term.length)
+                });
+            }
         }
     }
     
-    const uniqueKeywords = [...new Set(foundKeywords)];
+    // ─────────────────────────────────────────────────────────────────────────
+    // Compile results
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    const uniqueTerms = [...new Set(foundRestrictions.map(r => r.term))];
     
     return {
-        hasRestrictions: uniqueKeywords.length > 0,
-        foundKeywords: uniqueKeywords,
-        context: context.slice(0, 10)
+        hasRestrictions: foundRestrictions.length > 0,
+        foundKeywords: uniqueTerms,
+        restrictions: foundRestrictions,
+        context: contextDetails.slice(0, 15),
+        skippedFalsePositives: skippedFalsePositives.slice(0, 10),
+        stats: {
+            highConfidenceCount: foundRestrictions.filter(r => r.type === 'HIGH_CONFIDENCE').length,
+            contextConfirmedCount: foundRestrictions.filter(r => r.type === 'CONTEXT_CONFIRMED').length,
+            falsePositivesSkipped: skippedFalsePositives.length
+        }
     };
 }
 
@@ -458,9 +1113,12 @@ function findRestrictions(text) {
  *         Acceptable Use Policy, Website Terms, Copyright Notice, etc.
  * 
  * Sets tou_flag = TRUE if ANY page contains restrictions
+ * 
+ * Updated 2026-01-16: Now uses context-aware detection
  */
 async function scanTOU(website, html = null) {
     console.log('   📜 Scanning ALL legal pages for restrictions...');
+    console.log('      ℹ️ Using context-aware detection (v2026-01-16)');
     
     const result = {
         touUrl: null,           // Primary TOU URL (first one with restrictions, or first scanned)
@@ -471,7 +1129,8 @@ async function scanTOU(website, html = null) {
         foundKeywords: [],
         context: [],
         pagesScanned: 0,
-        pagesWithRestrictions: []
+        pagesWithRestrictions: [],
+        falsePositivesSkipped: 0
     };
     
     const baseUrl = website.replace(/\/$/, '');
@@ -501,6 +1160,7 @@ async function scanTOU(website, html = null) {
     const scannedPages = [];
     const allFoundKeywords = [];
     const allContext = [];
+    let totalFalsePositivesSkipped = 0;
     
     for (const urlInfo of legalSearch.urlDetails) {
         const url = urlInfo.url;
@@ -527,17 +1187,24 @@ async function scanTOU(website, html = null) {
         
         result.pagesScanned++;
         
-        // Scan for restrictions
+        // Scan for restrictions using context-aware detection
         const text = extractText(pageResult.body);
         const restrictions = findRestrictions(text);
         
+        totalFalsePositivesSkipped += restrictions.stats.falsePositivesSkipped;
+        
         if (restrictions.hasRestrictions) {
+            const highCount = restrictions.stats.highConfidenceCount;
+            const contextCount = restrictions.stats.contextConfirmedCount;
             console.log(`         ⚠️ RESTRICTIONS FOUND: ${restrictions.foundKeywords.slice(0, 3).join(', ')}`);
+            console.log(`            (${highCount} high-confidence, ${contextCount} context-confirmed)`);
+            
             result.touFlag = true;
             result.pagesWithRestrictions.push({ 
                 url, 
                 type: pageType, 
-                keywords: restrictions.foundKeywords 
+                keywords: restrictions.foundKeywords,
+                stats: restrictions.stats
             });
             
             // Set primary TOU URL to first page with restrictions
@@ -547,9 +1214,14 @@ async function scanTOU(website, html = null) {
             
             allFoundKeywords.push(...restrictions.foundKeywords);
             allContext.push(...restrictions.context.map(c => `[${pageType}] ${c}`));
-            scannedPages.push(`⚠️ ${pageType}: RESTRICTIONS (${restrictions.foundKeywords.length} keywords)`);
+            scannedPages.push(`⚠️ ${pageType}: RESTRICTIONS (${restrictions.foundKeywords.length} terms)`);
         } else {
-            console.log(`         ✅ No restrictions`);
+            const skipped = restrictions.stats.falsePositivesSkipped;
+            if (skipped > 0) {
+                console.log(`         ✅ No restrictions (${skipped} false positives filtered)`);
+            } else {
+                console.log(`         ✅ No restrictions`);
+            }
             scannedPages.push(`✅ ${pageType}: Clear`);
         }
         
@@ -564,11 +1236,12 @@ async function scanTOU(website, html = null) {
     // Compile results
     result.foundKeywords = [...new Set(allFoundKeywords)];
     result.context = allContext.slice(0, 15);
+    result.falsePositivesSkipped = totalFalsePositivesSkipped;
     
     // Build detailed notes
     if (result.touFlag) {
         const restrictedPages = result.pagesWithRestrictions.map(p => p.type).join(', ');
-        result.touNotes = `⚠️ TOU RESTRICTIONS DETECTED
+        result.touNotes = `⚠️ TOU RESTRICTIONS DETECTED (Context-Aware Scan v2026-01-16)
 
 Pages with restrictions: ${restrictedPages}
 
@@ -578,16 +1251,20 @@ ${scannedPages.join('\n')}
 Keywords found: ${result.foundKeywords.slice(0, 10).join(', ')}
 
 Context:
-${result.context.slice(0, 5).join('\n')}`;
+${result.context.slice(0, 5).join('\n')}
+
+False positives filtered: ${totalFalsePositivesSkipped}`;
     } else {
-        result.touNotes = `✅ ALL LEGAL PAGES SCANNED - No restrictions found
+        result.touNotes = `✅ ALL LEGAL PAGES SCANNED - No restrictions found (Context-Aware Scan v2026-01-16)
 
 Pages scanned (${result.pagesScanned} total):
-${scannedPages.join('\n')}`;
+${scannedPages.join('\n')}
+
+False positives filtered: ${totalFalsePositivesSkipped}`;
     }
     
     // Summary log
-    console.log(`      📊 Scanned ${result.pagesScanned} page(s), ${result.pagesWithRestrictions.length} with restrictions`);
+    console.log(`      📊 Scanned ${result.pagesScanned} page(s), ${result.pagesWithRestrictions.length} with restrictions, ${totalFalsePositivesSkipped} false positives filtered`);
     
     return result;
 }
@@ -1197,6 +1874,12 @@ async function scanOrganization(org, options = {}) {
         touUrl: null,
         touNotes: '',
         foundKeywords: [],
+        falsePositivesSkipped: 0,
+        
+        // JavaScript Rendering Detection (NEW - 2026-01-16)
+        jsRenderFlag: false,
+        jsRenderNotes: '',
+        jsRenderConfidence: 'none',
         
         // Events URL (NEW)
         eventsUrl: null,
@@ -1214,6 +1897,11 @@ async function scanOrganization(org, options = {}) {
         
         // What was updated
         fieldsUpdated: [],
+        
+        // Status change tracking
+        statusChanged: false,
+        newStatus: null,
+        previousStatus: org.status || null,
         
         // Scan metadata
         scannedDate: new Date().toISOString()
@@ -1255,6 +1943,28 @@ async function scanOrganization(org, options = {}) {
     await sleep(1500);
     
     // ───────────────────────────────────────────────────────────────────────
+    // Step 1.5: JavaScript Rendering Detection (NEW - 2026-01-16)
+    // ───────────────────────────────────────────────────────────────────────
+    
+    if (result.homepageFetched && result.homepageHtml) {
+        console.log('   🔍 Checking for JavaScript rendering...');
+        const jsResult = detectJavaScriptRendering(result.homepageHtml);
+        
+        result.jsRenderFlag = jsResult.isJsRendered;
+        result.jsRenderNotes = jsResult.notes;
+        result.jsRenderConfidence = jsResult.confidence;
+        
+        if (jsResult.isJsRendered) {
+            console.log(`      ⚠️ JavaScript-rendered site detected (${jsResult.confidence} confidence)`);
+            if (jsResult.reasons.length > 0) {
+                console.log(`      📋 Reasons: ${jsResult.reasons.slice(0, 3).join(', ')}${jsResult.reasons.length > 3 ? '...' : ''}`);
+            }
+        } else {
+            console.log('      ✅ Server-side rendered (standard scraping should work)');
+        }
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────
     // Step 2: TOU Scan
     // ───────────────────────────────────────────────────────────────────────
     
@@ -1265,6 +1975,7 @@ async function scanOrganization(org, options = {}) {
         result.techBlockFlag = result.techBlockFlag || touResult.techBlockFlag;
         result.touNotes = touResult.touNotes;
         result.foundKeywords = touResult.foundKeywords;
+        result.falsePositivesSkipped = touResult.falsePositivesSkipped || 0;
         
         await sleep(1500);
     }
@@ -1337,6 +2048,39 @@ async function scanOrganization(org, options = {}) {
         updates.tou_scanned_date = new Date().toISOString().split('T')[0];
         result.fieldsUpdated.push('tou_scanned_date');
         
+        // AUTO-UPDATE STATUS: If TOU or tech block detected, set status to "Rejected by Org"
+        // Only change status if not already rejected
+        if ((result.touFlag || result.techBlockFlag) && 
+            org.status !== 'Rejected by Org' && 
+            org.status !== 'Rejected by Mission') {
+            updates.status = 'Rejected by Org';
+            result.fieldsUpdated.push('status');
+            result.statusChanged = true;
+            result.newStatus = 'Rejected by Org';
+            console.log(`      🔄 Auto-updating status to "Rejected by Org" (TOU/tech block detected)`);
+        }
+        
+        // JS Rendering flag (NEW - 2026-01-16)
+        if (result.jsRenderFlag !== org.js_render_flag) {
+            updates.js_render_flag = result.jsRenderFlag;
+            result.fieldsUpdated.push('js_render_flag');
+        }
+        
+        // AUTO-UPDATE STATUS: If JS rendering detected, set status to "Nominated" for human review
+        // Only if not already rejected and JS flag is newly set
+        // This is informational - not a rejection, just needs human attention
+        if (result.jsRenderFlag && 
+            !result.touFlag && 
+            !result.techBlockFlag &&
+            org.status === 'Live (Scraping Active)' &&
+            !org.js_render_flag) {
+            updates.status = 'Nominated (Pending Mission Review)';
+            result.fieldsUpdated.push('status');
+            result.statusChanged = true;
+            result.newStatus = 'Nominated (Pending Mission Review)';
+            console.log(`      🔄 Auto-updating status to "Nominated" (JS rendering detected - needs review)`);
+        }
+        
         // Events URL (only update if we found one and current is empty)
         if (result.eventsUrl && !org.events_url) {
             updates.events_url = result.eventsUrl;
@@ -1376,10 +2120,15 @@ async function scanOrganization(org, options = {}) {
     console.log('════════════════════════════════════════════════════════════════');
     console.log(`   Tech Block: ${result.techBlockFlag ? '⛔ YES' : '✅ No'}`);
     console.log(`   TOU Flag: ${result.touFlag ? '⚠️ YES' : '✅ No'}`);
+    console.log(`   JS Render Flag: ${result.jsRenderFlag ? `⚙️ YES (${result.jsRenderConfidence} confidence)` : '✅ No'}`);
     console.log(`   TOU URL: ${result.touUrl || 'Not found'}`);
+    console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
     console.log(`   Events URL: ${result.eventsUrl || 'Not found'} ${result.eventsUrlValidated ? '✅' : '⚠️'}`);
     console.log(`   POC Email: ${result.pocInfo?.email || 'Not found'}`);
     console.log(`   AI Org Name: ${result.aiOrgName || 'N/A'}`);
+    if (result.statusChanged) {
+        console.log(`   🔄 Status Changed: "${result.previousStatus}" → "${result.newStatus}"`);
+    }
     if (result.fieldsUpdated.length > 0) {
         console.log(`   Fields Updated: ${result.fieldsUpdated.join(', ')}`);
     }
@@ -1404,11 +2153,21 @@ module.exports = {
     // Individual scan components (for use by other scripts)
     scanTOU,
     findAllLegalUrls,
+    isLegalPageUrl,
     findEventsUrl,
     extractEventsUrlFromTriggeringUrl,
     validateEventsUrl,
     gatherPOC,
     analyzeWithAI,
+    findRestrictions,
+    
+    // JavaScript Rendering Detection (NEW - 2026-01-16)
+    detectJavaScriptRendering,
+    
+    // Context-aware detection helpers (NEW)
+    checkForExcludedContext,
+    checkForProhibitionPhrase,
+    getContextSnippet,
     
     // Database operations
     getOrganization,
@@ -1421,11 +2180,19 @@ module.exports = {
     sleep,
     getPageType,
     
-    // Constants
-    TOU_RESTRICTION_KEYWORDS,
-    TOU_RESTRICTION_PHRASES,
+    // Constants (including new context-aware ones)
+    HIGH_CONFIDENCE_RESTRICTION_TERMS,
+    CONTEXT_REQUIRED_TERMS,
+    PROHIBITION_PHRASES,
+    EXCLUDED_CONTEXTS,
+    TOU_RESTRICTION_KEYWORDS,  // Legacy alias
+    TOU_RESTRICTION_PHRASES,   // Legacy alias
     TOU_PATHS,
+    CONTENT_PATH_PREFIXES,
     EVENTS_PATHS,
     EVENTS_PAGE_INDICATORS,
-    USER_AGENT
+    JS_RENDER_INDICATORS,      // NEW - 2026-01-16
+    MIN_CONTENT_LENGTH,        // NEW - 2026-01-16
+    USER_AGENT,
+    CONTEXT_WINDOW
 };

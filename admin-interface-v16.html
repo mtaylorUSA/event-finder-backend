@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v13</title>
+    <title>Event Finder Admin v16</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -121,6 +121,7 @@
         .badge-live { background: #28a745; color: white; }
         .badge-tou-flag { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
         .badge-tech-block { background: #dc3545; color: white; border: 1px solid #721c24; }
+        .badge-js-render { background: #e2e3f3; color: #3d4070; border: 1px solid #6c757d; }
         .badge-explicit { background: #d4edda; color: #155724; }
 
         /* Icon Grid */
@@ -267,7 +268,8 @@
                             <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
                             <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
                             <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
-                            <option value="Rejected (By Mission or Org)">🔴 Rejected (By Mission or Org)</option>
+                            <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                            <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
                         </select>
                     </div>
@@ -292,7 +294,8 @@
                             <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved</option>
                             <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested</option>
                             <option value="Permission Granted (Not Live)">🟢 Permission Granted</option>
-                            <option value="Rejected (By Mission or Org)">🔴 Rejected</option>
+                            <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                            <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live</option>
                         </select>
                     </div>
@@ -391,7 +394,8 @@
                                         <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
                                         <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
                                         <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
-                                        <option value="Rejected (By Mission or Org)">🔴 Rejected (By Mission or Org)</option>
+                                        <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                                        <option value="Rejected by Org">⛔ Rejected by Org</option>
                                         <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
                                     </select>
                                 </div>
@@ -531,10 +535,16 @@
                                 <div class="form-group"><label>Events Scraped</label><input type="text" id="scrapingEventCount" readonly style="background: #f0f0f0;"></div>
                                 <div class="form-group"><label>Last Scraped</label><input type="text" id="scrapingLastScraped" readonly style="background: #f0f0f0;"></div>
                             </div>
-                            <div class="form-group checkbox-group">
-                                <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
+                            <div class="form-row" style="margin: 15px 0;">
+                                <div class="form-group checkbox-group">
+                                    <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
+                                </div>
+                                <div class="form-group checkbox-group">
+                                    <label><input type="checkbox" id="jsRenderedFlag"> ⚙️ JS-Rendered Site (requires Puppeteer)</label>
+                                </div>
                             </div>
-                            <div class="form-group"><label>Scraping Notes</label><textarea id="scrapingNotes" placeholder="Notes about scraping..."></textarea></div>
+                            <div class="form-group"><label>Scrape Notes <span style="font-weight: normal; color: #666;">(auto-populated by scanner)</span></label><textarea id="scrapeNotes" placeholder="Auto-populated when JS-rendered site is detected..." style="min-height: 120px;"></textarea></div>
+                            <div class="form-group"><label>Manual Notes</label><textarea id="scrapingNotes" placeholder="Notes about scraping..."></textarea></div>
                             <button type="submit" class="btn btn-small btn-success">💾 Save Scraping Info</button>
                         </form>
                     </div>
@@ -549,7 +559,8 @@
                                     <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
                                     <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
                                     <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
-                                    <option value="Rejected (By Mission or Org)">🔴 Rejected (By Mission or Org)</option>
+                                    <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                                    <option value="Rejected by Org">⛔ Rejected by Org</option>
                                     <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
                                 </select>
                             </div>
@@ -690,7 +701,8 @@
             'Mission Approved (Request Not Sent)': { icon: '🔵', badge: 'badge-approved', cardClass: 'status-approved' },
             'Permission Requested (Pending Org Response)': { icon: '🟡', badge: 'badge-requested', cardClass: 'status-requested' },
             'Permission Granted (Not Live)': { icon: '🟢', badge: 'badge-granted', cardClass: 'status-granted' },
-            'Rejected (By Mission or Org)': { icon: '🔴', badge: 'badge-rejected', cardClass: 'status-rejected' },
+            'Rejected by Mission': { icon: '🔴', badge: 'badge-rejected', cardClass: 'status-rejected' },
+            'Rejected by Org': { icon: '⛔', badge: 'badge-rejected', cardClass: 'status-rejected' },
             'Live (Scraping Active)': { icon: '✅', badge: 'badge-live', cardClass: 'status-live' }
         };
 
@@ -805,7 +817,9 @@
                 permission_type: '',
                 tou_flag: false,
                 tech_block_flag: false,
+                js_render_flag: false,
                 tou_notes: '',
+                scrape_notes: '',
                 ai_reasoning: '',
                 permission_requested_date: '',
                 permission_response_date: '',
@@ -869,6 +883,9 @@
             }
             if (org.tou_flag && !org.tech_block_flag) {
                 alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            if (org.js_render_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape.</p></div>`;
             }
             alertsDiv.innerHTML = alertsHtml;
         }
@@ -934,6 +951,9 @@
                 alertsHtml = `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests.</p></div>`;
             } else if (currentOrg.tou_flag) {
                 alertsHtml = `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            if (currentOrg.js_render_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Requires Puppeteer to scrape.</p></div>`;
             }
             orgInfoDiv.innerHTML = `
                 ${alertsHtml}
@@ -1036,6 +1056,9 @@
             if (currentOrg.tou_flag && !currentOrg.tech_block_flag) {
                 alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
             }
+            if (currentOrg.js_render_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape. See Scrape Notes for details.</p></div>`;
+            }
             alertsDiv.innerHTML = alertsHtml;
 
             document.getElementById('touFlag').checked = currentOrg.tou_flag || false;
@@ -1054,7 +1077,9 @@
             updateGoLiveDate();
 
             document.getElementById('scrapingEnabled').checked = currentOrg.scraping_enabled || false;
+            document.getElementById('jsRenderedFlag').checked = currentOrg.js_render_flag || false;
             document.getElementById('scrapingLastScraped').value = currentOrg.last_scraped ? new Date(currentOrg.last_scraped).toLocaleString() : 'Never';
+            document.getElementById('scrapeNotes').value = currentOrg.scrape_notes || '';
             document.getElementById('scrapingNotes').value = currentOrg.notes || '';
             document.getElementById('statusDropdown').value = currentOrg.status || 'Nominated (Pending Mission Review)';
             document.getElementById('statusEventPolicy').value = currentOrg.event_policy || '';
@@ -1163,9 +1188,9 @@
                 document.getElementById('scrapingEnabled').checked = false;
                 console.log('Unchecked Scraping Enabled');
                 
-                // Change status to Rejected
-                document.getElementById('statusDropdown').value = 'Rejected (By Mission or Org)';
-                console.log('Set status to Rejected');
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
                 
                 // Auto-save changes
                 saveTouBlockChanges('tou');
@@ -1197,9 +1222,9 @@
                 document.getElementById('scrapingEnabled').checked = false;
                 console.log('Unchecked Scraping Enabled');
                 
-                // Change status to Rejected
-                document.getElementById('statusDropdown').value = 'Rejected (By Mission or Org)';
-                console.log('Set status to Rejected');
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
                 
                 // Auto-populate TOU Notes if empty
                 const touNotes = document.getElementById('touNotes');
@@ -1231,7 +1256,7 @@
                 tech_block_flag: document.getElementById('techBlockFlag').checked,
                 tou_notes: document.getElementById('touNotes').value,
                 tou_scanned_date: touScannedDate,
-                status: 'Rejected (By Mission or Org)',
+                status: 'Rejected by Org',
                 scraping_enabled: false,
                 permission_response_date: today
             };
@@ -1263,9 +1288,9 @@
                 }
                 
                 // Update UI
-                const config = STATUS_CONFIG['Rejected (By Mission or Org)'];
-                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected (By Mission or Org)`;
-                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected (By Mission or Org)</span>`;
+                const config = STATUS_CONFIG['Rejected by Org'];
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected by Org`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected by Org</span>`;
                 document.getElementById('permissionResponseDate').value = today;
                 
                 // Update alerts
@@ -1277,7 +1302,7 @@
                 }
                 
                 const blockTypeLabel = blockType === 'tech' ? 'Technical Block' : 'TOU Flag';
-                showMessage('profileMessage', `⚠️ ${blockTypeLabel} set - Status changed to Rejected, Scraping disabled`, 'warning');
+                showMessage('profileMessage', `⚠️ ${blockTypeLabel} set - Status changed to Rejected by Org, Scraping disabled`, 'warning');
             })
             .catch(error => {
                 console.error('Save error:', error);
@@ -1298,12 +1323,12 @@
             const blockMessage = `❌ ${orgName} is actively blocking automated requests (403 Forbidden).`;
             const today = new Date().toISOString().split('T')[0];
 
-            if (!confirm(`Mark "${orgName}" as technically blocked?\n\nThis will:\n• Set status to "Rejected (By Mission or Org)"\n• Set Technical Block flag to true\n• Set TOU flag to true\n• Update TOU Notes and Permission Response\n• Set Permission Response Date to today`)) {
+            if (!confirm(`Mark "${orgName}" as technically blocked?\n\nThis will:\n• Set status to "Rejected by Org"\n• Set Technical Block flag to true\n• Set TOU flag to true\n• Update TOU Notes and Permission Response\n• Set Permission Response Date to today`)) {
                 return;
             }
 
             const data = {
-                status: 'Rejected (By Mission or Org)',
+                status: 'Rejected by Org',
                 tech_block_flag: true,
                 tou_flag: true,
                 tou_notes: blockMessage,
@@ -1329,11 +1354,11 @@
                 document.getElementById('permissionCorrespondence').value = blockMessage;
                 document.getElementById('permissionResponseDate').value = today;
                 document.getElementById('scrapingEnabled').checked = false;
-                document.getElementById('statusDropdown').value = 'Rejected (By Mission or Org)';
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
 
-                const config = STATUS_CONFIG['Rejected (By Mission or Org)'];
-                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected (By Mission or Org)`;
-                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected (By Mission or Org)</span>`;
+                const config = STATUS_CONFIG['Rejected by Org'];
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected by Org`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected by Org</span>`;
 
                 // Update alerts
                 const alertsDiv = document.getElementById('statusAlerts');
@@ -1365,12 +1390,19 @@
 
         document.getElementById('scrapingForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const data = { scraping_enabled: document.getElementById('scrapingEnabled').checked, notes: document.getElementById('scrapingNotes').value };
+            const data = { 
+                scraping_enabled: document.getElementById('scrapingEnabled').checked, 
+                js_render_flag: document.getElementById('jsRenderedFlag').checked,
+                scrape_notes: document.getElementById('scrapeNotes').value,
+                notes: document.getElementById('scrapingNotes').value 
+            };
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
                     method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
                 });
                 Object.assign(currentOrg, data);
+                // Update alerts if js_render_flag changed
+                loadStatusHistory();
                 showMessage('profileMessage', '✅ Scraping info saved!', 'success');
             } catch (error) { alert('Error: ' + error.message); }
         });
@@ -1513,6 +1545,15 @@ Mobile: 703-795-0217`;
                     summaryHtml += `<p>⛔ <strong>Technically Blocked:</strong> ${techBlockedCount}</p>`;
                 }
                 
+                // Add JS rendered count
+                const jsRenderCount = orgs.filter(o => o.js_render_flag === true).length;
+                if (jsRenderCount > 0) {
+                    if (techBlockedCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>⚙️ <strong>JS-Rendered Sites:</strong> ${jsRenderCount}</p>`;
+                }
+                
                 document.getElementById('dashboardContent').innerHTML = `<div class="card">${summaryHtml}</div>`;
             } catch (error) {
                 document.getElementById('dashboardContent').innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
@@ -1580,6 +1621,7 @@ Mobile: 703-795-0217`;
             const config = STATUS_CONFIG[org.status] || { icon: '❓', badge: '', cardClass: '' };
             const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
             const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
+            const jsRenderBadge = org.js_render_flag ? '<span class="badge badge-js-render">⚙️ JS</span>' : '';
             
             // Add tech-blocked card class if applicable
             const cardClass = org.tech_block_flag ? 'status-tech-blocked' : config.cardClass;
@@ -1592,8 +1634,13 @@ Mobile: 703-795-0217`;
             } else if (org.tou_flag) {
                 html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
             }
+            
+            // JS rendering alert (can appear alongside TOU warning)
+            if (org.js_render_flag) {
+                html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Requires headless browser (Puppeteer) for scraping.</p></div>`;
+            }
 
-            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge}</h3>`;
+            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${jsRenderBadge}</h3>`;
             html += `<p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>`;
             
             if (org.description) {
@@ -1626,7 +1673,7 @@ Mobile: 703-795-0217`;
                 html += `<p><strong>Permission Type:</strong> ${permBadge}</p>`;
             }
 
-            if (filterType === 'Rejected (By Mission or Org)') {
+            if (filterType === 'Rejected by Mission' || filterType === 'Rejected by Org') {
                 if (contacts.length > 0) {
                     html += '<p><strong>POCs:</strong></p><ul style="margin-left: 20px; font-size: 13px;">';
                     contacts.forEach(c => {
@@ -1765,6 +1812,7 @@ Mobile: 703-795-0217`;
                 const config = STATUS_CONFIG[org.status] || { icon: '❓', badge: '', cardClass: '' };
                 const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
                 const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
+                const jsRenderBadge = org.js_render_flag ? '<span class="badge badge-js-render">⚙️ JS</span>' : '';
 
                 // Find phone number
                 const orgContacts = contactsByOrg[org.id] || [];
@@ -1786,9 +1834,12 @@ Mobile: 703-795-0217`;
                 } else if (org.tou_flag) {
                     html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
                 }
+                if (org.js_render_flag) {
+                    html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Requires headless browser (Puppeteer) to scrape events.</p></div>`;
+                }
 
                 html += `
-                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge}</h3>
+                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${jsRenderBadge}</h3>
                     <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>
                     ${org.description ? `<p><strong>Description:</strong> ${escapeHtml(org.description).substring(0, 150)}${org.description.length > 150 ? '...' : ''}</p>` : ''}
                     ${org.website ? `<p><strong>Website:</strong> <a href="${escapeHtml(org.website)}" target="_blank">${escapeHtml(org.website)}</a></p>` : ''}

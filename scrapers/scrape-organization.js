@@ -8,13 +8,14 @@
  * - Pre-scrape verification (light scan)
  * - Event extraction (universal scraper)
  * - Deduplication checks
+ * - JS-rendered site detection (NEW - 2026-01-16)
  * 
  * Usage:
  *   node scrapers/scrape-organization.js --org "CNAS"           # Existing org by name
  *   node scrapers/scrape-organization.js --domain "rand.org"    # New org discovery
  *   node scrapers/scrape-organization.js --org "CNAS" --scan-only  # Just scan, don't scrape
  * 
- * Last Updated: 2026-01-14
+ * Last Updated: 2026-01-16
  */
 
 require('dotenv').config();
@@ -249,23 +250,21 @@ async function getOrganization(orgId) {
             { headers: { 'Authorization': authToken } }
         );
         
-        if (response.ok) {
-            return await response.json();
-        }
+        if (!response.ok) return null;
+        return await response.json();
     } catch (e) {
-        console.log(`   ⚠️ Error fetching org: ${e.message}`);
+        return null;
     }
-    return null;
 }
 
 /**
- * Get organization by name (fuzzy match)
+ * Get organization by name
  */
 async function getOrganizationByName(name) {
     try {
-        // Try exact match first
-        let filter = encodeURIComponent(`name = "${name}"`);
-        let response = await fetch(
+        // Exact match
+        const filter = encodeURIComponent(`name = "${name}"`);
+        const response = await fetch(
             `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}`,
             { headers: { 'Authorization': authToken } }
         );
@@ -277,39 +276,33 @@ async function getOrganizationByName(name) {
             }
         }
         
-        // Try contains match
-        filter = encodeURIComponent(`name ~ "${name}"`);
-        response = await fetch(
-            `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}`,
+        // Partial match
+        const partialFilter = encodeURIComponent(`name ~ "${name}"`);
+        const partialResponse = await fetch(
+            `${POCKETBASE_URL}/api/collections/organizations/records?filter=${partialFilter}`,
             { headers: { 'Authorization': authToken } }
         );
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.items && data.items.length > 0) {
-                return data.items[0];
-            }
+        if (partialResponse.ok) {
+            const partialData = await partialResponse.json();
+            return partialData.items && partialData.items.length > 0 ? partialData.items[0] : null;
         }
         
+        return null;
     } catch (e) {
-        console.log(`   ⚠️ Error searching org: ${e.message}`);
+        console.log(`      ⚠️ Search error: ${e.message}`);
+        return null;
     }
-    return null;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// DEDUPLICATION
-// ═══════════════════════════════════════════════════════════════════════════════
-
 /**
- * Check if an organization already exists (by domain or similar name)
+ * Check for duplicate organization
  */
 async function checkForDuplicateOrg(domain) {
     const rootDomain = extractRootDomain(domain);
-    console.log(`   🔍 Checking for duplicates of: ${rootDomain}`);
     
-    // Check by source_id (domain)
     try {
+        // Check by source_id (domain)
         const filter = encodeURIComponent(`source_id ~ "${rootDomain}"`);
         const response = await fetch(
             `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}`,
@@ -319,11 +312,21 @@ async function checkForDuplicateOrg(domain) {
         if (response.ok) {
             const data = await response.json();
             if (data.items && data.items.length > 0) {
-                return {
-                    isDuplicate: true,
-                    existingOrg: data.items[0],
-                    matchType: 'domain'
-                };
+                return { isDuplicate: true, existingOrg: data.items[0], matchType: 'domain' };
+            }
+        }
+        
+        // Check by website
+        const websiteFilter = encodeURIComponent(`website ~ "${rootDomain}"`);
+        const websiteResponse = await fetch(
+            `${POCKETBASE_URL}/api/collections/organizations/records?filter=${websiteFilter}`,
+            { headers: { 'Authorization': authToken } }
+        );
+        
+        if (websiteResponse.ok) {
+            const websiteData = await websiteResponse.json();
+            if (websiteData.items && websiteData.items.length > 0) {
+                return { isDuplicate: true, existingOrg: websiteData.items[0], matchType: 'website' };
             }
         }
     } catch (e) {
@@ -331,6 +334,199 @@ async function checkForDuplicateOrg(domain) {
     }
     
     return { isDuplicate: false, existingOrg: null, matchType: null };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// JS-RENDERED SITE DETECTION (NEW - 2026-01-16)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Detect if a page appears to be JavaScript-rendered
+ * 
+ * Signs of JS-rendered content:
+ * 1. Page fetched OK but no dates found in text
+ * 2. Navigation links found but no event-specific links
+ * 3. Very little meaningful text content
+ * 4. React/Vue/Angular signatures in HTML
+ * 
+ * @param {string} html - Raw HTML content
+ * @param {Array} extractedLinks - Links found by extractLinks()
+ * @param {number} eventsFound - Number of events AI extracted
+ * @returns {Object} { isJSRendered: boolean, confidence: string, signals: [] }
+ */
+function detectJSRenderedPage(html, extractedLinks, eventsFound) {
+    const signals = [];
+    let jsSignalCount = 0;
+    
+    // Extract text for analysis
+    const textContent = extractText(html);
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Signal 1: No dates found in text content
+    // ─────────────────────────────────────────────────────────────────────────
+    const datePatterns = [
+        /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s*\d{4}/gi,
+        /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g,
+        /\b\d{4}-\d{2}-\d{2}\b/g,
+        /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}/gi
+    ];
+    
+    let datesFound = 0;
+    for (const pattern of datePatterns) {
+        const matches = textContent.match(pattern);
+        if (matches) {
+            datesFound += matches.length;
+        }
+    }
+    
+    if (datesFound === 0) {
+        signals.push('No dates found in page text');
+        jsSignalCount += 2; // Strong signal
+    } else if (datesFound < 3) {
+        signals.push(`Only ${datesFound} date(s) found (expected more for events page)`);
+        jsSignalCount += 1;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Signal 2: Links are mostly navigation, not event-specific
+    // ─────────────────────────────────────────────────────────────────────────
+    const eventSpecificLinks = extractedLinks.filter(link => {
+        const text = link.text.toLowerCase();
+        const url = link.url.toLowerCase();
+        // Check if link text looks like an event title (has dates, registration, etc.)
+        return text.length > 20 || 
+               url.includes('/event/') || 
+               url.includes('/events/') && url.split('/').length > 4;
+    });
+    
+    if (extractedLinks.length > 0 && eventSpecificLinks.length === 0) {
+        signals.push(`Found ${extractedLinks.length} links but none appear to be event detail pages`);
+        jsSignalCount += 2;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Signal 3: Very little text content relative to HTML size
+    // ─────────────────────────────────────────────────────────────────────────
+    const textToHtmlRatio = textContent.length / html.length;
+    if (textToHtmlRatio < 0.05) {
+        signals.push(`Very low text-to-HTML ratio (${(textToHtmlRatio * 100).toFixed(1)}%) - likely JS-rendered`);
+        jsSignalCount += 1;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Signal 4: Framework signatures in HTML
+    // ─────────────────────────────────────────────────────────────────────────
+    const frameworkSignatures = [
+        { pattern: /id=["']__next["']/i, name: 'Next.js' },
+        { pattern: /id=["']root["'][^>]*><\/div>/i, name: 'React (empty root)' },
+        { pattern: /ng-app|ng-controller/i, name: 'Angular' },
+        { pattern: /data-v-[a-f0-9]+/i, name: 'Vue.js' },
+        { pattern: /<script[^>]*>window\.__NUXT__/i, name: 'Nuxt.js' },
+        { pattern: /data-reactroot/i, name: 'React' }
+    ];
+    
+    for (const sig of frameworkSignatures) {
+        if (sig.pattern.test(html)) {
+            signals.push(`${sig.name} framework detected`);
+            jsSignalCount += 1;
+            break; // Only count once
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Signal 5: AI found 0 events despite page loading OK
+    // ─────────────────────────────────────────────────────────────────────────
+    if (eventsFound === 0 && html.length > 10000) {
+        signals.push('AI extracted 0 events from large page - content may load dynamically');
+        jsSignalCount += 1;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Determine confidence level
+    // ─────────────────────────────────────────────────────────────────────────
+    let confidence = 'LOW';
+    let isJSRendered = false;
+    
+    if (jsSignalCount >= 4) {
+        confidence = 'HIGH';
+        isJSRendered = true;
+    } else if (jsSignalCount >= 2) {
+        confidence = 'MEDIUM';
+        isJSRendered = true;
+    } else if (jsSignalCount >= 1) {
+        confidence = 'LOW';
+        isJSRendered = false; // Not confident enough to flag
+    }
+    
+    return {
+        isJSRendered,
+        confidence,
+        signals,
+        jsSignalCount,
+        stats: {
+            datesFound,
+            extractedLinksCount: extractedLinks.length,
+            eventSpecificLinksCount: eventSpecificLinks.length,
+            textLength: textContent.length,
+            htmlLength: html.length,
+            textToHtmlRatio: (textToHtmlRatio * 100).toFixed(1) + '%'
+        }
+    };
+}
+
+/**
+ * Update organization's database with JS-rendered detection
+ * Sets: js_rendered_flag (boolean), scrape_notes (text), status (reset to Nominated)
+ */
+async function updateJSRenderedStatus(orgId, jsDetection, eventsUrl) {
+    const timestamp = new Date().toISOString().split('T')[0];
+    
+    const noteText = `⚠️ JS-RENDERED SITE DETECTED (${timestamp})
+Confidence: ${jsDetection.confidence}
+Events URL: ${eventsUrl}
+
+Signals detected:
+${jsDetection.signals.map(s => '• ' + s).join('\n')}
+
+Stats:
+• Dates found: ${jsDetection.stats.datesFound}
+• Event links found: ${jsDetection.stats.eventSpecificLinksCount} of ${jsDetection.stats.extractedLinksCount}
+• Text/HTML ratio: ${jsDetection.stats.textToHtmlRatio}
+
+This site requires a headless browser (Puppeteer) to scrape events.
+The events page loads content dynamically via JavaScript.
+
+Status auto-reset to "Nominated (Pending Mission Review)" - cannot scrape without Puppeteer support.`;
+
+    try {
+        const response = await fetch(
+            `${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify({
+                    js_rendered_flag: true,
+                    scrape_notes: noteText,
+                    status: 'Nominated (Pending Mission Review)'
+                })
+            }
+        );
+        
+        if (response.ok) {
+            console.log('      💾 Updated js_rendered_flag, scrape_notes, and status');
+            console.log('      🔄 Status reset to "Nominated (Pending Mission Review)"');
+            return true;
+        } else {
+            console.log('      ⚠️ Could not update JS-rendered status');
+            return false;
+        }
+    } catch (e) {
+        console.log(`      ⚠️ Error updating JS-rendered status: ${e.message}`);
+        return false;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -610,24 +806,25 @@ async function saveEvent(event, orgId, orgDomain) {
     
     // Check for duplicate
     if (await eventExists(sourceId)) {
-        console.log(`      ⏭️ Skipping duplicate: ${event.title.substring(0, 40)}...`);
+        console.log(`      ⏭️ Skipped (duplicate): ${event.title.substring(0, 40)}...`);
         return { saved: false, reason: 'duplicate' };
     }
     
-    // Prepare event record
     const eventRecord = {
         title: event.title,
         description: event.description || '',
-        url: event.url || '',
-        organization: orgId,
-        source_id: sourceId,
-        event_type: event.event_type || 'In-person',
-        location: event.location || '',
-        start_date: event.start_date ? new Date(event.start_date).toISOString() : null,
-        end_date: event.end_date ? new Date(event.end_date).toISOString() : null,
+        start_date: event.start_date || '',
+        end_date: event.end_date || '',
         start_time: event.start_time || '',
         end_time: event.end_time || '',
-        timezone: event.timezone || ''
+        timezone: event.timezone || 'ET',
+        location: event.location || '',
+        event_type: event.event_type || 'In-person',
+        url: event.url || '',
+        registration_url: event.registration_url || '',
+        organization: orgId,
+        source_id: sourceId,
+        status: 'active'
     };
     
     try {
@@ -643,18 +840,17 @@ async function saveEvent(event, orgId, orgDomain) {
             }
         );
         
-        if (!response.ok) {
-            const error = await response.json();
-            console.log(`      ❌ Failed to save: ${event.title.substring(0, 30)}... - ${JSON.stringify(error)}`);
+        if (response.ok) {
+            console.log(`      💾 Saved: ${event.title.substring(0, 50)}...`);
+            return { saved: true };
+        } else {
+            const err = await response.json();
+            console.log(`      ❌ Save failed: ${JSON.stringify(err)}`);
             return { saved: false, reason: 'api_error' };
         }
-        
-        console.log(`      💾 Saved: ${event.title.substring(0, 50)}...`);
-        return { saved: true };
-        
-    } catch (error) {
-        console.log(`      ❌ Save error: ${error.message}`);
-        return { saved: false, reason: error.message };
+    } catch (e) {
+        console.log(`      ❌ Save error: ${e.message}`);
+        return { saved: false, reason: e.message };
     }
 }
 
@@ -718,11 +914,46 @@ async function scrapeOrganization(org, scanResult) {
     
     console.log(`   ✅ Events page fetched (${result.body.length} bytes)`);
     
+    // Extract links for JS detection
+    const extractedLinks = extractLinks(result.body, eventsUrl);
+    
     // Extract events using AI
     const events = await extractEventsWithAI(result.body, eventsUrl, org.name);
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // JS-RENDERED SITE DETECTION (NEW - 2026-01-16)
+    // ─────────────────────────────────────────────────────────────────────────
     if (events.length === 0) {
-        console.log('   ℹ️ No events found on page');
+        console.log('');
+        console.log('   🔍 Checking for JS-rendered page...');
+        
+        const jsDetection = detectJSRenderedPage(result.body, extractedLinks, events.length);
+        
+        if (jsDetection.isJSRendered) {
+            console.log(`   ⚠️ JS-RENDERED SITE DETECTED (${jsDetection.confidence} confidence)`);
+            console.log('   📋 Signals:');
+            for (const signal of jsDetection.signals) {
+                console.log(`      • ${signal}`);
+            }
+            
+            // Update database with this finding
+            await updateJSRenderedStatus(org.id, jsDetection, eventsUrl);
+            
+            return { 
+                success: true, 
+                reason: 'js_rendered_site', 
+                eventsFound: 0, 
+                eventsSaved: 0,
+                jsRendered: true,
+                jsDetection,
+                statusReset: true,
+                newStatus: 'Nominated (Pending Mission Review)'
+            };
+        } else {
+            console.log('   ℹ️ Page does not appear to be JS-rendered');
+            console.log('   ℹ️ No events found on page (may be empty or past events only)');
+        }
+        
         return { success: true, reason: 'no_events', eventsFound: 0, eventsSaved: 0 };
     }
     
@@ -995,6 +1226,11 @@ async function main() {
     console.log(`   Organization: ${org.name}`);
     if (scanResult) {
         console.log(`   TOU Status: ${scanResult.touFlag ? '⚠️ Restrictions' : '✅ Clear'}`);
+    }
+    if (scrapeResult.jsRendered) {
+        console.log(`   ⚠️ JS-Rendered Site: Yes (${scrapeResult.jsDetection.confidence} confidence)`);
+        console.log(`   📝 Finding recorded in scrape_notes`);
+        console.log(`   🔄 Status reset to: "${scrapeResult.newStatus}"`);
     }
     console.log(`   Events Found: ${scrapeResult.eventsFound}`);
     console.log(`   Events Saved: ${scrapeResult.eventsSaved}`);
