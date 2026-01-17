@@ -9,7 +9,7 @@
  * Features:
  * - TOU page discovery and restriction scanning
  * - Context-aware restriction detection (avoids false positives) - UPDATED 2026-01-16
- * - JavaScript rendering detection (SPAs, React, Vue, etc.) - NEW 2026-01-16
+ * - JavaScript rendering detection on BOTH homepage AND events page - NEW 2026-01-16
  * - Technical block detection (403/401)
  * - Events URL discovery
  * - POC info gathering
@@ -1990,6 +1990,43 @@ async function scanOrganization(org, options = {}) {
         result.eventsUrlMethod = eventsResult.method;
         result.eventsUrlValidated = eventsResult.validated;
         result.eventsUrlCandidates = eventsResult.candidates;
+        
+        await sleep(1500);
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────
+    // Step 3.5: Events Page JS Rendering Check (NEW - 2026-01-16)
+    // ───────────────────────────────────────────────────────────────────────
+    // Some sites have SSR homepages but JS-rendered events pages (e.g., New America)
+    // Check the events page separately if homepage didn't trigger JS detection
+    
+    if (!result.jsRenderFlag && result.eventsUrl && !result.techBlockFlag) {
+        console.log('   🔍 Checking events page for JavaScript rendering...');
+        
+        const eventsPageResult = await fetchUrl(result.eventsUrl);
+        
+        if (eventsPageResult.success && eventsPageResult.body) {
+            const eventsJsResult = detectJavaScriptRendering(eventsPageResult.body);
+            
+            if (eventsJsResult.isJsRendered) {
+                result.jsRenderFlag = true;
+                result.jsRenderConfidence = eventsJsResult.confidence;
+                result.jsRenderNotes = `Events page is JavaScript-rendered (${eventsJsResult.confidence} confidence). `;
+                result.jsRenderNotes += `Homepage uses SSR but events page loads content via JavaScript. `;
+                result.jsRenderNotes += `Indicators: ${eventsJsResult.reasons.slice(0, 3).join('; ')}. `;
+                result.jsRenderNotes += `Requires headless browser (Puppeteer) to scrape events.`;
+                
+                console.log(`      ⚠️ Events page is JavaScript-rendered (${eventsJsResult.confidence} confidence)`);
+                if (eventsJsResult.reasons.length > 0) {
+                    console.log(`      📋 Reasons: ${eventsJsResult.reasons.slice(0, 3).join(', ')}${eventsJsResult.reasons.length > 3 ? '...' : ''}`);
+                }
+                console.log('      ℹ️ Homepage uses SSR but events page requires JS');
+            } else {
+                console.log('      ✅ Events page is server-side rendered');
+            }
+        } else {
+            console.log(`      ⚠️ Could not fetch events page to check JS rendering`);
+        }
         
         await sleep(1500);
     }
