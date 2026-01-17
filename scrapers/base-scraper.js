@@ -233,7 +233,7 @@ async function getScrapableOrganizations() {
 
     try {
         const filter = encodeURIComponent(
-            'status = "Live (Scraping Active)" && tou_flag != true && tech_block_flag != true'
+            'status = "Live (Scraping Active)" && tou_flag != true && tech_block_flag != true && tech_rendering_flag != true && permission_denied_flag != true'
         );
 
         const response = await fetchModule(
@@ -339,6 +339,20 @@ function checkSafetyGates(org) {
         return { canScrape: false, reason: 'Technical block flag is set' };
     }
     console.log('   ✅ tech_block_flag: FALSE');
+
+    // Check 4: Tech rendering flag
+    if (org.tech_rendering_flag === true) {
+        console.log('   ❌ tech_rendering_flag: TRUE (Site requires Puppeteer)');
+        return { canScrape: false, reason: 'Tech rendering flag is set' };
+    }
+    console.log('   ✅ tech_rendering_flag: FALSE');
+
+    // Check 5: Permission denied flag
+    if (org.permission_denied_flag === true) {
+        console.log('   ❌ permission_denied_flag: TRUE (Org explicitly declined)');
+        return { canScrape: false, reason: 'Permission denied flag is set' };
+    }
+    console.log('   ✅ permission_denied_flag: FALSE');
 
     console.log('\n   ✅ ALL SAFETY GATES PASSED\n');
     return { canScrape: true, reason: 'All checks passed' };

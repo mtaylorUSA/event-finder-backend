@@ -1024,6 +1024,8 @@ async function scrapeOrganization(org, scanResult) {
  *   1. Status must be "Live (Scraping Active)"
  *   2. tou_flag must be false (no TOU restrictions)
  *   3. tech_block_flag must be false (site accessible)
+ *   4. tech_rendering_flag must be false (site uses static HTML)
+ *   5. permission_denied_flag must be false (org hasn't declined)
  */
 function checkSafetyGates(org) {
     const issues = [];
@@ -1041,6 +1043,16 @@ function checkSafetyGates(org) {
     // Tech block check
     if (org.tech_block_flag === true) {
         issues.push('tech_block_flag is true (site blocks access)');
+    }
+    
+    // Tech rendering check
+    if (org.tech_rendering_flag === true) {
+        issues.push('tech_rendering_flag is true (site requires Puppeteer)');
+    }
+    
+    // Permission denied check
+    if (org.permission_denied_flag === true) {
+        issues.push('permission_denied_flag is true (org explicitly declined)');
     }
     
     return {

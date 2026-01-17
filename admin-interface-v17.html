@@ -454,6 +454,28 @@
                 <div id="statusHistory" class="profile-tab-content">
                     <div id="statusAlerts"></div>
 
+                    <div class="section-box" style="background: #fff8f8; border: 2px solid #dc3545;">
+                        <h4>🚩 Rejection Flags</h4>
+                        <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Check any flag that applies. Checking a flag will auto-set status to "Rejected by Org" and disable scraping.</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="touFlag" onchange="handleTouFlagChange()"> ⚠️ TOU Restriction</label>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="techBlockFlag" onchange="handleTechBlockChange()"> ⛔ Technical Block (403)</label>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="techRenderingFlag" onchange="handleTechRenderingChange()"> ⚙️ Tech-Rendered Site</label>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="permissionDeniedFlag" onchange="handlePermissionDeniedChange()"> 🚫 Permission Denied</label>
+                            </div>
+                        </div>
+                        <div class="card-actions" style="margin-top: 15px;">
+                            <button type="button" class="btn btn-small btn-success" onclick="saveAllFlags()">💾 Save Flags</button>
+                        </div>
+                    </div>
+
                     <div class="section-box">
                         <h4>📊 General Info</h4>
                         <p><strong>Organization:</strong> <span id="statusOrgName"></span></p>
@@ -474,18 +496,9 @@
                         <h4>📜 TOU Assessment</h4>
                         <form id="touForm">
                             <div class="form-group"><label>TOU Scanned Date</label><input type="date" id="touScannedDate"></div>
-                            <div class="form-row" style="margin: 15px 0;">
-                                <div class="form-group checkbox-group">
-                                    <label><input type="checkbox" id="touFlag" onchange="handleTouFlagChange()"> ⚠️ TOU Flag (May prohibit scraping)</label>
-                                </div>
-                                <div class="form-group checkbox-group">
-                                    <label><input type="checkbox" id="techBlockFlag" onchange="handleTechBlockChange()"> ⛔ Technical Block (Org blocks automated requests)</label>
-                                </div>
-                            </div>
                             <div class="form-group"><label>TOU Notes</label><textarea id="touNotes" placeholder="Notes about Terms of Use..."></textarea></div>
                             <div class="card-actions">
                                 <button type="submit" class="btn btn-small btn-success">💾 Save TOU Info</button>
-                                <button type="button" class="btn btn-small btn-danger" onclick="markAsTechBlocked()">⛔ Mark as Technically Blocked</button>
                             </div>
                         </form>
                     </div>
@@ -520,12 +533,6 @@
                             <hr style="margin: 20px 0; border: none; border-top: 1px solid #dee2e6;">
 
                             <div class="form-group"><label>Permission Response Date</label><input type="date" id="permissionResponseDate"></div>
-                            
-                            <div class="form-row" style="margin: 15px 0;">
-                                <div class="form-group checkbox-group">
-                                    <label><input type="checkbox" id="permissionDeniedFlag" onchange="handlePermissionDeniedChange()"> 🚫 Permission Denied (Org explicitly said no)</label>
-                                </div>
-                            </div>
 
                             <div class="form-group">
                                 <label>Permission Response Text <span style="font-weight: normal; color: #666;">(org's reply)</span></label>
@@ -546,9 +553,6 @@
                             <div class="form-row" style="margin: 15px 0;">
                                 <div class="form-group checkbox-group">
                                     <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
-                                </div>
-                                <div class="form-group checkbox-group">
-                                    <label><input type="checkbox" id="techRenderingFlag"> ⚙️ Tech-Rendered Site (requires Puppeteer)</label>
                                 </div>
                             </div>
                             <div class="form-group"><label>Scrape Notes <span style="font-weight: normal; color: #666;">(auto-populated by scanner)</span></label><textarea id="scrapeNotes" placeholder="Auto-populated when JS-rendered site is detected..." style="min-height: 120px;"></textarea></div>
@@ -1312,6 +1316,97 @@
                 }
             } catch (error) {
                 console.error('Error saving permission denied changes:', error);
+            }
+        }
+        
+        /**
+         * Handle Tech Rendering Flag checkbox change
+         * When checked: uncheck scraping, set status to Rejected
+         */
+        function handleTechRenderingChange() {
+            console.log('Tech Rendering Flag changed');
+            const techRenderingFlag = document.getElementById('techRenderingFlag').checked;
+            
+            if (techRenderingFlag) {
+                // Uncheck Scraping Enabled
+                document.getElementById('scrapingEnabled').checked = false;
+                console.log('Unchecked Scraping Enabled');
+                
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
+                
+                // Auto-save changes
+                saveAllFlags();
+            }
+        }
+        
+        /**
+         * Save all rejection flags to PocketBase
+         */
+        async function saveAllFlags() {
+            if (!currentOrg || !currentOrg.id) {
+                alert('Error: No organization selected');
+                return;
+            }
+            
+            const touFlag = document.getElementById('touFlag').checked;
+            const techBlockFlag = document.getElementById('techBlockFlag').checked;
+            const techRenderingFlag = document.getElementById('techRenderingFlag').checked;
+            const permissionDeniedFlag = document.getElementById('permissionDeniedFlag').checked;
+            
+            // If any flag is checked, set status to Rejected and disable scraping
+            const anyFlagChecked = touFlag || techBlockFlag || techRenderingFlag || permissionDeniedFlag;
+            
+            if (anyFlagChecked) {
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                document.getElementById('scrapingEnabled').checked = false;
+            }
+            
+            const updates = {
+                tou_flag: touFlag,
+                tech_block_flag: techBlockFlag,
+                tech_rendering_flag: techRenderingFlag,
+                permission_denied_flag: permissionDeniedFlag,
+                scraping_enabled: document.getElementById('scrapingEnabled').checked,
+                status: document.getElementById('statusDropdown').value
+            };
+            
+            // Set TOU scanned date if TOU or tech block flag is checked
+            if (touFlag || techBlockFlag) {
+                const today = new Date().toISOString().split('T')[0];
+                const touDateField = document.getElementById('touScannedDate');
+                if (!touDateField.value) {
+                    touDateField.value = today;
+                }
+                updates.tou_scanned_date = touDateField.value;
+            }
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${currentOrg.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(updates)
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentOrg.tou_flag = data.tou_flag;
+                    currentOrg.tech_block_flag = data.tech_block_flag;
+                    currentOrg.tech_rendering_flag = data.tech_rendering_flag;
+                    currentOrg.permission_denied_flag = data.permission_denied_flag;
+                    currentOrg.status = data.status;
+                    console.log('✅ All flags saved');
+                    alert('✅ Flags saved successfully');
+                } else {
+                    alert('❌ Error saving flags');
+                }
+            } catch (error) {
+                console.error('Error saving flags:', error);
+                alert('❌ Error saving flags: ' + error.message);
             }
         }
         

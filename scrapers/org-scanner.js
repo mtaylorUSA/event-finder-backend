@@ -2148,19 +2148,20 @@ async function scanOrganization(org, options = {}) {
             result.fieldsUpdated.push('tech_rendering_flag');
         }
         
-        // AUTO-UPDATE STATUS: If Tech rendering detected, set status to "Nominated" for human review
-        // Only if not already rejected and JS flag is newly set
-        // This is informational - not a rejection, just needs human attention
+        // AUTO-UPDATE STATUS: If Tech rendering detected, set status to "Rejected by Org"
+        // This is an auto-rejection since we can't scrape JS-rendered sites without Puppeteer
         if (result.techRenderingFlag && 
             !result.touFlag && 
             !result.techBlockFlag &&
             org.status === 'Live (Scraping Active)' &&
             !org.tech_rendering_flag) {
-            updates.status = 'Nominated (Pending Mission Review)';
+            updates.status = 'Rejected by Org';
+            updates.scraping_enabled = false;
             result.fieldsUpdated.push('status');
+            result.fieldsUpdated.push('scraping_enabled');
             result.statusChanged = true;
-            result.newStatus = 'Nominated (Pending Mission Review)';
-            console.log(`      🔄 Auto-updating status to "Nominated" (Tech rendering detected - needs review)`);
+            result.newStatus = 'Rejected by Org';
+            console.log(`      🔄 Auto-updating status to "Rejected by Org" (Tech rendering detected - cannot scrape)`);
         }
         
         // Events URL (only update if we found one and current is empty)
