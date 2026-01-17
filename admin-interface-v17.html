@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v16</title>
+    <title>Event Finder Admin v17</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -122,6 +122,7 @@
         .badge-tou-flag { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
         .badge-tech-block { background: #dc3545; color: white; border: 1px solid #721c24; }
         .badge-js-render { background: #e2e3f3; color: #3d4070; border: 1px solid #6c757d; }
+        .badge-permission-denied { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .badge-explicit { background: #d4edda; color: #155724; }
 
         /* Icon Grid */
@@ -251,6 +252,7 @@
                         <div class="stat-card warning"><h3 id="statPending">-</h3><p>Nominated (Pending)</p></div>
                         <div class="stat-card success"><h3 id="statLive">-</h3><p>Live (Scraping)</p></div>
                         <div class="stat-card danger"><h3 id="statTechBlocked">-</h3><p>⛔ Tech Blocked</p></div>
+                        <div class="stat-card danger"><h3 id="statPermissionDenied">-</h3><p>🚫 Declined</p></div>
                     </div>
                     <div id="dashboardContent"><div class="loading">Loading dashboard...</div></div>
                 </div>
@@ -519,6 +521,12 @@
 
                             <div class="form-group"><label>Permission Response Date</label><input type="date" id="permissionResponseDate"></div>
                             
+                            <div class="form-row" style="margin: 15px 0;">
+                                <div class="form-group checkbox-group">
+                                    <label><input type="checkbox" id="permissionDeniedFlag" onchange="handlePermissionDeniedChange()"> 🚫 Permission Denied (Org explicitly said no)</label>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label>Permission Response Text <span style="font-weight: normal; color: #666;">(org's reply)</span></label>
                                 <textarea id="permissionCorrespondence" placeholder="Paste the organization's response email or notes here..."></textarea>
@@ -540,7 +548,7 @@
                                     <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
                                 </div>
                                 <div class="form-group checkbox-group">
-                                    <label><input type="checkbox" id="jsRenderedFlag"> ⚙️ JS-Rendered Site (requires Puppeteer)</label>
+                                    <label><input type="checkbox" id="techRenderingFlag"> ⚙️ Tech-Rendered Site (requires Puppeteer)</label>
                                 </div>
                             </div>
                             <div class="form-group"><label>Scrape Notes <span style="font-weight: normal; color: #666;">(auto-populated by scanner)</span></label><textarea id="scrapeNotes" placeholder="Auto-populated when JS-rendered site is detected..." style="min-height: 120px;"></textarea></div>
@@ -817,7 +825,8 @@
                 permission_type: '',
                 tou_flag: false,
                 tech_block_flag: false,
-                js_render_flag: false,
+                tech_rendering_flag: false,
+                permission_denied_flag: false,
                 tou_notes: '',
                 scrape_notes: '',
                 ai_reasoning: '',
@@ -884,8 +893,8 @@
             if (org.tou_flag && !org.tech_block_flag) {
                 alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
             }
-            if (org.js_render_flag) {
-                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape.</p></div>`;
+            if (org.tech_rendering_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape.</p></div>`;
             }
             alertsDiv.innerHTML = alertsHtml;
         }
@@ -952,8 +961,8 @@
             } else if (currentOrg.tou_flag) {
                 alertsHtml = `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
             }
-            if (currentOrg.js_render_flag) {
-                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Requires Puppeteer to scrape.</p></div>`;
+            if (currentOrg.tech_rendering_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires Puppeteer to scrape.</p></div>`;
             }
             orgInfoDiv.innerHTML = `
                 ${alertsHtml}
@@ -1056,8 +1065,11 @@
             if (currentOrg.tou_flag && !currentOrg.tech_block_flag) {
                 alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
             }
-            if (currentOrg.js_render_flag) {
-                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape. See Scrape Notes for details.</p></div>`;
+            if (currentOrg.permission_denied_flag) {
+                alertsHtml += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
+            }
+            if (currentOrg.tech_rendering_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape. See Scrape Notes for details.</p></div>`;
             }
             alertsDiv.innerHTML = alertsHtml;
 
@@ -1068,6 +1080,7 @@
 
             document.getElementById('permissionRequestedDate').value = currentOrg.permission_requested_date ? currentOrg.permission_requested_date.split(' ')[0] : '';
             document.getElementById('permissionResponseDate').value = currentOrg.permission_response_date ? currentOrg.permission_response_date.split(' ')[0] : '';
+            document.getElementById('permissionDeniedFlag').checked = currentOrg.permission_denied_flag || false;
             
             // Permission draft and final text - editable by default
             document.getElementById('permissionDraft').value = currentOrg.permission_request_draft || '';
@@ -1077,7 +1090,7 @@
             updateGoLiveDate();
 
             document.getElementById('scrapingEnabled').checked = currentOrg.scraping_enabled || false;
-            document.getElementById('jsRenderedFlag').checked = currentOrg.js_render_flag || false;
+            document.getElementById('techRenderingFlag').checked = currentOrg.tech_rendering_flag || false;
             document.getElementById('scrapingLastScraped').value = currentOrg.last_scraped ? new Date(currentOrg.last_scraped).toLocaleString() : 'Never';
             document.getElementById('scrapeNotes').value = currentOrg.scrape_notes || '';
             document.getElementById('scrapingNotes').value = currentOrg.notes || '';
@@ -1239,6 +1252,70 @@
         }
         
         /**
+         * Handle Permission Denied checkbox change
+         * When checked: auto-set date, uncheck scraping, set status to Rejected
+         */
+        function handlePermissionDeniedChange() {
+            console.log('Permission Denied changed');
+            const permissionDeniedFlag = document.getElementById('permissionDeniedFlag').checked;
+            
+            if (permissionDeniedFlag) {
+                // Auto-set Permission Response Date to today if not already set
+                const responseDateField = document.getElementById('permissionResponseDate');
+                if (!responseDateField.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    responseDateField.value = today;
+                    console.log('Set Permission Response Date to:', today);
+                }
+                
+                // Uncheck Scraping Enabled
+                document.getElementById('scrapingEnabled').checked = false;
+                console.log('Unchecked Scraping Enabled');
+                
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
+                
+                // Auto-save changes
+                savePermissionDeniedChanges();
+            }
+        }
+        
+        /**
+         * Save Permission Denied changes to PocketBase
+         */
+        async function savePermissionDeniedChanges() {
+            if (!currentOrg || !currentOrg.id) return;
+            
+            const updates = {
+                permission_denied_flag: document.getElementById('permissionDeniedFlag').checked,
+                permission_response_date: document.getElementById('permissionResponseDate').value || null,
+                scraping_enabled: document.getElementById('scrapingEnabled').checked,
+                status: document.getElementById('statusDropdown').value
+            };
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${currentOrg.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(updates)
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentOrg.permission_denied_flag = data.permission_denied_flag;
+                    currentOrg.status = data.status;
+                    console.log('✅ Permission Denied changes saved');
+                }
+            } catch (error) {
+                console.error('Error saving permission denied changes:', error);
+            }
+        }
+        
+        /**
          * Save TOU/Tech Block changes to PocketBase
          */
         function saveTouBlockChanges(blockType) {
@@ -1392,7 +1469,7 @@
             e.preventDefault();
             const data = { 
                 scraping_enabled: document.getElementById('scrapingEnabled').checked, 
-                js_render_flag: document.getElementById('jsRenderedFlag').checked,
+                tech_rendering_flag: document.getElementById('techRenderingFlag').checked,
                 scrape_notes: document.getElementById('scrapeNotes').value,
                 notes: document.getElementById('scrapingNotes').value 
             };
@@ -1401,7 +1478,7 @@
                     method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
                 });
                 Object.assign(currentOrg, data);
-                // Update alerts if js_render_flag changed
+                // Update alerts if tech_rendering_flag changed
                 loadStatusHistory();
                 showMessage('profileMessage', '✅ Scraping info saved!', 'success');
             } catch (error) { alert('Error: ' + error.message); }
@@ -1528,6 +1605,7 @@ Mobile: 703-795-0217`;
                 document.getElementById('statPending').textContent = orgs.filter(o => o.status === 'Nominated (Pending Mission Review)').length;
                 document.getElementById('statLive').textContent = orgs.filter(o => o.status === 'Live (Scraping Active)').length;
                 document.getElementById('statTechBlocked').textContent = orgs.filter(o => o.tech_block_flag === true).length;
+                document.getElementById('statPermissionDenied').textContent = orgs.filter(o => o.permission_denied_flag === true).length;
 
                 const statusCounts = {};
                 orgs.forEach(org => { statusCounts[org.status] = (statusCounts[org.status] || 0) + 1; });
@@ -1545,13 +1623,22 @@ Mobile: 703-795-0217`;
                     summaryHtml += `<p>⛔ <strong>Technically Blocked:</strong> ${techBlockedCount}</p>`;
                 }
                 
-                // Add JS rendered count
-                const jsRenderCount = orgs.filter(o => o.js_render_flag === true).length;
-                if (jsRenderCount > 0) {
+                // Add permission denied count
+                const permissionDeniedCount = orgs.filter(o => o.permission_denied_flag === true).length;
+                if (permissionDeniedCount > 0) {
                     if (techBlockedCount === 0) {
                         summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
                     }
-                    summaryHtml += `<p>⚙️ <strong>JS-Rendered Sites:</strong> ${jsRenderCount}</p>`;
+                    summaryHtml += `<p>🚫 <strong>Permission Denied:</strong> ${permissionDeniedCount}</p>`;
+                }
+                
+                // Add JS rendered count
+                const techRenderingCount = orgs.filter(o => o.tech_rendering_flag === true).length;
+                if (techRenderingCount > 0) {
+                    if (techBlockedCount === 0 && permissionDeniedCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>⚙️ <strong>Tech-Rendered Sites:</strong> ${techRenderingCount}</p>`;
                 }
                 
                 document.getElementById('dashboardContent').innerHTML = `<div class="card">${summaryHtml}</div>`;
@@ -1621,7 +1708,8 @@ Mobile: 703-795-0217`;
             const config = STATUS_CONFIG[org.status] || { icon: '❓', badge: '', cardClass: '' };
             const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
             const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
-            const jsRenderBadge = org.js_render_flag ? '<span class="badge badge-js-render">⚙️ JS</span>' : '';
+            const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
+            const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
             
             // Add tech-blocked card class if applicable
             const cardClass = org.tech_block_flag ? 'status-tech-blocked' : config.cardClass;
@@ -1635,12 +1723,17 @@ Mobile: 703-795-0217`;
                 html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
             }
             
-            // JS rendering alert (can appear alongside TOU warning)
-            if (org.js_render_flag) {
-                html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Requires headless browser (Puppeteer) for scraping.</p></div>`;
+            // Permission denied alert
+            if (org.permission_denied_flag) {
+                html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
+            }
+            
+            // Tech rendering alert (can appear alongside other warnings)
+            if (org.tech_rendering_flag) {
+                html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires headless browser (Puppeteer) for scraping.</p></div>`;
             }
 
-            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${jsRenderBadge}</h3>`;
+            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge}</h3>`;
             html += `<p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>`;
             
             if (org.description) {
@@ -1812,7 +1905,8 @@ Mobile: 703-795-0217`;
                 const config = STATUS_CONFIG[org.status] || { icon: '❓', badge: '', cardClass: '' };
                 const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
                 const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
-                const jsRenderBadge = org.js_render_flag ? '<span class="badge badge-js-render">⚙️ JS</span>' : '';
+                const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
+                const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
 
                 // Find phone number
                 const orgContacts = contactsByOrg[org.id] || [];
@@ -1834,12 +1928,15 @@ Mobile: 703-795-0217`;
                 } else if (org.tou_flag) {
                     html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
                 }
-                if (org.js_render_flag) {
-                    html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>JS-Rendered Site:</strong> Requires headless browser (Puppeteer) to scrape events.</p></div>`;
+                if (org.permission_denied_flag) {
+                    html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
+                }
+                if (org.tech_rendering_flag) {
+                    html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires headless browser (Puppeteer) to scrape events.</p></div>`;
                 }
 
                 html += `
-                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${jsRenderBadge}</h3>
+                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge}</h3>
                     <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>
                     ${org.description ? `<p><strong>Description:</strong> ${escapeHtml(org.description).substring(0, 150)}${org.description.length > 150 ? '...' : ''}</p>` : ''}
                     ${org.website ? `<p><strong>Website:</strong> <a href="${escapeHtml(org.website)}" target="_blank">${escapeHtml(org.website)}</a></p>` : ''}

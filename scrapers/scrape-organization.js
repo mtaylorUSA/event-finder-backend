@@ -8,7 +8,7 @@
  * - Pre-scrape verification (light scan)
  * - Event extraction (universal scraper)
  * - Deduplication checks
- * - JS-rendered site detection (NEW - 2026-01-16)
+ * - tech-rendered site detection (NEW - 2026-01-16)
  * 
  * Usage:
  *   node scrapers/scrape-organization.js --org "CNAS"           # Existing org by name
@@ -343,7 +343,7 @@ async function checkForDuplicateOrg(domain) {
 /**
  * Detect if a page appears to be JavaScript-rendered
  * 
- * Signs of JS-rendered content:
+ * Signs of tech-rendered content:
  * 1. Page fetched OK but no dates found in text
  * 2. Navigation links found but no event-specific links
  * 3. Very little meaningful text content
@@ -409,7 +409,7 @@ function detectJSRenderedPage(html, extractedLinks, eventsFound) {
     // ─────────────────────────────────────────────────────────────────────────
     const textToHtmlRatio = textContent.length / html.length;
     if (textToHtmlRatio < 0.05) {
-        signals.push(`Very low text-to-HTML ratio (${(textToHtmlRatio * 100).toFixed(1)}%) - likely JS-rendered`);
+        signals.push(`Very low text-to-HTML ratio (${(textToHtmlRatio * 100).toFixed(1)}%) - likely tech-rendered`);
         jsSignalCount += 1;
     }
     
@@ -475,7 +475,7 @@ function detectJSRenderedPage(html, extractedLinks, eventsFound) {
 }
 
 /**
- * Update organization's database with JS-rendered detection
+ * Update organization's database with tech-rendered detection
  * Sets: js_rendered_flag (boolean), scrape_notes (text), status (reset to Nominated)
  */
 async function updateJSRenderedStatus(orgId, jsDetection, eventsUrl) {
@@ -520,11 +520,11 @@ Status auto-reset to "Nominated (Pending Mission Review)" - cannot scrape withou
             console.log('      🔄 Status reset to "Nominated (Pending Mission Review)"');
             return true;
         } else {
-            console.log('      ⚠️ Could not update JS-rendered status');
+            console.log('      ⚠️ Could not update tech-rendered status');
             return false;
         }
     } catch (e) {
-        console.log(`      ⚠️ Error updating JS-rendered status: ${e.message}`);
+        console.log(`      ⚠️ Error updating tech-rendered status: ${e.message}`);
         return false;
     }
 }
@@ -925,7 +925,7 @@ async function scrapeOrganization(org, scanResult) {
     // ─────────────────────────────────────────────────────────────────────────
     if (events.length === 0) {
         console.log('');
-        console.log('   🔍 Checking for JS-rendered page...');
+        console.log('   🔍 Checking for tech-rendered page...');
         
         const jsDetection = detectJSRenderedPage(result.body, extractedLinks, events.length);
         
@@ -944,13 +944,13 @@ async function scrapeOrganization(org, scanResult) {
                 reason: 'js_rendered_site', 
                 eventsFound: 0, 
                 eventsSaved: 0,
-                jsRendered: true,
+                techRenderinged: true,
                 jsDetection,
                 statusReset: true,
                 newStatus: 'Nominated (Pending Mission Review)'
             };
         } else {
-            console.log('   ℹ️ Page does not appear to be JS-rendered');
+            console.log('   ℹ️ Page does not appear to be tech-rendered');
             console.log('   ℹ️ No events found on page (may be empty or past events only)');
         }
         
@@ -1227,8 +1227,8 @@ async function main() {
     if (scanResult) {
         console.log(`   TOU Status: ${scanResult.touFlag ? '⚠️ Restrictions' : '✅ Clear'}`);
     }
-    if (scrapeResult.jsRendered) {
-        console.log(`   ⚠️ JS-Rendered Site: Yes (${scrapeResult.jsDetection.confidence} confidence)`);
+    if (scrapeResult.techRenderinged) {
+        console.log(`   ⚠️ Tech-Rendered Site: Yes (${scrapeResult.jsDetection.confidence} confidence)`);
         console.log(`   📝 Finding recorded in scrape_notes`);
         console.log(`   🔄 Status reset to: "${scrapeResult.newStatus}"`);
     }

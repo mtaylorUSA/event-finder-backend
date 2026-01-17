@@ -10,6 +10,7 @@
  * - TOU page discovery and restriction scanning
  * - Context-aware restriction detection (avoids false positives) - UPDATED 2026-01-16
  * - JavaScript rendering detection on BOTH homepage AND events page - NEW 2026-01-16
+ * - Event content detection (catches AJAX-loaded events pages) - NEW 2026-01-16
  * - Technical block detection (403/401)
  * - Events URL discovery
  * - POC info gathering
@@ -309,7 +310,7 @@ const EVENTS_PAGE_INDICATORS = [
  * These patterns suggest the page content is loaded dynamically via JS
  * and cannot be scraped with standard HTTP requests
  */
-const JS_RENDER_INDICATORS = {
+const TECH_RENDERING_INDICATORS = {
     // SPA Framework Root Elements (high confidence)
     FRAMEWORK_ROOTS: [
         '<div id="root"></div>',
@@ -475,11 +476,15 @@ function extractText(html) {
  * Such sites cannot be scraped with standard HTTP requests.
  * 
  * @param {string} html - Raw HTML content from the page
+ * @param {Object} options - { isEventsPage: boolean } - additional context
  * @returns {Object} { isJsRendered: boolean, confidence: string, reasons: string[], notes: string }
  * 
  * Added: 2026-01-16
+ * Updated: 2026-01-16 - Added events page content detection
  */
-function detectJavaScriptRendering(html) {
+function detectJavaScriptRendering(html, options = {}) {
+    const { isEventsPage = false } = options;
+    
     if (!html || typeof html !== 'string') {
         return {
             isJsRendered: false,
@@ -497,7 +502,7 @@ function detectJavaScriptRendering(html) {
     // ─────────────────────────────────────────────────────────────────────────
     // Check 1: Framework Root Elements (HIGH confidence)
     // ─────────────────────────────────────────────────────────────────────────
-    for (const pattern of JS_RENDER_INDICATORS.FRAMEWORK_ROOTS) {
+    for (const pattern of TECH_RENDERING_INDICATORS.FRAMEWORK_ROOTS) {
         if (lowerHtml.includes(pattern.toLowerCase())) {
             // Verify it's actually empty or near-empty (not just an ID that has content)
             const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('><', '>([^<]{0,50})<'), 'i');
@@ -512,7 +517,7 @@ function detectJavaScriptRendering(html) {
     // ─────────────────────────────────────────────────────────────────────────
     // Check 2: Framework-specific Attributes (HIGH confidence)
     // ─────────────────────────────────────────────────────────────────────────
-    for (const attr of JS_RENDER_INDICATORS.FRAMEWORK_ATTRIBUTES) {
+    for (const attr of TECH_RENDERING_INDICATORS.FRAMEWORK_ATTRIBUTES) {
         if (lowerHtml.includes(attr.toLowerCase())) {
             reasons.push(`Framework attribute found: ${attr}`);
             highConfidenceHits++;
@@ -527,7 +532,7 @@ function detectJavaScriptRendering(html) {
     const noscriptMatch = html.match(/<noscript[^>]*>([\s\S]*?)<\/noscript>/gi);
     if (noscriptMatch) {
         const noscriptContent = noscriptMatch.join(' ').toLowerCase();
-        for (const warning of JS_RENDER_INDICATORS.NOSCRIPT_WARNINGS) {
+        for (const warning of TECH_RENDERING_INDICATORS.NOSCRIPT_WARNINGS) {
             if (noscriptContent.includes(warning)) {
                 reasons.push(`Noscript warning: "${warning}"`);
                 highConfidenceHits++;
@@ -562,7 +567,7 @@ function detectJavaScriptRendering(html) {
     // Check 5: Loading Indicators (MEDIUM confidence)
     // ─────────────────────────────────────────────────────────────────────────
     let loadingHits = 0;
-    for (const indicator of JS_RENDER_INDICATORS.LOADING_INDICATORS) {
+    for (const indicator of TECH_RENDERING_INDICATORS.LOADING_INDICATORS) {
         if (lowerHtml.includes(indicator)) {
             loadingHits++;
         }
@@ -570,6 +575,45 @@ function detectJavaScriptRendering(html) {
     if (loadingHits >= 2) {
         reasons.push(`Multiple loading indicators found (${loadingHits})`);
         mediumConfidenceHits++;
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check 6: Events Page Content Detection (NEW - 2026-01-16)
+    // If this is supposed to be an events page, check for actual event content
+    // ─────────────────────────────────────────────────────────────────────────
+    if (isEventsPage) {
+        const eventContentIndicators = [
+            // Date patterns (various formats)
+            /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/i,
+            /\b\d{1,2}\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i,
+            /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/,
+            /\b\d{4}-\d{2}-\d{2}\b/,
+            // Time patterns
+            /\b\d{1,2}:\d{2}\s*(am|pm|AM|PM)\b/,
+            /\b\d{1,2}\s*(am|pm|AM|PM)\b/,
+            // Registration/RSVP
+            /register\s+(now|here|today)/i,
+            /rsvp/i,
+            // Event-specific phrases
+            /join\s+us\s+(for|on|at)/i,
+            /upcoming\s+event/i,
+            /event\s+details/i,
+            /save\s+the\s+date/i,
+            /add\s+to\s+calendar/i
+        ];
+        
+        let eventContentFound = 0;
+        for (const pattern of eventContentIndicators) {
+            if (pattern.test(textContent) || pattern.test(html)) {
+                eventContentFound++;
+            }
+        }
+        
+        // If this is an events page but has very few event indicators, likely JS-loaded
+        if (eventContentFound < 2) {
+            reasons.push(`Events page has no actual event content (only ${eventContentFound} indicators found)`);
+            highConfidenceHits++;
+        }
     }
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -1877,7 +1921,7 @@ async function scanOrganization(org, options = {}) {
         falsePositivesSkipped: 0,
         
         // JavaScript Rendering Detection (NEW - 2026-01-16)
-        jsRenderFlag: false,
+        techRenderingFlag: false,
         jsRenderNotes: '',
         jsRenderConfidence: 'none',
         
@@ -1950,7 +1994,7 @@ async function scanOrganization(org, options = {}) {
         console.log('   🔍 Checking for JavaScript rendering...');
         const jsResult = detectJavaScriptRendering(result.homepageHtml);
         
-        result.jsRenderFlag = jsResult.isJsRendered;
+        result.techRenderingFlag = jsResult.isJsRendered;
         result.jsRenderNotes = jsResult.notes;
         result.jsRenderConfidence = jsResult.confidence;
         
@@ -1995,21 +2039,22 @@ async function scanOrganization(org, options = {}) {
     }
     
     // ───────────────────────────────────────────────────────────────────────
-    // Step 3.5: Events Page JS Rendering Check (NEW - 2026-01-16)
+    // Step 3.5: Events Page Tech Renderinging Check (NEW - 2026-01-16)
     // ───────────────────────────────────────────────────────────────────────
     // Some sites have SSR homepages but JS-rendered events pages (e.g., New America)
     // Check the events page separately if homepage didn't trigger JS detection
     
-    if (!result.jsRenderFlag && result.eventsUrl && !result.techBlockFlag) {
+    if (!result.techRenderingFlag && result.eventsUrl && !result.techBlockFlag) {
         console.log('   🔍 Checking events page for JavaScript rendering...');
         
         const eventsPageResult = await fetchUrl(result.eventsUrl);
         
         if (eventsPageResult.success && eventsPageResult.body) {
-            const eventsJsResult = detectJavaScriptRendering(eventsPageResult.body);
+            // Pass isEventsPage: true to enable event content detection
+            const eventsJsResult = detectJavaScriptRendering(eventsPageResult.body, { isEventsPage: true });
             
             if (eventsJsResult.isJsRendered) {
-                result.jsRenderFlag = true;
+                result.techRenderingFlag = true;
                 result.jsRenderConfidence = eventsJsResult.confidence;
                 result.jsRenderNotes = `Events page is JavaScript-rendered (${eventsJsResult.confidence} confidence). `;
                 result.jsRenderNotes += `Homepage uses SSR but events page loads content via JavaScript. `;
@@ -2025,7 +2070,7 @@ async function scanOrganization(org, options = {}) {
                 console.log('      ✅ Events page is server-side rendered');
             }
         } else {
-            console.log(`      ⚠️ Could not fetch events page to check JS rendering`);
+            console.log(`      ⚠️ Could not fetch events page to check Tech rendering`);
         }
         
         await sleep(1500);
@@ -2097,25 +2142,25 @@ async function scanOrganization(org, options = {}) {
             console.log(`      🔄 Auto-updating status to "Rejected by Org" (TOU/tech block detected)`);
         }
         
-        // JS Rendering flag (NEW - 2026-01-16)
-        if (result.jsRenderFlag !== org.js_render_flag) {
-            updates.js_render_flag = result.jsRenderFlag;
-            result.fieldsUpdated.push('js_render_flag');
+        // Tech Renderinging flag (NEW - 2026-01-16)
+        if (result.techRenderingFlag !== org.tech_rendering_flag) {
+            updates.tech_rendering_flag = result.techRenderingFlag;
+            result.fieldsUpdated.push('tech_rendering_flag');
         }
         
-        // AUTO-UPDATE STATUS: If JS rendering detected, set status to "Nominated" for human review
+        // AUTO-UPDATE STATUS: If Tech rendering detected, set status to "Nominated" for human review
         // Only if not already rejected and JS flag is newly set
         // This is informational - not a rejection, just needs human attention
-        if (result.jsRenderFlag && 
+        if (result.techRenderingFlag && 
             !result.touFlag && 
             !result.techBlockFlag &&
             org.status === 'Live (Scraping Active)' &&
-            !org.js_render_flag) {
+            !org.tech_rendering_flag) {
             updates.status = 'Nominated (Pending Mission Review)';
             result.fieldsUpdated.push('status');
             result.statusChanged = true;
             result.newStatus = 'Nominated (Pending Mission Review)';
-            console.log(`      🔄 Auto-updating status to "Nominated" (JS rendering detected - needs review)`);
+            console.log(`      🔄 Auto-updating status to "Nominated" (Tech rendering detected - needs review)`);
         }
         
         // Events URL (only update if we found one and current is empty)
@@ -2157,7 +2202,7 @@ async function scanOrganization(org, options = {}) {
     console.log('════════════════════════════════════════════════════════════════');
     console.log(`   Tech Block: ${result.techBlockFlag ? '⛔ YES' : '✅ No'}`);
     console.log(`   TOU Flag: ${result.touFlag ? '⚠️ YES' : '✅ No'}`);
-    console.log(`   JS Render Flag: ${result.jsRenderFlag ? `⚙️ YES (${result.jsRenderConfidence} confidence)` : '✅ No'}`);
+    console.log(`   Tech Rendering Flag: ${result.techRenderingFlag ? `⚙️ YES (${result.jsRenderConfidence} confidence)` : '✅ No'}`);
     console.log(`   TOU URL: ${result.touUrl || 'Not found'}`);
     console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
     console.log(`   Events URL: ${result.eventsUrl || 'Not found'} ${result.eventsUrlValidated ? '✅' : '⚠️'}`);
@@ -2228,7 +2273,7 @@ module.exports = {
     CONTENT_PATH_PREFIXES,
     EVENTS_PATHS,
     EVENTS_PAGE_INDICATORS,
-    JS_RENDER_INDICATORS,      // NEW - 2026-01-16
+    TECH_RENDERING_INDICATORS,      // NEW - 2026-01-16
     MIN_CONTENT_LENGTH,        // NEW - 2026-01-16
     USER_AGENT,
     CONTEXT_WINDOW

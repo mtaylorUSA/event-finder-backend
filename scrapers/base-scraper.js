@@ -361,13 +361,11 @@ async function markAsTechBlocked(orgId, errorMessage) {
                     'Authorization': authToken
                 },
                 body: JSON.stringify({
-                    status: 'Rejected (By Mission or Org)',
+                    status: 'Rejected by Org',
                     tech_block_flag: true,
                     tou_scanned_date: today,
                     tou_notes: `⛔ TECHNICAL BLOCK DETECTED:\n\n${errorMessage}`,
-                    scraping_enabled: false,
-                    alert_type: 'tech_block',
-                    alert_date: new Date().toISOString()
+                    scraping_enabled: false
                 })
             }
         );
@@ -376,11 +374,10 @@ async function markAsTechBlocked(orgId, errorMessage) {
         console.log('════════════════════════════════════════════════════════════════');
         console.log('⛔ ORGANIZATION MARKED AS TECHNICALLY BLOCKED');
         console.log('════════════════════════════════════════════════════════════════');
-        console.log('   • status → Rejected (By Mission or Org)');
+        console.log('   • status → Rejected by Org');
         console.log('   • tech_block_flag → TRUE');
         console.log('   • scraping_enabled → FALSE');
         console.log(`   • tou_scanned_date → ${today}`);
-        console.log('   • alert_type → tech_block');
         console.log('════════════════════════════════════════════════════════════════\n');
 
     } catch (error) {
@@ -405,13 +402,11 @@ async function markAsTOURestricted(orgId, foundKeywords) {
                     'Authorization': authToken
                 },
                 body: JSON.stringify({
-                    status: 'Rejected (By Mission or Org)',
+                    status: 'Rejected by Org',
                     tou_flag: true,
                     tou_scanned_date: today,
                     tou_notes: `⚠️ TOU RESTRICTION DETECTED:\n\nKeywords found:\n${foundKeywords.map(k => `• "${k}"`).join('\n')}`,
-                    scraping_enabled: false,
-                    alert_type: 'tou_restriction',
-                    alert_date: new Date().toISOString()
+                    scraping_enabled: false
                 })
             }
         );
@@ -420,11 +415,10 @@ async function markAsTOURestricted(orgId, foundKeywords) {
         console.log('════════════════════════════════════════════════════════════════');
         console.log('⚠️ ORGANIZATION MARKED AS TOU RESTRICTED');
         console.log('════════════════════════════════════════════════════════════════');
-        console.log('   • status → Rejected (By Mission or Org)');
+        console.log('   • status → Rejected by Org');
         console.log('   • tou_flag → TRUE');
         console.log('   • scraping_enabled → FALSE');
         console.log(`   • tou_scanned_date → ${today}`);
-        console.log('   • alert_type → tou_restriction');
         console.log('   Keywords found:');
         foundKeywords.forEach(k => console.log(`     • "${k}"`));
         console.log('════════════════════════════════════════════════════════════════\n');
