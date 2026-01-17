@@ -801,7 +801,7 @@ async function eventExists(sourceId) {
 /**
  * Save event to database
  */
-async function saveEvent(event, orgId, orgDomain) {
+async function saveEvent(event, orgId, orgDomain, eventPolicy) {
     const sourceId = generateSourceId(event, orgDomain);
     
     // Check for duplicate
@@ -809,6 +809,11 @@ async function saveEvent(event, orgId, orgDomain) {
         console.log(`      ⏭️ Skipped (duplicate): ${event.title.substring(0, 40)}...`);
         return { saved: false, reason: 'duplicate' };
     }
+    
+    // Set event status based on org's event_policy
+    // accept_all → approved (shows in public UI immediately)
+    // propose_events → nominated (requires human review)
+    const eventStatus = eventPolicy === 'accept_all' ? 'approved' : 'nominated';
     
     const eventRecord = {
         title: event.title,
@@ -824,7 +829,7 @@ async function saveEvent(event, orgId, orgDomain) {
         registration_url: event.registration_url || '',
         organization: orgId,
         source_id: sourceId,
-        status: 'active'
+        event_status: eventStatus
     };
     
     try {
@@ -841,8 +846,9 @@ async function saveEvent(event, orgId, orgDomain) {
         );
         
         if (response.ok) {
-            console.log(`      💾 Saved: ${event.title.substring(0, 50)}...`);
-            return { saved: true };
+            const statusIcon = eventStatus === 'nominated' ? '📋' : '✅';
+            console.log(`      ${statusIcon} Saved (${eventStatus}): ${event.title.substring(0, 45)}...`);
+            return { saved: true, status: eventStatus };
         } else {
             const err = await response.json();
             console.log(`      ❌ Save failed: ${JSON.stringify(err)}`);
@@ -980,12 +986,16 @@ async function scrapeOrganization(org, scanResult) {
     console.log('');
     console.log('   💾 Saving events to database...');
     
+    // Determine event status based on org's event_policy
+    const eventPolicy = org.event_policy || 'propose_events'; // Default to propose if not set
+    console.log(`      📋 Event Policy: ${eventPolicy}`);
+    
     let savedCount = 0;
     let skippedCount = 0;
     const orgDomain = extractRootDomain(org.website || org.source_id);
     
     for (const event of enrichedEvents) {
-        const result = await saveEvent(event, org.id, orgDomain);
+        const result = await saveEvent(event, org.id, orgDomain, eventPolicy);
         if (result.saved) {
             savedCount++;
         } else {
@@ -1004,12 +1014,14 @@ async function scrapeOrganization(org, scanResult) {
     console.log(`      Events found: ${events.length}`);
     console.log(`      Events saved: ${savedCount}`);
     console.log(`      Skipped (duplicates): ${skippedCount}`);
+    console.log(`      Event status: ${eventPolicy === 'accept_all' ? '✅ Approved (in public UI)' : '📋 Nominated (needs review)'}`);
     
     return {
         success: true,
         eventsFound: events.length,
         eventsSaved: savedCount,
-        eventsSkipped: skippedCount
+        eventsSkipped: skippedCount,
+        eventStatus: eventPolicy === 'accept_all' ? 'approved' : 'nominated'
     };
 }
 
