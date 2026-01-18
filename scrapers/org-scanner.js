@@ -21,7 +21,10 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-16
+ * Last Updated: 2026-01-17
+ * - BUGFIX: tech_block_flag and tou_flag are now independent
+ *   403 errors only set tech_block_flag, NOT tou_flag
+ *   tou_flag only set when actual restriction language is found
  */
 
 require('dotenv').config();
@@ -1186,8 +1189,8 @@ async function scanTOU(website, html = null) {
     if (legalSearch.isBlocked) {
         console.log(`      ⛔ Technical block detected at: ${legalSearch.blockedUrl}`);
         result.techBlockFlag = true;
-        result.touFlag = true;
-        result.touNotes = `Technical block: ${legalSearch.error} at ${legalSearch.blockedUrl}`;
+        // Note: touFlag NOT set here - tech blocks are separate from TOU restrictions
+        result.touNotes = `Technical block (403): ${legalSearch.error} at ${legalSearch.blockedUrl}. Unable to scan legal pages.`;
         return result;
     }
     
@@ -1215,11 +1218,10 @@ async function scanTOU(website, html = null) {
         const pageResult = await fetchUrl(url);
         
         if (pageResult.isBlocked) {
-            console.log(`         ⛔ Blocked`);
+            console.log(`         ⛔ Blocked (403)`);
             result.techBlockFlag = true;
-            result.touFlag = true;
-            result.pagesWithRestrictions.push({ url, type: pageType, reason: 'Technical block' });
-            scannedPages.push(`❌ ${pageType}: BLOCKED`);
+            // Note: touFlag NOT set here - tech blocks are separate from TOU restrictions
+            scannedPages.push(`⛔ ${pageType}: BLOCKED (403)`);
             continue;
         }
         

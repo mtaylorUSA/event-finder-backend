@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v17</title>
+    <title>Event Finder Admin v19</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -119,6 +119,8 @@
         .badge-granted { background: #d4edda; color: #155724; }
         .badge-rejected { background: #f8d7da; color: #721c24; }
         .badge-live { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
+        .badge-danger { background: #dc3545; color: white; }
         .badge-tou-flag { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
         .badge-tech-block { background: #dc3545; color: white; border: 1px solid #721c24; }
         .badge-js-render { background: #e2e3f3; color: #3d4070; border: 1px solid #6c757d; }
@@ -153,6 +155,7 @@
         .event-country-badge { background: #d4edda; color: #155724; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
         .event-org-badge { background: #e2d4f0; color: #6f42c1; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
         .event-metadata { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        .event-actions { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; }
         .event-meta-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-bottom: 5px; font-size: 12px; }
         .event-meta-row strong { color: #666; margin-right: 5px; }
         .icon-status-indicator { margin-top: 5px; font-size: 10px; }
@@ -318,8 +321,21 @@
                 <div id="events" class="tab-content">
                     <div class="section-header"><h2>📅 Events</h2></div>
                     <div class="filters">
+                        <select id="filterEventStatus" onchange="loadEvents()">
+                            <option value="">All Statuses</option>
+                            <option value="nominated">📋 Nominated (Needs Review)</option>
+                            <option value="approved">✅ Approved</option>
+                            <option value="rejected">❌ Rejected</option>
+                        </select>
                         <select id="filterEventOrg" onchange="loadEvents()">
                             <option value="">All Organizations</option>
+                        </select>
+                        <select id="sortEvents" onchange="loadEvents()">
+                            <option value="-start_date">📅 Date (Newest First)</option>
+                            <option value="start_date">📅 Date (Oldest First)</option>
+                            <option value="org-asc">🏢 Organization (A-Z)</option>
+                            <option value="org-desc">🏢 Organization (Z-A)</option>
+                            <option value="-created">🕐 Recently Added</option>
                         </select>
                     </div>
                     <div id="eventsList"><div class="loading">Loading events...</div></div>
@@ -1658,6 +1674,11 @@ Mobile: 703-795-0217`;
                 const data = await response.json();
                 const events = data.items || [];
 
+                // Count by status
+                const nominatedCount = events.filter(e => e.event_status === 'nominated' || !e.event_status).length;
+                const approvedCount = events.filter(e => e.event_status === 'approved').length;
+                const rejectedCount = events.filter(e => e.event_status === 'rejected').length;
+
                 document.getElementById('profileEventCount').textContent = `${events.length} events`;
 
                 if (events.length === 0) {
@@ -1665,20 +1686,84 @@ Mobile: 703-795-0217`;
                     return;
                 }
 
-                container.innerHTML = events.map(e => {
+                // Add status summary
+                let summaryHtml = `<div class="event-status-summary" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <strong>Event Status:</strong> 
+                    <span style="margin-left: 10px;">📋 Nominated: ${nominatedCount}</span>
+                    <span style="margin-left: 10px;">✅ Approved: ${approvedCount}</span>
+                    <span style="margin-left: 10px;">❌ Rejected: ${rejectedCount}</span>
+                </div>`;
+
+                container.innerHTML = summaryHtml + events.map(e => {
                     const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    
+                    // Event status badge
+                    const eventStatus = e.event_status || 'nominated';
+                    const statusBadge = eventStatus === 'approved' 
+                        ? '<span class="badge badge-live">✅ Approved</span>'
+                        : eventStatus === 'rejected'
+                        ? '<span class="badge badge-danger">❌ Rejected</span>'
+                        : '<span class="badge badge-warning">📋 Nominated</span>';
+                    
+                    // Action buttons
+                    const actionButtons = eventStatus === 'nominated' || !eventStatus
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatusFromProfile('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatusFromProfile('${e.id}', 'rejected')">❌ Reject</button>
+                           </div>`
+                        : eventStatus === 'approved'
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatusFromProfile('${e.id}', 'rejected')">❌ Reject</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatusFromProfile('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`
+                        : `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatusFromProfile('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatusFromProfile('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`;
+                    
                     return `
-                        <div class="event-card">
-                            <h5>${escapeHtml(e.title)}</h5>
+                        <div class="event-card" id="profile-event-${e.id}">
+                            <h5>${escapeHtml(e.title)} ${statusBadge}</h5>
                             <p><strong>Date:</strong> ${startDate}</p>
                             ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
                             ${e.event_type ? `<p><strong>Type:</strong> ${escapeHtml(e.event_type)}</p>` : ''}
                             ${e.url ? `<p><a href="${escapeHtml(e.url)}" target="_blank">View Event →</a></p>` : ''}
+                            ${actionButtons}
                         </div>
                     `;
                 }).join('');
             } catch (error) {
                 container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        /**
+         * Update event status from org profile page
+         */
+        async function updateEventStatusFromProfile(eventId, newStatus) {
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records/${eventId}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authToken
+                        },
+                        body: JSON.stringify({ event_status: newStatus })
+                    }
+                );
+                
+                if (response.ok) {
+                    console.log(`✅ Event ${eventId} updated to ${newStatus}`);
+                    // Reload profile events to reflect change
+                    loadProfileEvents();
+                } else {
+                    const err = await response.json();
+                    alert(`❌ Error updating event: ${JSON.stringify(err)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
             }
         }
 
@@ -2240,6 +2325,13 @@ Mobile: 703-795-0217`;
         async function loadEvents() {
             const container = document.getElementById('eventsList');
             const orgFilter = document.getElementById('filterEventOrg').value;
+            const statusFilter = document.getElementById('filterEventStatus').value;
+            const sortBy = document.getElementById('sortEvents').value || '-start_date';
+            
+            console.log('🔍 loadEvents called');
+            console.log('   orgFilter:', orgFilter);
+            console.log('   statusFilter:', statusFilter);
+            console.log('   sortBy:', sortBy);
 
             try {
                 // Load organization filter dropdown
@@ -2263,20 +2355,93 @@ Mobile: 703-795-0217`;
                     }
                 });
 
+                // Build filter
+                let filterParts = [];
+                if (orgFilter) filterParts.push(`organization='${orgFilter}'`);
+                
+                // Handle event_status filter - 'nominated' includes null/empty (legacy events)
+                if (statusFilter === 'nominated') {
+                    // Match 'nominated' OR empty string OR null (events created before event_status field)
+                    filterParts.push(`(event_status='nominated' || event_status='' || event_status=null)`);
+                } else if (statusFilter) {
+                    filterParts.push(`event_status='${statusFilter}'`);
+                }
+                
+                let filter = filterParts.length > 0 ? `&filter=${encodeURIComponent('(' + filterParts.join(' && ') + ')')}` : '';
+                
+                console.log('   filterParts:', filterParts);
+                console.log('   filter:', filter);
+                
+                // Determine API sort (use -start_date for org sorts, we'll sort client-side)
+                const apiSort = sortBy.startsWith('org-') ? '-start_date' : sortBy;
+                
                 // Load events with topics expanded
-                let filter = orgFilter ? `&filter=(organization='${orgFilter}')` : '';
-                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?sort=-start_date&expand=organization,topics&perPage=100${filter}`, { headers: { 'Authorization': authToken } });
+                const apiUrl = `${POCKETBASE_URL}/api/collections/events/records?sort=${apiSort}&expand=organization,topics&perPage=100${filter}`;
+                console.log('   API URL:', apiUrl);
+                
+                const response = await fetch(apiUrl, { headers: { 'Authorization': authToken } });
                 const data = await response.json();
-                const events = data.items || [];
+                let events = data.items || [];
+                
+                console.log('   Events found:', events.length);
+                if (events.length > 0) {
+                    console.log('   First event org:', events[0].organization);
+                }
+                
+                // Client-side sort for organization name
+                if (sortBy === 'org-asc') {
+                    events.sort((a, b) => {
+                        const nameA = (a.expand?.organization?.name || '').toLowerCase();
+                        const nameB = (b.expand?.organization?.name || '').toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    });
+                } else if (sortBy === 'org-desc') {
+                    events.sort((a, b) => {
+                        const nameA = (a.expand?.organization?.name || '').toLowerCase();
+                        const nameB = (b.expand?.organization?.name || '').toLowerCase();
+                        return nameB.localeCompare(nameA);
+                    });
+                }
 
                 if (events.length === 0) {
-                    container.innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>No Events Found</h3></div>`;
+                    let filterDesc = [];
+                    if (statusFilter) filterDesc.push(`status "${statusFilter}"`);
+                    if (orgFilter) {
+                        const orgName = document.getElementById('filterEventOrg').selectedOptions[0]?.text || 'selected org';
+                        filterDesc.push(`org "${orgName}"`);
+                    }
+                    const filterMsg = filterDesc.length > 0 ? `<p style="color: #666;">No events match: ${filterDesc.join(' + ')}</p><p style="color: #666; font-size: 12px;">Try changing the filters above.</p>` : '';
+                    container.innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>No Events Found</h3>${filterMsg}</div>`;
                     return;
                 }
 
                 container.innerHTML = events.map(e => {
                     const orgName = e.expand?.organization?.name || 'Unknown';
                     const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    
+                    // Event status badge
+                    const eventStatus = e.event_status || 'nominated';
+                    const statusBadge = eventStatus === 'approved' 
+                        ? '<span class="badge badge-live">✅ Approved</span>'
+                        : eventStatus === 'rejected'
+                        ? '<span class="badge badge-danger">❌ Rejected</span>'
+                        : '<span class="badge badge-warning">📋 Nominated</span>';
+                    
+                    // Action buttons based on status
+                    const actionButtons = eventStatus === 'nominated'
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatus('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatus('${e.id}', 'rejected')">❌ Reject</button>
+                           </div>`
+                        : eventStatus === 'approved'
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatus('${e.id}', 'rejected')">❌ Reject</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatus('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`
+                        : `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatus('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatus('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`;
                     
                     // Get topics and create combination key (4-part format)
                     // Format: "Topics|Regions|Countries|TransnationalOrgs"
@@ -2318,14 +2483,14 @@ Mobile: 703-795-0217`;
                         : '';
 
                     return `
-                        <div class="card">
+                        <div class="card" id="event-${e.id}">
                             <div class="event-with-icon">
                                 <div class="event-icon">
                                     ${iconHtml}
                                     <div class="icon-status-indicator">${iconStatus}</div>
                                 </div>
                                 <div class="event-details">
-                                    <h3>${escapeHtml(e.title)}</h3>
+                                    <h3>${escapeHtml(e.title)} ${statusBadge}</h3>
                                     <p><strong>Organization:</strong> ${escapeHtml(orgName)}</p>
                                     <p><strong>Date:</strong> ${startDate}</p>
                                     ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
@@ -2337,6 +2502,7 @@ Mobile: 703-795-0217`;
                                         ${orgBadges}
                                     </div>
                                     <div class="icon-key-debug" title="Icon lookup key"><small>🔑 ${escapeHtml(topicCombination)}</small></div>
+                                    ${actionButtons}
                                 </div>
                             </div>
                         </div>
@@ -2344,6 +2510,51 @@ Mobile: 703-795-0217`;
                 }).join('');
             } catch (error) {
                 container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        /**
+         * Update event status (approve/reject/nominate)
+         */
+        async function updateEventStatus(eventId, newStatus) {
+            const statusFilter = document.getElementById('filterEventStatus').value;
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records/${eventId}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authToken
+                        },
+                        body: JSON.stringify({ event_status: newStatus })
+                    }
+                );
+                
+                if (response.ok) {
+                    console.log(`✅ Event ${eventId} updated to ${newStatus}`);
+                    
+                    // If we have a filter active and the new status doesn't match,
+                    // fade out and remove the card
+                    if (statusFilter && statusFilter !== newStatus) {
+                        const card = document.getElementById(`event-${eventId}`);
+                        if (card) {
+                            card.style.transition = 'opacity 0.3s, transform 0.3s';
+                            card.style.opacity = '0';
+                            card.style.transform = 'translateX(50px)';
+                            setTimeout(() => card.remove(), 300);
+                        }
+                    } else {
+                        // No filter or status still matches - reload to update badges
+                        loadEvents();
+                    }
+                } else {
+                    const err = await response.json();
+                    alert(`❌ Error updating event: ${JSON.stringify(err)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
             }
         }
 

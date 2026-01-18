@@ -16,10 +16,10 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: npm install
-      - name: Run dynamic scraper
+      - name: Run unified scraper
         env:
           POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
           POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
           POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: node scrapers/scrape-all-organizations.js
+        run: node scrapers/scan-and-scrape-all-live-orgs.js --all

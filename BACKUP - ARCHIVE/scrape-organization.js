@@ -15,7 +15,9 @@
  *   node scrapers/scrape-organization.js --domain "rand.org"    # New org discovery
  *   node scrapers/scrape-organization.js --org "CNAS" --scan-only  # Just scan, don't scrape
  * 
- * Last Updated: 2026-01-16
+ * Last Updated: 2026-01-17
+ * - BUGFIX: Duplicate events now get UPDATED with new information instead of skipped
+ *   Previously events with missing dates stayed empty; now they get filled in
  */
 
 require('dotenv').config();
@@ -778,36 +780,154 @@ function generateSourceId(event, orgDomain) {
 }
 
 /**
- * Check if event already exists
+ * Get existing event by source_id OR by title+org (returns record or null)
+ * Now returns the actual record so we can update it
  */
-async function eventExists(sourceId) {
+async function getExistingEvent(sourceId, title, orgId) {
     try {
-        const filter = encodeURIComponent(`source_id = "${sourceId}"`);
-        const response = await fetch(
-            `${POCKETBASE_URL}/api/collections/events/records?filter=${filter}`,
+        // First check by exact source_id
+        const filter1 = encodeURIComponent(`source_id = "${sourceId}"`);
+        const response1 = await fetch(
+            `${POCKETBASE_URL}/api/collections/events/records?filter=${filter1}`,
             { headers: { 'Authorization': authToken } }
         );
         
-        if (response.ok) {
-            const data = await response.json();
-            return data.items && data.items.length > 0;
+        if (response1.ok) {
+            const data1 = await response1.json();
+            if (data1.items && data1.items.length > 0) {
+                return data1.items[0];
+            }
+        }
+        
+        // Also check by title + org (to catch URL variations and missing dates)
+        // Use looser match - just title similarity and org
+        const titleNormalized = title.toLowerCase().trim().substring(0, 60);
+        const filter2 = encodeURIComponent(`organization = "${orgId}" && title ~ "${titleNormalized}"`);
+        const response2 = await fetch(
+            `${POCKETBASE_URL}/api/collections/events/records?filter=${filter2}`,
+            { headers: { 'Authorization': authToken } }
+        );
+        
+        if (response2.ok) {
+            const data2 = await response2.json();
+            if (data2.items && data2.items.length > 0) {
+                return data2.items[0];
+            }
         }
     } catch (e) {
         // Assume doesn't exist on error
     }
-    return false;
+    return null;
 }
 
 /**
- * Save event to database
+ * Check if a value is meaningful (not empty, not "N/A", not "TBD")
+ */
+function isMeaningfulValue(value) {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') {
+        const trimmed = value.trim().toLowerCase();
+        if (trimmed === '' || trimmed === 'n/a' || trimmed === 'tbd' || trimmed === 'null') {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Compare existing event with new data and return fields that need updating
+ */
+function getEventUpdates(existing, newEvent) {
+    const updates = {};
+    const changedFields = [];
+    
+    // Fields to compare
+    const fieldsToCheck = [
+        'title', 'description', 'start_date', 'end_date', 
+        'start_time', 'end_time', 'timezone', 'location',
+        'event_type', 'url', 'registration_url'
+    ];
+    
+    for (const field of fieldsToCheck) {
+        const existingValue = existing[field];
+        const newValue = newEvent[field];
+        
+        // Only update if:
+        // 1. New value is meaningful
+        // 2. Existing value is empty/missing OR new value is different
+        if (isMeaningfulValue(newValue)) {
+            const existingNorm = existingValue ? String(existingValue).trim() : '';
+            const newNorm = String(newValue).trim();
+            
+            // Update if existing is empty or values differ
+            if (!isMeaningfulValue(existingValue) || existingNorm !== newNorm) {
+                updates[field] = newValue;
+                changedFields.push(field);
+            }
+        }
+    }
+    
+    if (Object.keys(updates).length > 0) {
+        return { updates, changedFields };
+    }
+    return null;
+}
+
+/**
+ * Update existing event in database
+ */
+async function updateEvent(eventId, updates) {
+    try {
+        const response = await fetch(
+            `${POCKETBASE_URL}/api/collections/events/records/${eventId}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify(updates)
+            }
+        );
+        return response.ok;
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Save event to database (creates new or updates existing)
+ * 
+ * Updated 2026-01-17: Now updates existing events with new information
+ * instead of just skipping duplicates
  */
 async function saveEvent(event, orgId, orgDomain, eventPolicy) {
     const sourceId = generateSourceId(event, orgDomain);
     
-    // Check for duplicate
-    if (await eventExists(sourceId)) {
-        console.log(`      ⏭️ Skipped (duplicate): ${event.title.substring(0, 40)}...`);
-        return { saved: false, reason: 'duplicate' };
+    // Check if event already exists
+    const existing = await getExistingEvent(sourceId, event.title, orgId);
+    
+    if (existing) {
+        // Event exists - check if it needs updating
+        const updateResult = getEventUpdates(existing, event);
+        
+        if (updateResult) {
+            // Has changes - update the event
+            const success = await updateEvent(existing.id, updateResult.updates);
+            
+            if (success) {
+                console.log(`      🔄 Updated: ${event.title.substring(0, 40)}...`);
+                console.log(`         Changed: ${updateResult.changedFields.join(', ')}`);
+                return { saved: false, updated: true, fields: updateResult.changedFields };
+            } else {
+                console.log(`      ❌ Update failed: ${event.title.substring(0, 40)}...`);
+                return { saved: false, updated: false, reason: 'update_failed' };
+            }
+        } else {
+            // No changes needed
+            console.log(`      ✓ Unchanged: ${event.title.substring(0, 40)}...`);
+            return { saved: false, updated: false, reason: 'no_changes' };
+        }
     }
     
     // Set event status based on org's event_policy
@@ -991,15 +1111,18 @@ async function scrapeOrganization(org, scanResult) {
     console.log(`      📋 Event Policy: ${eventPolicy}`);
     
     let savedCount = 0;
-    let skippedCount = 0;
+    let updatedCount = 0;
+    let unchangedCount = 0;
     const orgDomain = extractRootDomain(org.website || org.source_id);
     
     for (const event of enrichedEvents) {
         const result = await saveEvent(event, org.id, orgDomain, eventPolicy);
         if (result.saved) {
             savedCount++;
+        } else if (result.updated) {
+            updatedCount++;
         } else {
-            skippedCount++;
+            unchangedCount++;
         }
     }
     
@@ -1012,15 +1135,17 @@ async function scrapeOrganization(org, scanResult) {
     console.log('   📊 SCRAPE SUMMARY');
     console.log('   ════════════════════════════════════════════════════');
     console.log(`      Events found: ${events.length}`);
-    console.log(`      Events saved: ${savedCount}`);
-    console.log(`      Skipped (duplicates): ${skippedCount}`);
+    console.log(`      Events saved (new): ${savedCount}`);
+    console.log(`      Events updated: ${updatedCount}`);
+    console.log(`      Unchanged: ${unchangedCount}`);
     console.log(`      Event status: ${eventPolicy === 'accept_all' ? '✅ Approved (in public UI)' : '📋 Nominated (needs review)'}`);
     
     return {
         success: true,
         eventsFound: events.length,
         eventsSaved: savedCount,
-        eventsSkipped: skippedCount,
+        eventsUpdated: updatedCount,
+        eventsUnchanged: unchangedCount,
         eventStatus: eventPolicy === 'accept_all' ? 'approved' : 'nominated'
     };
 }
@@ -1257,8 +1382,9 @@ async function main() {
         console.log(`   🔄 Status reset to: "${scrapeResult.newStatus}"`);
     }
     console.log(`   Events Found: ${scrapeResult.eventsFound}`);
-    console.log(`   Events Saved: ${scrapeResult.eventsSaved}`);
-    console.log(`   Events Skipped: ${scrapeResult.eventsSkipped || 0}`);
+    console.log(`   Events Saved (new): ${scrapeResult.eventsSaved}`);
+    console.log(`   Events Updated: ${scrapeResult.eventsUpdated || 0}`);
+    console.log(`   Unchanged: ${scrapeResult.eventsUnchanged || 0}`);
     console.log('════════════════════════════════════════════════════════════════');
     console.log('');
 }
