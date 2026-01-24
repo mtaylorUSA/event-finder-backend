@@ -273,22 +273,24 @@
                     </div>
                     <div class="filters">
                         <select id="filterByStatus" onchange="loadByStatus()">
-                            <option value="all">📋 All Organizations</option>
-                            <option value="Nominated (Pending Mission Review)">🟣 Nominated - All</option>
-                            <option value="nominated-clean">🟣 Nominated - Clean (No Restrictions)</option>
-                            <option value="nominated-restrictions">🟠 Nominated - Has Restrictions</option>
-                            <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved - All</option>
-                            <option value="approved-clean">🔵 Mission Approved - Clean</option>
-                            <option value="approved-restrictions">🟠 Mission Approved - Has Restrictions</option>
-                            <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested - All</option>
-                            <option value="requested-clean">🟡 Permission Requested - Clean (7-day deadline)</option>
-                            <option value="requested-restrictions">🟠 Permission Requested - Awaiting Explicit Reply</option>
+                            <option value="">📋 Workflow Status...</option>
+                            <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
+                            <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
+                            <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
                             <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
                             <option value="Rejected by Mission">🔴 Rejected by Mission</option>
                             <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
                             <option value="duplicates">🔁 Duplicates Only</option>
-                            <option value="has-restrictions">🟠 All With Restrictions (Any Status)</option>
+                        </select>
+                        <select id="filterByRestrictions" onchange="loadByRestrictions()">
+                            <option value="">🟠 Orgs with Restrictions...</option>
+                            <option value="restricted-nominated">🟠 Nominated - Restricted!</option>
+                            <option value="restricted-approved">🟠 Mission Approved - Restricted!</option>
+                            <option value="restricted-requested">🟠 Permission Requested - Restricted!</option>
+                            <option value="restricted-granted">🟠 Permission Granted - Restricted!</option>
+                            <option value="restricted-rejected-mission">🟠 Rejected by Mission - Restricted!</option>
+                            <option value="restricted-rejected-org">🟠 Rejected by Org - Restricted!</option>
                         </select>
                     </div>
                     <div id="byStatusMessage" class="message info hidden"></div>
@@ -315,7 +317,6 @@
                             <option value="Rejected by Mission">🔴 Rejected by Mission</option>
                             <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live</option>
-                            <option value="has-restrictions">🟠 Has Restrictions</option>
                         </select>
                     </div>
                     <div id="organizationsMessage" class="message info hidden"></div>
@@ -1660,11 +1661,12 @@
             
             // Safety check: warn if trying to go Live with restriction flags
             if (newStatus === 'Live (Scraping Active)') {
-                const hasRestrictions = currentOrg.tou_flag || currentOrg.tech_block_flag || currentOrg.permission_denied_flag;
+                const hasRestrictions = currentOrg.tou_flag || currentOrg.tech_block_flag || currentOrg.tech_rendering_flag || currentOrg.permission_denied_flag;
                 if (hasRestrictions) {
                     const flags = [];
                     if (currentOrg.tou_flag) flags.push('TOU Restriction');
                     if (currentOrg.tech_block_flag) flags.push('Tech Block');
+                    if (currentOrg.tech_rendering_flag) flags.push('JS Rendering Required');
                     if (currentOrg.permission_denied_flag) flags.push('Permission Denied');
                     
                     const proceed = confirm(
@@ -2131,7 +2133,11 @@
 
         function generatePermissionDraft() {
             const orgName = currentOrg.name;
-            const hasRestriction = currentOrg.tou_flag && currentOrg.restriction_context;
+            const hasTouRestriction = currentOrg.tou_flag && currentOrg.restriction_context;
+            const hasTechBlock = currentOrg.tech_block_flag;
+            const hasTechRendering = currentOrg.tech_rendering_flag;
+            const hasAnyRestriction = currentOrg.tou_flag || hasTechBlock || hasTechRendering;
+            
             const restrictionContext = currentOrg.restriction_context || '';
             const restrictionSourceUrls = currentOrg.restriction_source_urls || '';
             
@@ -2142,30 +2148,42 @@
             
             let draft;
             
-            if (hasRestriction) {
-                // Parse multiple restriction sources and contexts
-                // Sources and contexts are stored newline-separated
-                const sourceLines = restrictionSourceUrls.split('\n').filter(line => line.trim());
-                const contextLines = restrictionContext.split('\n').filter(line => line.trim());
-                
-                // Build bullet points for each restriction source
+            if (hasAnyRestriction) {
+                // Build restriction bullets for each type of issue
                 let restrictionBullets = '';
-                sourceLines.forEach((sourceUrl, index) => {
-                    const context = contextLines[index] || contextLines[0] || 'restricts automated access';
-                    // Try to detect source type from URL
-                    let sourceType = 'Terms page';
-                    const urlLower = sourceUrl.toLowerCase();
-                    if (urlLower.includes('privacy')) sourceType = 'Privacy Policy';
-                    else if (urlLower.includes('terms') || urlLower.includes('tos')) sourceType = 'Terms of Use';
-                    else if (urlLower.includes('legal')) sourceType = 'Legal page';
-                    else if (urlLower.includes('copyright')) sourceType = 'Copyright page';
-                    
-                    restrictionBullets += `• The ${sourceType} states: "${context.trim()}"\n  ${sourceUrl.trim()}\n`;
-                });
                 
-                // If no structured sources, use a generic bullet
-                if (!restrictionBullets) {
-                    restrictionBullets = `• Your website's terms restrict automated gathering of information.\n`;
+                // TOU/Policy restrictions
+                if (hasTouRestriction) {
+                    const sourceLines = restrictionSourceUrls.split('\n').filter(line => line.trim());
+                    const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                    
+                    sourceLines.forEach((sourceUrl, index) => {
+                        const context = contextLines[index] || contextLines[0] || 'restricts automated access';
+                        // Try to detect source type from URL
+                        let sourceType = 'Terms page';
+                        const urlLower = sourceUrl.toLowerCase();
+                        if (urlLower.includes('privacy')) sourceType = 'Privacy Policy';
+                        else if (urlLower.includes('terms') || urlLower.includes('tos')) sourceType = 'Terms of Use';
+                        else if (urlLower.includes('legal')) sourceType = 'Legal page';
+                        else if (urlLower.includes('copyright')) sourceType = 'Copyright page';
+                        
+                        restrictionBullets += `• The ${sourceType} states: "${context.trim()}"\n  ${sourceUrl.trim()}\n`;
+                    });
+                    
+                    // Fallback if no structured sources but tou_flag is true
+                    if (!restrictionBullets && currentOrg.tou_flag) {
+                        restrictionBullets += `• Your website's terms restrict automated gathering of information.\n`;
+                    }
+                }
+                
+                // Technical block (403/401)
+                if (hasTechBlock) {
+                    restrictionBullets += `• Your website blocks automated access (returns 403 Forbidden).\n`;
+                }
+                
+                // JavaScript rendering requirement
+                if (hasTechRendering) {
+                    restrictionBullets += `• Your events page requires JavaScript to display content, which standard web crawlers cannot process.\n`;
                 }
                 
                 draft = `Subject: Permission Request: Event Listing from ${orgName}
@@ -2174,11 +2192,11 @@ Hello,
 
 We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to request permission to include ${orgName}'s publicly-listed events in this service.
 
-Looking at your website, we noticed a restriction on automatic gathering of information:
+Looking at your website, we noticed the following:
 
 ${restrictionBullets.trim()}
 
-Given these terms, we wanted to reach out directly to request permission rather than proceed without authorization.
+Given these factors, we wanted to reach out directly to request permission rather than proceed without authorization.
 
 If granted permission, we will ensure that:
 • All event listings link directly to your original event pages
@@ -2186,13 +2204,13 @@ If granted permission, we will ensure that:
 • Our access respects your server (rate-limited, off-peak hours)
 • We immediately stop if you request it at any time
 
-Would you please reply with a quick note giving us permission to do automatic gathering of information?
+Would you please reply with a quick note giving us permission to proceed?
 
 Thank you for your time and consideration.
 
 Regards,`;
             } else {
-                // Standard notice-style draft for orgs without TOU restrictions
+                // Standard notice-style draft for orgs without restrictions
                 draft = `Subject: Notice: Automated Event Collection from ${orgName}
 
 Hello,
@@ -2214,7 +2232,15 @@ Regards,`;
             
             document.getElementById('permissionDraft').value = draft;
             
-            const draftType = hasRestriction ? '⚠️ TOU-aware draft' : '📝 Standard notice draft';
+            // Build message showing what was detected
+            let detectedFlags = [];
+            if (currentOrg.tou_flag) detectedFlags.push('TOU');
+            if (hasTechBlock) detectedFlags.push('Tech Block');
+            if (hasTechRendering) detectedFlags.push('JS Rendering');
+            
+            const draftType = hasAnyRestriction 
+                ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})` 
+                : '📝 Standard notice draft';
             showMessage('profileMessage', `${draftType} generated! Add your signature in your email app.`, 'success');
         }
 
@@ -2435,34 +2461,31 @@ Regards,`;
         // ═══════════════════════════════════════════════════════════════════════
         async function loadByStatus() {
             const container = document.getElementById('byStatusList');
-            const statusFilter = document.getElementById('filterByStatus').value;
+            const statusDropdown = document.getElementById('filterByStatus');
+            const restrictionsDropdown = document.getElementById('filterByRestrictions');
+            const statusFilter = statusDropdown.value;
+            
+            // Reset the other dropdown
+            restrictionsDropdown.value = '';
+            
+            // No filter selected - show prompt
+            if (!statusFilter) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, or <strong>Orgs with Restrictions</strong> to see flagged organizations.</p></div>`;
+                return;
+            }
 
             try {
                 container.innerHTML = '<div class="loading">Loading organizations...</div>';
 
-                let filterParam = '';
-                if (statusFilter && statusFilter !== 'all') {
-                    if (statusFilter === 'duplicates') {
-                        filterParam = `&filter=(duplicate_flag=true)`;
-                    } else if (statusFilter === 'has-restrictions') {
-                        // All orgs with any restriction flag (across all statuses)
-                        filterParam = `&filter=(tou_flag=true||tech_block_flag=true)`;
-                    } else if (statusFilter === 'nominated-clean') {
-                        filterParam = `&filter=(status='Nominated (Pending Mission Review)'&&tou_flag!=true&&tech_block_flag!=true)`;
-                    } else if (statusFilter === 'nominated-restrictions') {
-                        filterParam = `&filter=(status='Nominated (Pending Mission Review)'&&(tou_flag=true||tech_block_flag=true))`;
-                    } else if (statusFilter === 'approved-clean') {
-                        filterParam = `&filter=(status='Mission Approved (Request Not Sent)'&&tou_flag!=true&&tech_block_flag!=true)`;
-                    } else if (statusFilter === 'approved-restrictions') {
-                        filterParam = `&filter=(status='Mission Approved (Request Not Sent)'&&(tou_flag=true||tech_block_flag=true))`;
-                    } else if (statusFilter === 'requested-clean') {
-                        filterParam = `&filter=(status='Permission Requested (Pending Org Response)'&&tou_flag!=true&&tech_block_flag!=true)`;
-                    } else if (statusFilter === 'requested-restrictions') {
-                        filterParam = `&filter=(status='Permission Requested (Pending Org Response)'&&(tou_flag=true||tech_block_flag=true))`;
-                    } else {
-                        filterParam = `&filter=(status='${statusFilter}')`;
-                    }
+                let filterValue = '';
+                if (statusFilter === 'duplicates') {
+                    filterValue = `duplicate_flag=true`;
+                } else {
+                    filterValue = `status='${statusFilter}'`;
                 }
+                const filterParam = `&filter=${encodeURIComponent(filterValue)}`;
+                
+                console.log('Status filter:', filterValue);
 
                 const [orgsRes, contactsRes, eventsRes] = await Promise.all([
                     fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500${filterParam}`, { headers: { 'Authorization': authToken } }),
@@ -2471,6 +2494,7 @@ Regards,`;
                 ]);
 
                 const orgsData = await orgsRes.json();
+                console.log('Orgs response:', orgsData);
                 const contactsData = await contactsRes.json();
                 const eventsData = await eventsRes.json();
 
@@ -2489,7 +2513,7 @@ Regards,`;
                 events.forEach(e => { eventCountByOrg[e.organization] = (eventCountByOrg[e.organization] || 0) + 1; });
 
                 if (orgs.length === 0) {
-                    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>No Organizations Found</h3></div>`;
+                    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>No Organizations Found</h3><p>No organizations match "${statusFilter}".</p></div>`;
                     return;
                 }
 
@@ -2502,6 +2526,86 @@ Regards,`;
                 container.innerHTML = orgs.map(org => renderByStatusCard(org, contactsByOrg[org.id] || [], eventCountByOrg[org.id] || 0, statusFilter)).join('');
 
             } catch (error) {
+                console.error('loadByStatus error:', error);
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function loadByRestrictions() {
+            const container = document.getElementById('byStatusList');
+            const statusDropdown = document.getElementById('filterByStatus');
+            const restrictionsDropdown = document.getElementById('filterByRestrictions');
+            const restrictionFilter = restrictionsDropdown.value;
+            
+            // Reset the other dropdown
+            statusDropdown.value = '';
+            
+            // No filter selected - show prompt
+            if (!restrictionFilter) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, or <strong>Orgs with Restrictions</strong> to see flagged organizations.</p></div>`;
+                return;
+            }
+
+            try {
+                container.innerHTML = '<div class="loading">Loading organizations...</div>';
+
+                const statusMap = {
+                    'restricted-nominated': 'Nominated (Pending Mission Review)',
+                    'restricted-approved': 'Mission Approved (Request Not Sent)',
+                    'restricted-requested': 'Permission Requested (Pending Org Response)',
+                    'restricted-granted': 'Permission Granted (Not Live)',
+                    'restricted-rejected-mission': 'Rejected by Mission',
+                    'restricted-rejected-org': 'Rejected by Org'
+                };
+                const mappedStatus = statusMap[restrictionFilter];
+                
+                // Build filter with proper encoding
+                const filterValue = `(status='${mappedStatus}' && (tou_flag=true || tech_block_flag=true))`;
+                const filterParam = `&filter=${encodeURIComponent(filterValue)}`;
+                
+                console.log('Restrictions filter:', filterValue);
+                console.log('Encoded URL:', `${POCKETBASE_URL}/api/collections/organizations/records?perPage=500${filterParam}`);
+
+                const [orgsRes, contactsRes, eventsRes] = await Promise.all([
+                    fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500${filterParam}`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500`, { headers: { 'Authorization': authToken } })
+                ]);
+
+                const orgsData = await orgsRes.json();
+                console.log('Restrictions orgs response:', orgsData);
+                const contactsData = await contactsRes.json();
+                const eventsData = await eventsRes.json();
+
+                const orgs = orgsData.items || [];
+                const contacts = contactsData.items || [];
+                const events = eventsData.items || [];
+
+                // Build lookups
+                const contactsByOrg = {};
+                contacts.forEach(c => {
+                    if (!contactsByOrg[c.organization]) contactsByOrg[c.organization] = [];
+                    contactsByOrg[c.organization].push(c);
+                });
+
+                const eventCountByOrg = {};
+                events.forEach(e => { eventCountByOrg[e.organization] = (eventCountByOrg[e.organization] || 0) + 1; });
+
+                if (orgs.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>No Organizations Found</h3><p>No restricted organizations in "${mappedStatus}".</p></div>`;
+                    return;
+                }
+
+                orgs.sort((a, b) => {
+                    const nameA = a.name.replace(/^The\s+/i, '').toLowerCase();
+                    const nameB = b.name.replace(/^The\s+/i, '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+                container.innerHTML = orgs.map(org => renderByStatusCard(org, contactsByOrg[org.id] || [], eventCountByOrg[org.id] || 0, restrictionFilter)).join('');
+
+            } catch (error) {
+                console.error('loadByRestrictions error:', error);
                 container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
             }
         }
@@ -2513,6 +2617,12 @@ Regards,`;
             const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
             const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
             const duplicateBadge = org.duplicate_flag ? '<span class="badge badge-duplicate">🔁 DUPLICATE</span>' : '';
+            
+            // Status helper variables
+            const isNominated = org.status === 'Nominated (Pending Mission Review)';
+            const isMissionApproved = org.status === 'Mission Approved (Request Not Sent)';
+            const isRequested = org.status === 'Permission Requested (Pending Org Response)';
+            const hasRestrictions = org.tou_flag || org.tech_block_flag || org.tech_rendering_flag;
             
             // Add tech-blocked card class if applicable
             const cardClass = org.tech_block_flag ? 'status-tech-blocked' : config.cardClass;
@@ -2553,27 +2663,29 @@ Regards,`;
             }
 
             // Status-specific content
-            const isNominatedFilter = filterType === 'Nominated (Pending Mission Review)' || filterType === 'nominated-clean' || filterType === 'nominated-restrictions';
-            if (isNominatedFilter && org.ai_reasoning) {
+            if (isNominated && org.ai_reasoning) {
                 html += `<div class="info-box"><p>🤖 <strong>AI Reasoning:</strong> ${escapeHtml(org.ai_reasoning).substring(0, 200)}${org.ai_reasoning.length > 200 ? '...' : ''}</p></div>`;
             }
 
-            if ((filterType === 'Mission Approved (Request Not Sent)' || filterType === 'approved-clean' || filterType === 'approved-restrictions' || filterType === 'Permission Requested (Pending Org Response)' || filterType === 'requested-clean' || filterType === 'requested-restrictions') && org.permission_requested_date) {
+            if ((isMissionApproved || isRequested) && org.permission_requested_date) {
                 const sentDate = new Date(org.permission_requested_date);
                 html += `<p><strong>Request Sent:</strong> ${sentDate.toLocaleDateString()}</p>`;
             }
 
-            // Go-Live Date display - only for orgs WITHOUT TOU restrictions
-            const isRequestedFilter = filterType === 'Permission Requested (Pending Org Response)' || filterType === 'requested-clean' || filterType === 'requested-restrictions';
-            if (isRequestedFilter && org.permission_requested_date) {
-                if (org.tou_flag) {
+            // Go-Live Date display - only for orgs WITHOUT restrictions
+            if (isRequested && org.permission_requested_date) {
+                if (hasRestrictions) {
                     // Has restrictions - no auto go-live
-                    html += `<div class="info-box warning"><p>⚠️ <strong>Explicit Permission Required</strong> - No auto go-live date (TOU restrictions)</p></div>`;
+                    let restrictionTypes = [];
+                    if (org.tou_flag) restrictionTypes.push('TOU');
+                    if (org.tech_block_flag) restrictionTypes.push('Tech Block');
+                    if (org.tech_rendering_flag) restrictionTypes.push('JS Rendering');
+                    html += `<div class="info-box warning"><p>⚠️ <strong>Explicit Permission Required</strong> - No auto go-live date (${restrictionTypes.join(', ')})</p></div>`;
                 } else {
                     // No restrictions - show calculated go-live date
                     const sentDate = new Date(org.permission_requested_date);
                     const goLiveDate = new Date(sentDate);
-                    goLiveDate.setDate(goLiveDate.getDate() + 7); // Updated to 7 days
+                    goLiveDate.setDate(goLiveDate.getDate() + 7);
                     html += `<div class="info-box"><p>📅 <strong>Go Live Date:</strong> ${goLiveDate.toLocaleDateString()} (implied permission if no response)</p></div>`;
                 }
             }
@@ -2618,18 +2730,12 @@ Regards,`;
                 <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
                 <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>`;
 
-            // Helper to check if org is in nominated status (handles both filter types)
-            const isNominated = org.status === 'Nominated (Pending Mission Review)';
-            const isMissionApproved = org.status === 'Mission Approved (Request Not Sent)';
-            const isRequested = org.status === 'Permission Requested (Pending Org Response)';
-            const hasRestrictions = org.tou_flag || org.tech_block_flag;
-            
-            // Show Approve Mission button for nominated orgs (regardless of restrictions filter)
-            if (isNominated || filterType === 'nominated-clean' || filterType === 'nominated-restrictions') {
+            // Show Approve Mission button for nominated orgs
+            if (isNominated) {
                 html += `<button class="btn btn-small btn-success" onclick="quickApprove('${org.id}')">✅ Approve Mission</button>`;
             }
             // Show Generate Request button for mission approved orgs
-            if (isMissionApproved || filterType === 'approved-clean' || filterType === 'approved-restrictions') {
+            if (isMissionApproved) {
                 html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Request</button>`;
             }
 
