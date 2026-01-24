@@ -21,7 +21,30 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-17
+ * Last Updated: 2026-01-21
+ * - EXPANDED: EXCLUDED_CONTEXTS with policy subject matter exclusions
+ *   Added: Robotics policy terms (robotics policy, robot regulation, robot ethics, etc.)
+ *   Added: Autonomous systems terms (autonomous weapons, drone policy, unmanned systems, etc.)
+ *   Added: AI policy terms (ai governance, ai regulation, artificial intelligence policy, etc.)
+ *   Added: Organizational research context (our research on, we study, our experts, etc.)
+ *   Added: Publication context (this paper, this article, the author, etc.)
+ * - This prevents false positives when think tanks discuss policy topics like robotics or AI
+ * 
+ * 2026-01-18
+ * - NEW: Microsite detection (Step 1.7) - detects event microsites and finds parent org
+ * - NEW: detectMicrosite() function with platform footers, hosted-by patterns
+ * - NEW: findParentOrgWebsite() with known org mappings
+ * - NEW: MICROSITE_INDICATORS and KNOWN_ORG_WEBSITES constants
+ * - Scanner now finds parent org website when microsite detected (fixes AFCEA/intelsummit.org case)
+ * - EXPANDED: TOU_PATHS now includes 40 paths (was 19)
+ *   Added: /terms-use (CFR variant), /gdpr, /ccpa, /intellectual-property,
+ *   /copyright, /copyright-notice, /aup, /code-of-conduct, /api-terms,
+ *   /api-policy, /developer-terms, /developers/terms, /data-use-policy,
+ *   /usage-policy, /website-policies, /conditions-of-use, /data-privacy,
+ *   /cookie-policy, /cookies, /legal/privacy, /acceptable-use-policy
+ * - SYNCED: isLegalPageUrl() patterns now match TOU_PATHS exactly
+ * 
+ * 2026-01-17
  * - BUGFIX: tech_block_flag and tou_flag are now independent
  *   403 errors only set tech_block_flag, NOT tou_flag
  *   tou_flag only set when actual restriction language is found
@@ -240,7 +263,70 @@ const EXCLUDED_CONTEXTS = [
     'representing candidates',
     'political candidates',
     'represent candidates',
-    'endorse candidates'
+    'endorse candidates',
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // POLICY SUBJECT MATTER EXCLUSIONS (added 2026-01-21)
+    // These prevent false positives when orgs discuss policy topics
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    // Robotics policy discussions
+    'robotics policy',
+    'robot regulation',
+    'robotics regulation',
+    'robot ethics',
+    'robotics research',
+    'robotics industry',
+    'robot workforce',
+    'robotics law',
+    
+    // Autonomous systems policy discussions
+    'autonomous systems',
+    'autonomous weapons',
+    'autonomous vehicles',
+    'drone policy',
+    'drone regulation',
+    'unmanned systems',
+    'unmanned vehicles',
+    'self-driving',
+    'lethal autonomous',
+    
+    // AI/ML policy discussions
+    'ai governance',
+    'ai regulation',
+    'ai policy',
+    'artificial intelligence policy',
+    'artificial intelligence regulation',
+    'artificial intelligence governance',
+    'machine learning research',
+    'machine learning policy',
+    'ai ethics',
+    'algorithmic accountability',
+    'algorithmic governance',
+    
+    // Organizational research context
+    'our research on',
+    'our work on',
+    'our analysis of',
+    'we study',
+    'we examine',
+    'we analyze',
+    'our experts',
+    'our scholars',
+    'our fellows',
+    'our researchers',
+    
+    // Publication/content context
+    'this paper',
+    'this article',
+    'this report',
+    'this study',
+    'this brief',
+    'the author',
+    'the authors',
+    'the researchers',
+    'the study finds',
+    'the report examines'
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -250,27 +336,72 @@ const EXCLUDED_CONTEXTS = [
 const TOU_RESTRICTION_KEYWORDS = HIGH_CONFIDENCE_RESTRICTION_TERMS;
 const TOU_RESTRICTION_PHRASES = PROHIBITION_PHRASES;
 
-// Common TOU page paths
+// Common TOU page paths (40 paths - Updated 2026-01-18)
+// These paths are proactively tried on every website to find restriction pages
 const TOU_PATHS = [
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRIMARY LEGAL / TERMS (10 paths)
+    // ─────────────────────────────────────────────────────────────────────────
     '/terms',
     '/terms-of-use',
+    '/terms-use',              // CFR variant (no "of")
     '/terms-of-service',
     '/tos',
-    '/legal',
-    '/legal/terms',
-    '/privacy-policy',
-    '/privacy',
-    '/acceptable-use',
-    '/user-agreement',
+    '/terms-and-conditions',
+    '/conditions',
+    '/conditions-of-use',
     '/site-terms',
     '/website-terms',
-    '/conditions',
-    '/terms-and-conditions',
-    '/policies-and-procedures',
-    '/policies',
-    '/site-policies',
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRIVACY (7 paths)
+    // ─────────────────────────────────────────────────────────────────────────
+    '/privacy',
+    '/privacy-policy',
+    '/data-privacy',
+    '/cookie-policy',
+    '/cookies',
+    '/gdpr',
+    '/ccpa',
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // LEGAL PAGES (8 paths)
+    // ─────────────────────────────────────────────────────────────────────────
+    '/legal',
+    '/legal/terms',
+    '/legal/privacy',
+    '/legal-notice',
     '/disclaimer',
-    '/legal-notice'
+    '/copyright',
+    '/copyright-notice',
+    '/intellectual-property',
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // POLICIES (5 paths)
+    // ─────────────────────────────────────────────────────────────────────────
+    '/policies',
+    '/policies-and-procedures',
+    '/site-policies',
+    '/website-policies',
+    '/usage-policy',
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // USER AGREEMENT (5 paths)
+    // ─────────────────────────────────────────────────────────────────────────
+    '/user-agreement',
+    '/acceptable-use',
+    '/acceptable-use-policy',
+    '/aup',
+    '/code-of-conduct',
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // API / DEVELOPER TERMS (5 paths)
+    // ─────────────────────────────────────────────────────────────────────────
+    '/api-terms',
+    '/api-policy',
+    '/developer-terms',
+    '/developers/terms',
+    '/data-use-policy'
 ];
 
 // Common events page paths
@@ -775,6 +906,143 @@ const CONTENT_PATH_PREFIXES = [
     '/papers/'
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MICROSITE DETECTION (NEW - 2026-01-18)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Patterns that indicate a page is a microsite/event site, not a main org website
+ * Used by detectMicrosite() to identify when we need to find the parent org's real website
+ */
+const MICROSITE_INDICATORS = {
+    // Footer patterns indicating hosted/powered by another platform
+    PLATFORM_FOOTERS: [
+        'powered by eventpower',
+        'powered by cvent',
+        'powered by eventbrite',
+        'powered by splash',
+        'powered by bizzabo',
+        'powered by whova',
+        'powered by hopin',
+        'powered by swoogo',
+        'powered by regfox',
+        'powered by aventri',
+        'powered by certain',
+        'powered by webex events',
+        'powered by zoom events',
+        'website powered by'
+    ],
+    
+    // Patterns indicating the event is hosted/sponsored by another org
+    // These regex patterns extract the org name(s)
+    HOSTED_BY_PATTERNS: [
+        /co-?hosted by\s+([A-Z][A-Za-z\s&]+(?:and|&)\s+[A-Z][A-Za-z\s&]+)/i,
+        /hosted by\s+([A-Z][A-Za-z\s&,]+)/i,
+        /presented by\s+([A-Z][A-Za-z\s&,]+)/i,
+        /sponsored by\s+([A-Z][A-Za-z\s&,]+)/i,
+        /produced by\s+([A-Z][A-Za-z\s&,]+)/i,
+        /organized by\s+([A-Z][A-Za-z\s&,]+)/i,
+        /brought to you by\s+([A-Z][A-Za-z\s&,]+)/i,
+        /an?\s+([A-Z][A-Za-z\s&]+)\s+event/i,
+        /an?\s+([A-Z][A-Za-z\s&]+)\s+conference/i,
+        /an?\s+([A-Z][A-Za-z\s&]+)\s+summit/i
+    ],
+    
+    // URL patterns that suggest microsite/event site (not main org site)
+    URL_PATTERNS: [
+        /^https?:\/\/(conference|summit|event|forum|symposium|congress)\./i,
+        /^https?:\/\/[^/]+\.(events|conference|summit)\./i,
+        /^https?:\/\/(www\.)?(20\d{2}|annual|spring|fall|winter)/i,
+        /^https?:\/\/founders\./i,
+        /^https?:\/\/register\./i
+    ],
+    
+    // Page content patterns suggesting single-event focus (not full org site)
+    SINGLE_EVENT_INDICATORS: [
+        'save the date',
+        'registration opening',
+        'call for papers',
+        'call for speakers',
+        'call for proposals',
+        'submit abstract',
+        'early bird pricing',
+        'early bird registration',
+        'agenda coming soon',
+        'speakers coming soon'
+    ]
+};
+
+/**
+ * Known organization name to website mappings
+ * Used as primary lookup when we extract an org name from a microsite
+ * Add new orgs here as we discover them
+ */
+const KNOWN_ORG_WEBSITES = {
+    // AFCEA and related
+    'afcea': 'https://www.afcea.org',
+    'afcea international': 'https://www.afcea.org',
+    'armed forces communications and electronics association': 'https://www.afcea.org',
+    'insa': 'https://www.insaonline.org',
+    'intelligence and national security alliance': 'https://www.insaonline.org',
+    
+    // Think tanks
+    'cnas': 'https://www.cnas.org',
+    'center for a new american security': 'https://www.cnas.org',
+    'csis': 'https://www.csis.org',
+    'center for strategic and international studies': 'https://www.csis.org',
+    'brookings': 'https://www.brookings.edu',
+    'brookings institution': 'https://www.brookings.edu',
+    'rand': 'https://www.rand.org',
+    'rand corporation': 'https://www.rand.org',
+    'heritage': 'https://www.heritage.org',
+    'heritage foundation': 'https://www.heritage.org',
+    'cato': 'https://www.cato.org',
+    'cato institute': 'https://www.cato.org',
+    'aei': 'https://www.aei.org',
+    'american enterprise institute': 'https://www.aei.org',
+    'cfr': 'https://www.cfr.org',
+    'council on foreign relations': 'https://www.cfr.org',
+    'atlantic council': 'https://www.atlanticcouncil.org',
+    'new america': 'https://www.newamerica.org',
+    'new america foundation': 'https://www.newamerica.org',
+    'aspen institute': 'https://www.aspeninstitute.org',
+    'aspen': 'https://www.aspeninstitute.org',
+    'wilson center': 'https://www.wilsoncenter.org',
+    'woodrow wilson center': 'https://www.wilsoncenter.org',
+    'carnegie endowment': 'https://carnegieendowment.org',
+    'carnegie': 'https://carnegieendowment.org',
+    'stimson': 'https://www.stimson.org',
+    'stimson center': 'https://www.stimson.org',
+    
+    // International
+    'iiss': 'https://www.iiss.org',
+    'international institute for strategic studies': 'https://www.iiss.org',
+    'rusi': 'https://www.rusi.org',
+    'royal united services institute': 'https://www.rusi.org',
+    
+    // Defense associations
+    'ndia': 'https://www.ndia.org',
+    'national defense industrial association': 'https://www.ndia.org',
+    'spie': 'https://www.spie.org',
+    'surface navy association': 'https://www.navysna.org',
+    'sna': 'https://www.navysna.org',
+    'ausa': 'https://www.ausa.org',
+    'association of the united states army': 'https://www.ausa.org',
+    
+    // Cyber/Tech
+    'cyber threat alliance': 'https://www.cyberthreatalliance.org',
+    'cta': 'https://www.cyberthreatalliance.org',
+    'esri': 'https://www.esri.com',
+    
+    // Academic
+    'uc berkeley': 'https://www.berkeley.edu',
+    'berkeley': 'https://www.berkeley.edu',
+    'mit': 'https://www.mit.edu',
+    'stanford': 'https://www.stanford.edu',
+    'harvard': 'https://www.harvard.edu',
+    'georgetown': 'https://www.georgetown.edu'
+};
+
 /**
  * Check if a URL is actually a legal/terms page vs a content page
  * Returns true if it's a genuine legal page
@@ -791,55 +1059,73 @@ function isLegalPageUrl(url) {
     
     // SECOND: Check for specific legal page patterns
     // These patterns should match the END of the path or be standalone segments
+    // Updated 2026-01-18: Synced with TOU_PATHS (40 patterns)
     const legalPatterns = [
-        // Terms pages
+        // ─────────────────────────────────────────────────────────────────────────
+        // PRIMARY LEGAL / TERMS
+        // ─────────────────────────────────────────────────────────────────────────
         /\/terms[-_]?of[-_]?use\/?$/i,
+        /\/terms[-_]?use\/?$/i,            // CFR variant (no "of")
         /\/terms[-_]?of[-_]?service\/?$/i,
         /\/terms[-_]?and[-_]?conditions\/?$/i,
         /\/terms[-_]?conditions\/?$/i,
         /\/terms\/?$/i,
         /\/tos\/?$/i,
+        /\/conditions[-_]?of[-_]?use\/?$/i,
+        /\/conditions\/?$/i,
+        /\/site[-_]?terms\/?$/i,
+        /\/website[-_]?terms\/?$/i,
         
-        // Privacy pages
+        // ─────────────────────────────────────────────────────────────────────────
+        // PRIVACY
+        // ─────────────────────────────────────────────────────────────────────────
         /\/privacy[-_]?policy\/?$/i,
         /\/privacy\/?$/i,
         /\/data[-_]?privacy\/?$/i,
-        
-        // Cookie pages
         /\/cookie[-_]?policy\/?$/i,
         /\/cookies\/?$/i,
+        /\/gdpr\/?$/i,
+        /\/ccpa\/?$/i,
         
-        // Legal pages
+        // ─────────────────────────────────────────────────────────────────────────
+        // LEGAL PAGES
+        // ─────────────────────────────────────────────────────────────────────────
         /\/legal\/?$/i,
         /\/legal\/terms\/?$/i,
         /\/legal\/privacy\/?$/i,
         /\/legal[-_]?notices?\/?$/i,
-        
-        // User agreement pages
-        /\/user[-_]?agreement\/?$/i,
-        /\/acceptable[-_]?use\/?$/i,
-        /\/acceptable[-_]?use[-_]?policy\/?$/i,
-        
-        // Copyright pages
+        /\/disclaimer\/?$/i,
+        /\/disclaimers\/?$/i,
         /\/copyright\/?$/i,
         /\/copyright[-_]?notice\/?$/i,
+        /\/intellectual[-_]?property\/?$/i,
         
-        // Site terms
-        /\/site[-_]?terms\/?$/i,
-        /\/website[-_]?terms\/?$/i,
-        
-        // Conditions
-        /\/conditions[-_]?of[-_]?use\/?$/i,
-        
-        // Policies pages (NEW - catches /policies-and-procedures/, /policies/, etc.)
+        // ─────────────────────────────────────────────────────────────────────────
+        // POLICIES
+        // ─────────────────────────────────────────────────────────────────────────
         /\/policies[-_]?and[-_]?procedures\/?$/i,
         /\/policies\/?$/i,
         /\/site[-_]?policies\/?$/i,
         /\/website[-_]?policies\/?$/i,
+        /\/usage[-_]?policy\/?$/i,
         
-        // Disclaimer
-        /\/disclaimer\/?$/i,
-        /\/disclaimers\/?$/i
+        // ─────────────────────────────────────────────────────────────────────────
+        // USER AGREEMENT
+        // ─────────────────────────────────────────────────────────────────────────
+        /\/user[-_]?agreement\/?$/i,
+        /\/acceptable[-_]?use\/?$/i,
+        /\/acceptable[-_]?use[-_]?policy\/?$/i,
+        /\/aup\/?$/i,
+        /\/code[-_]?of[-_]?conduct\/?$/i,
+        
+        // ─────────────────────────────────────────────────────────────────────────
+        // API / DEVELOPER TERMS
+        // ─────────────────────────────────────────────────────────────────────────
+        /\/api[-_]?terms\/?$/i,
+        /\/api[-_]?policy\/?$/i,
+        /\/developer[-_]?terms\/?$/i,
+        /\/developers\/terms\/?$/i,
+        /\/data[-_]?use[-_]?policy\/?$/i
     ];
     
     // Check if URL matches any legal pattern
@@ -857,11 +1143,26 @@ function isLegalPageUrl(url) {
         const lastSegment = pathSegments[pathSegments.length - 1] || '';
         
         // Only match if the last segment IS the legal term (not just contains it)
+        // Updated 2026-01-18: Synced with TOU_PATHS (40 terms)
         const legalLastSegments = [
-            'terms', 'tos', 'legal', 'privacy', 'copyright',
-            'terms-of-use', 'terms-of-service', 'privacy-policy',
-            'cookie-policy', 'user-agreement', 'acceptable-use',
-            'terms-and-conditions', 'site-terms', 'website-terms'
+            // Primary Legal / Terms
+            'terms', 'terms-of-use', 'terms-use', 'terms-of-service', 'tos',
+            'terms-and-conditions', 'conditions', 'conditions-of-use',
+            'site-terms', 'website-terms',
+            // Privacy
+            'privacy', 'privacy-policy', 'data-privacy',
+            'cookie-policy', 'cookies', 'gdpr', 'ccpa',
+            // Legal Pages
+            'legal', 'legal-notice', 'disclaimer', 'disclaimers',
+            'copyright', 'copyright-notice', 'intellectual-property',
+            // Policies
+            'policies', 'policies-and-procedures', 'site-policies',
+            'website-policies', 'usage-policy',
+            // User Agreement
+            'user-agreement', 'acceptable-use', 'acceptable-use-policy',
+            'aup', 'code-of-conduct',
+            // API / Developer
+            'api-terms', 'api-policy', 'developer-terms', 'data-use-policy'
         ];
         
         if (legalLastSegments.includes(lastSegment.toLowerCase())) {
@@ -869,11 +1170,18 @@ function isLegalPageUrl(url) {
         }
         
         // Check for patterns like "brookings-institution-privacy-policy"
-        if (lastSegment.toLowerCase().endsWith('-privacy-policy') ||
-            lastSegment.toLowerCase().endsWith('-terms-of-use') ||
-            lastSegment.toLowerCase().endsWith('-terms-of-service') ||
-            lastSegment.toLowerCase().endsWith('-cookie-policy') ||
-            lastSegment.toLowerCase().endsWith('-user-agreement')) {
+        // Updated 2026-01-18: Added more suffix patterns
+        const lowerSegment = lastSegment.toLowerCase();
+        if (lowerSegment.endsWith('-privacy-policy') ||
+            lowerSegment.endsWith('-terms-of-use') ||
+            lowerSegment.endsWith('-terms-of-service') ||
+            lowerSegment.endsWith('-terms-and-conditions') ||
+            lowerSegment.endsWith('-cookie-policy') ||
+            lowerSegment.endsWith('-user-agreement') ||
+            lowerSegment.endsWith('-acceptable-use') ||
+            lowerSegment.endsWith('-code-of-conduct') ||
+            lowerSegment.endsWith('-legal-notice') ||
+            lowerSegment.endsWith('-copyright-notice')) {
             return true;
         }
     } catch (e) {
@@ -1029,6 +1337,332 @@ function getContextSnippet(text, keywordIndex, keywordLength, snippetRadius = 80
     const start = Math.max(0, keywordIndex - snippetRadius);
     const end = Math.min(text.length, keywordIndex + keywordLength + snippetRadius);
     return '...' + text.substring(start, end).trim().replace(/\s+/g, ' ') + '...';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MICROSITE DETECTION FUNCTIONS (NEW - 2026-01-18)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Detect if a page is a microsite/event site rather than a main org website
+ * 
+ * Checks for:
+ * - Platform footers ("powered by eventPower", etc.)
+ * - "Hosted by" / "Co-hosted by" patterns
+ * - URL patterns (conference.*, summit.*, etc.)
+ * - Single-event page indicators
+ * - Missing typical org website elements
+ * 
+ * @param {string} html - Page HTML content
+ * @param {string} url - Page URL
+ * @returns {Object} { isMicrosite: boolean, confidence: string, reasons: string[], parentOrgs: string[], parentOrgLinks: Object[] }
+ * 
+ * Added: 2026-01-18
+ */
+function detectMicrosite(html, url) {
+    const result = {
+        isMicrosite: false,
+        confidence: 'none',
+        reasons: [],
+        parentOrgs: [],
+        parentOrgLinks: [],
+        parentDomainUrl: null  // NEW: Extracted from subdomain URLs
+    };
+    
+    if (!html || !url) return result;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // EXEMPT: University domains (.edu) - subdomains are legitimate org units
+    // e.g., cltc.berkeley.edu is a center, not a microsite
+    // ─────────────────────────────────────────────────────────────────────────
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname.endsWith('.edu')) {
+            result.reasons.push('University domain (.edu) - exempt from microsite detection');
+            return result;  // Return early, not a microsite
+        }
+    } catch (e) {
+        // URL parsing failed, continue with detection
+    }
+    
+    const lowerHtml = html.toLowerCase();
+    let score = 0;
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check URL patterns (high confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const pattern of MICROSITE_INDICATORS.URL_PATTERNS) {
+        if (pattern.test(url)) {
+            score += 3;
+            result.reasons.push(`URL pattern: subdomain suggests event site`);
+            break; // Only count once
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Extract parent domain from subdomain URLs (NEW - 2026-01-18)
+    // e.g., conference.cnas.org → cnas.org
+    // ─────────────────────────────────────────────────────────────────────────
+    try {
+        const urlObj = new URL(url);
+        const hostParts = urlObj.hostname.split('.');
+        
+        // Check if it's a subdomain (more than 2 parts, or more than 3 with www)
+        // e.g., conference.cnas.org = ['conference', 'cnas', 'org']
+        // e.g., www.conference.cnas.org = ['www', 'conference', 'cnas', 'org']
+        if (hostParts.length >= 3) {
+            const subdomain = hostParts[0].toLowerCase();
+            
+            // Common event-related subdomains
+            const eventSubdomains = ['conference', 'summit', 'event', 'events', 'forum', 
+                                     'symposium', 'congress', 'register', 'registration',
+                                     'annual', 'expo', 'founders', 'www'];
+            
+            if (eventSubdomains.includes(subdomain) || /^20\d{2}$/.test(subdomain)) {
+                // Extract parent domain: conference.cnas.org → cnas.org
+                const parentDomain = hostParts.slice(-2).join('.');
+                result.parentDomainUrl = `https://www.${parentDomain}`;
+                result.reasons.push(`Subdomain extracted: parent likely ${parentDomain}`);
+            }
+        }
+    } catch (e) {
+        // URL parsing failed, continue without subdomain extraction
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check for platform footers (high confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const footer of MICROSITE_INDICATORS.PLATFORM_FOOTERS) {
+        if (lowerHtml.includes(footer)) {
+            score += 4;
+            result.reasons.push(`Platform footer: "${footer}"`);
+            break; // Only count once
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check for "hosted by" patterns and extract org names
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const pattern of MICROSITE_INDICATORS.HOSTED_BY_PATTERNS) {
+        const match = html.match(pattern);
+        if (match) {
+            score += 2;
+            const matchText = match[0].length > 60 ? match[0].substring(0, 60) + '...' : match[0];
+            result.reasons.push(`Hosted by pattern: "${matchText}"`);
+            
+            // Extract org name(s) from the capture group
+            const orgText = match[1];
+            if (orgText) {
+                // Split on "and", "&", or "," to get individual org names
+                const orgs = orgText.split(/\s+(?:and|&)\s+|,\s*/i)
+                    .map(o => o.trim())
+                    .filter(o => o.length > 2 && o.length < 100);
+                result.parentOrgs.push(...orgs);
+            }
+            break; // Only count the first match
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check for single-event indicators (medium confidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    let eventIndicatorCount = 0;
+    for (const indicator of MICROSITE_INDICATORS.SINGLE_EVENT_INDICATORS) {
+        if (lowerHtml.includes(indicator.toLowerCase())) {
+            eventIndicatorCount++;
+        }
+    }
+    if (eventIndicatorCount >= 3) {
+        score += 2;
+        result.reasons.push(`Single-event focus (${eventIndicatorCount} indicators)`);
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check for absence of typical org website elements (supporting evidence)
+    // ─────────────────────────────────────────────────────────────────────────
+    const hasAboutPage = /href=["'][^"']*\/about/i.test(html);
+    const hasCareersPage = /href=["'][^"']*\/careers/i.test(html);
+    const hasNewsSection = /href=["'][^"']*\/(news|press|media)/i.test(html);
+    const hasOrgHistory = /our (history|story|mission)|about us|who we are/i.test(lowerHtml);
+    
+    const missingElements = [];
+    if (!hasAboutPage) missingElements.push('about');
+    if (!hasCareersPage) missingElements.push('careers');
+    if (!hasNewsSection) missingElements.push('news/press');
+    if (!hasOrgHistory) missingElements.push('mission/history');
+    
+    if (missingElements.length >= 3) {
+        score += 1;
+        result.reasons.push(`Missing typical org sections: ${missingElements.join(', ')}`);
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Look for links to parent org websites
+    // ─────────────────────────────────────────────────────────────────────────
+    try {
+        const currentHost = new URL(url).hostname.toLowerCase();
+        
+        // Look for links with org names in the link text
+        const linkPattern = /href=["']([^"']+)["'][^>]*>([^<]{3,50})</gi;
+        let linkMatch;
+        while ((linkMatch = linkPattern.exec(html)) !== null) {
+            const linkUrl = linkMatch[1];
+            const linkText = linkMatch[2].trim();
+            
+            // Skip if same domain or not http
+            if (!linkUrl.startsWith('http')) continue;
+            
+            try {
+                const linkHost = new URL(linkUrl).hostname.toLowerCase();
+                if (linkHost === currentHost) continue;
+                
+                // Check if link text contains known org names
+                const lowerLinkText = linkText.toLowerCase();
+                for (const orgKey of Object.keys(KNOWN_ORG_WEBSITES)) {
+                    if (lowerLinkText.includes(orgKey) && orgKey.length > 3) {
+                        result.parentOrgLinks.push({ 
+                            url: linkUrl, 
+                            text: linkText,
+                            matchedOrg: orgKey
+                        });
+                        break;
+                    }
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+    } catch (e) {
+        // URL parsing failed, skip link extraction
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Determine confidence level based on score
+    // ─────────────────────────────────────────────────────────────────────────
+    if (score >= 5) {
+        result.isMicrosite = true;
+        result.confidence = 'high';
+    } else if (score >= 3) {
+        result.isMicrosite = true;
+        result.confidence = 'medium';
+    } else if (score >= 1) {
+        // Low score - note the indicators but don't flag as microsite
+        result.isMicrosite = false;
+        result.confidence = 'low';
+    }
+    
+    // Deduplicate parent orgs
+    result.parentOrgs = [...new Set(result.parentOrgs)];
+    
+    return result;
+}
+
+/**
+ * Find the main website for a parent organization
+ * 
+ * Lookup methods (in order of preference):
+ * 1. Known org mappings (KNOWN_ORG_WEBSITES)
+ * 2. Links found on the microsite page
+ * 3. Construct URL from org name and test common TLDs
+ * 
+ * @param {string} orgName - Organization name extracted from page
+ * @param {Object[]} linksFound - Links found on the page that might lead to parent org
+ * @returns {Promise<Object>} { found: boolean, url: string, method: string }
+ * 
+ * Added: 2026-01-18
+ */
+async function findParentOrgWebsite(orgName, linksFound = []) {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Method 1: Check known org mappings (fastest, most reliable)
+    // ─────────────────────────────────────────────────────────────────────────
+    const normalizedName = orgName.toLowerCase().trim();
+    
+    // Direct lookup
+    if (KNOWN_ORG_WEBSITES[normalizedName]) {
+        return { 
+            found: true, 
+            url: KNOWN_ORG_WEBSITES[normalizedName], 
+            method: 'known_mapping' 
+        };
+    }
+    
+    // Partial match lookup
+    for (const [key, url] of Object.entries(KNOWN_ORG_WEBSITES)) {
+        if (normalizedName.includes(key) || key.includes(normalizedName)) {
+            return { found: true, url, method: 'known_mapping_partial' };
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Method 2: Check links found on the microsite page
+    // ─────────────────────────────────────────────────────────────────────────
+    for (const link of linksFound) {
+        // Prefer links that matched a known org
+        if (link.matchedOrg) {
+            const knownUrl = KNOWN_ORG_WEBSITES[link.matchedOrg];
+            if (knownUrl) {
+                return { found: true, url: knownUrl, method: 'page_link_known' };
+            }
+        }
+        
+        // Otherwise, check if link looks like an org homepage
+        try {
+            const linkUrl = new URL(link.url);
+            // Homepage detection: path is empty, /, or just has trailing slash
+            if (linkUrl.pathname === '/' || linkUrl.pathname === '' || linkUrl.pathname === '/home') {
+                return { found: true, url: link.url, method: 'page_link_homepage' };
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Method 3: Construct URL from org name and test
+    // ─────────────────────────────────────────────────────────────────────────
+    // Extract likely domain from org name
+    const words = orgName.split(/\s+/).filter(w => w.length > 0);
+    
+    // Try acronym if multi-word
+    let testNames = [];
+    if (words.length >= 2) {
+        // Create acronym (e.g., "Armed Forces Communications" -> "afc")
+        const acronym = words.map(w => w[0]).join('').toLowerCase();
+        if (acronym.length >= 2 && acronym.length <= 6) {
+            testNames.push(acronym);
+        }
+    }
+    // Also try first word if it looks like an acronym or short name
+    if (words[0] && words[0].length <= 10) {
+        testNames.push(words[0].toLowerCase().replace(/[^a-z0-9]/g, ''));
+    }
+    
+    // Dedupe test names
+    testNames = [...new Set(testNames)];
+    
+    // Try common TLDs for each test name
+    const tldsToTry = ['.org', '.com'];
+    
+    for (const name of testNames) {
+        if (name.length < 2) continue;
+        
+        for (const tld of tldsToTry) {
+            const testUrl = `https://www.${name}${tld}`;
+            
+            try {
+                const testResult = await fetchUrl(testUrl);
+                if (testResult.success && !testResult.isBlocked) {
+                    return { found: true, url: testUrl, method: 'constructed_url' };
+                }
+            } catch (e) {
+                continue;
+            }
+            
+            await sleep(500); // Respectful delay between tests
+        }
+    }
+    
+    return { found: false, url: null, method: null };
 }
 
 /**
@@ -2011,17 +2645,171 @@ async function scanOrganization(org, options = {}) {
     }
     
     // ───────────────────────────────────────────────────────────────────────
+    // Step 1.7: Microsite Detection (NEW - 2026-01-18)
+    // ───────────────────────────────────────────────────────────────────────
+    // Detect if the website is a microsite/event site and find the parent org's
+    // main website for TOU scanning. Fixes cases like intelsummit.org -> afcea.org
+    
+    let touScanUrl = baseUrl;  // Default to the URL in database
+    let touScanHtml = result.homepageHtml;  // Default to fetched homepage
+    let micrositeDetected = false;
+    let parentOrgUrl = null;
+    
+    if (result.homepageFetched && result.homepageHtml) {
+        console.log('   🔍 Checking if site is a microsite...');
+        const micrositeResult = detectMicrosite(result.homepageHtml, baseUrl);
+        
+        if (micrositeResult.isMicrosite) {
+            micrositeDetected = true;
+            result.micrositeDetected = true;
+            result.micrositeUrl = baseUrl;
+            result.micrositeConfidence = micrositeResult.confidence;
+            
+            console.log(`      ⚠️ Microsite detected (${micrositeResult.confidence} confidence)`);
+            if (micrositeResult.reasons.length > 0) {
+                console.log(`      📋 Reasons: ${micrositeResult.reasons.slice(0, 2).join('; ')}`);
+            }
+            
+            if (micrositeResult.parentOrgs.length > 0) {
+                console.log(`      🏢 Parent org(s) identified: ${micrositeResult.parentOrgs.join(', ')}`);
+                
+                // Try to find the parent org's main website
+                for (const parentOrg of micrositeResult.parentOrgs) {
+                    console.log(`      🔍 Looking up ${parentOrg}'s website...`);
+                    const parentResult = await findParentOrgWebsite(
+                        parentOrg, 
+                        micrositeResult.parentOrgLinks
+                    );
+                    
+                    if (parentResult.found) {
+                        parentOrgUrl = parentResult.url;
+                        touScanUrl = parentResult.url;
+                        
+                        console.log(`      ✅ Found: ${parentResult.url} (via ${parentResult.method})`);
+                        
+                        // Store in result for database update
+                        result.parentOrgWebsite = parentResult.url;
+                        result.parentOrgMethod = parentResult.method;
+                        
+                        // Fetch parent org homepage for TOU scanning
+                        console.log(`      📡 Fetching parent org homepage for TOU scan...`);
+                        const parentHomepage = await fetchUrl(parentResult.url);
+                        if (parentHomepage.success) {
+                            touScanHtml = parentHomepage.body;
+                            console.log(`      ✅ Parent org homepage fetched (${parentHomepage.body.length} bytes)`);
+                        } else {
+                            console.log(`      ⚠️ Could not fetch parent org homepage, will scan microsite`);
+                            touScanUrl = baseUrl;
+                            touScanHtml = result.homepageHtml;
+                        }
+                        
+                        await sleep(1000);
+                        break;  // Use first parent org found
+                    } else {
+                        console.log(`      ⚠️ Could not find website for ${parentOrg}`);
+                    }
+                }
+                
+                if (!parentOrgUrl) {
+                    console.log(`      ⚠️ No parent org website found - will scan microsite`);
+                    result.micrositeNotes = `Microsite detected (${micrositeResult.confidence}) but parent org website not found. ` +
+                        `Parent orgs identified: ${micrositeResult.parentOrgs.join(', ')}. ` +
+                        `Scanning microsite for TOU.`;
+                }
+            } else {
+                // ─────────────────────────────────────────────────────────────────
+                // FALLBACK: No parent org name found - try subdomain extraction
+                // and org name lookup (NEW - 2026-01-18)
+                // ─────────────────────────────────────────────────────────────────
+                console.log(`      ⚠️ No parent org name in page content`);
+                
+                // Fallback 1: Try parentDomainUrl extracted from subdomain
+                if (micrositeResult.parentDomainUrl) {
+                    console.log(`      🔍 Trying parent domain from URL: ${micrositeResult.parentDomainUrl}`);
+                    const parentHomepage = await fetchUrl(micrositeResult.parentDomainUrl);
+                    
+                    if (parentHomepage.success && !parentHomepage.isBlocked) {
+                        parentOrgUrl = micrositeResult.parentDomainUrl;
+                        touScanUrl = micrositeResult.parentDomainUrl;
+                        touScanHtml = parentHomepage.body;
+                        
+                        console.log(`      ✅ Parent domain accessible (${parentHomepage.body.length} bytes)`);
+                        
+                        result.parentOrgWebsite = micrositeResult.parentDomainUrl;
+                        result.parentOrgMethod = 'subdomain_extraction';
+                        
+                        await sleep(1000);
+                    } else {
+                        console.log(`      ⚠️ Parent domain not accessible`);
+                    }
+                }
+                
+                // Fallback 2: Try looking up org name from database in KNOWN_ORG_WEBSITES
+                if (!parentOrgUrl && org.name) {
+                    console.log(`      🔍 Trying org name lookup: "${org.name}"`);
+                    const orgNameResult = await findParentOrgWebsite(org.name, []);
+                    
+                    if (orgNameResult.found) {
+                        console.log(`      🔍 Found mapping, fetching: ${orgNameResult.url}`);
+                        const parentHomepage = await fetchUrl(orgNameResult.url);
+                        
+                        if (parentHomepage.success && !parentHomepage.isBlocked) {
+                            parentOrgUrl = orgNameResult.url;
+                            touScanUrl = orgNameResult.url;
+                            touScanHtml = parentHomepage.body;
+                            
+                            console.log(`      ✅ Parent org homepage fetched (${parentHomepage.body.length} bytes)`);
+                            
+                            result.parentOrgWebsite = orgNameResult.url;
+                            result.parentOrgMethod = orgNameResult.method + '_from_db_name';
+                            
+                            await sleep(1000);
+                        }
+                    }
+                }
+                
+                if (!parentOrgUrl) {
+                    result.micrositeNotes = `Microsite detected (${micrositeResult.confidence}) but no parent org found. ` +
+                        `Reasons: ${micrositeResult.reasons.join('; ')}. Scanning microsite for TOU.`;
+                }
+            }
+            
+            // Build complete microsite notes
+            if (parentOrgUrl) {
+                result.micrositeNotes = `Microsite detected (${micrositeResult.confidence}). ` +
+                    `Parent org: ${micrositeResult.parentOrgs.join(', ')}. ` +
+                    `Parent website: ${parentOrgUrl} (found via ${result.parentOrgMethod}). ` +
+                    `TOU scanned on parent org site.`;
+            }
+        } else {
+            console.log('      ✅ Main organization website (not a microsite)');
+        }
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────
     // Step 2: TOU Scan
     // ───────────────────────────────────────────────────────────────────────
+    // If microsite was detected and parent org found, scans parent org's site
+    // Otherwise scans the original URL
     
     if (!skipTOU && !result.techBlockFlag) {
-        const touResult = await scanTOU(baseUrl, result.homepageHtml);
+        if (micrositeDetected && parentOrgUrl) {
+            console.log(`   📜 Scanning PARENT ORG for TOU: ${touScanUrl}`);
+        }
+        
+        const touResult = await scanTOU(touScanUrl, touScanHtml);
         result.touUrl = touResult.touUrl;
         result.touFlag = touResult.touFlag;
         result.techBlockFlag = result.techBlockFlag || touResult.techBlockFlag;
-        result.touNotes = touResult.touNotes;
         result.foundKeywords = touResult.foundKeywords;
         result.falsePositivesSkipped = touResult.falsePositivesSkipped || 0;
+        
+        // Append microsite notes to TOU notes
+        if (result.micrositeNotes) {
+            result.touNotes = (touResult.touNotes || '') + ' | MICROSITE INFO: ' + result.micrositeNotes;
+        } else {
+            result.touNotes = touResult.touNotes;
+        }
         
         await sleep(1500);
     }
@@ -2166,6 +2954,16 @@ async function scanOrganization(org, options = {}) {
             console.log(`      🔄 Auto-updating status to "Rejected by Org" (Tech rendering detected - cannot scrape)`);
         }
         
+        // Microsite detection fields (NEW - 2026-01-18)
+        if (result.micrositeDetected !== undefined) {
+            updates.microsite_detected = result.micrositeDetected;
+            result.fieldsUpdated.push('microsite_detected');
+        }
+        if (result.parentOrgWebsite) {
+            updates.parent_org_website = result.parentOrgWebsite;
+            result.fieldsUpdated.push('parent_org_website');
+        }
+        
         // Events URL (only update if we found one and current is empty)
         if (result.eventsUrl && !org.events_url) {
             updates.events_url = result.eventsUrl;
@@ -2264,6 +3062,12 @@ module.exports = {
     extractText,
     sleep,
     getPageType,
+    
+    // Microsite Detection (NEW - 2026-01-18)
+    detectMicrosite,
+    findParentOrgWebsite,
+    MICROSITE_INDICATORS,
+    KNOWN_ORG_WEBSITES,
     
     // Constants (including new context-aware ones)
     HIGH_CONFIDENCE_RESTRICTION_TERMS,

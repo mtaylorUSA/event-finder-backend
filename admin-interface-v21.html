@@ -1,0 +1,2970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Finder Admin v21</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 20px; }
+        .header:hover { opacity: 0.9; }
+        .header-logo { height: 70px; width: auto; }
+        .header-text { text-align: left; }
+        .header h1 { font-size: 2em; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 0.95em; }
+
+        /* Login */
+        .login-container { max-width: 400px; margin: 50px auto; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .login-container h2 { text-align: center; margin-bottom: 30px; color: #333; }
+
+        /* Forms */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.3s; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+        .form-group textarea { min-height: 100px; resize: vertical; }
+        .form-group.checkbox-group { display: flex; align-items: center; gap: 10px; }
+        .form-group.checkbox-group label { display: flex; align-items: center; gap: 8px; margin-bottom: 0; cursor: pointer; }
+        .form-group.checkbox-group input[type="checkbox"] { width: 18px; height: 18px; margin: 0; cursor: pointer; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Buttons */
+        .btn { padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-full { width: 100%; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
+        .btn-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        .btn-danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+        .btn-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #333; }
+        .btn-info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
+        .btn-small { padding: 8px 16px; font-size: 12px; }
+        .btn-action { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+
+        /* Tabs */
+        .tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e0e0e0; flex-wrap: wrap; }
+        .tab { flex: 1; min-width: 100px; padding: 18px 10px; text-align: center; cursor: pointer; background: #f8f9fa; border: none; font-size: 13px; font-weight: 600; color: #666; transition: all 0.3s; }
+        .tab:hover { background: #e9ecef; }
+        .tab.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
+        .tab-content { display: none; padding: 30px; }
+        .tab-content.active { display: block; }
+
+        /* Profile Sub-Tabs */
+        .profile-tabs { display: flex; background: #e9ecef; border-bottom: 2px solid #dee2e6; flex-wrap: wrap; margin: 0 0 20px 0; }
+        .profile-tab { padding: 15px 25px; text-align: center; cursor: pointer; background: transparent; border: none; font-size: 14px; font-weight: 600; color: #666; transition: all 0.3s; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+        .profile-tab:hover { background: #f8f9fa; }
+        .profile-tab.active { background: white; color: #667eea; border-bottom-color: #667eea; }
+        .profile-tab-content { display: none; }
+        .profile-tab-content.active { display: block; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
+        .stat-card.warning { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); }
+        .stat-card.success { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); }
+        .stat-card.info { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); }
+        .stat-card.danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+        .stat-card h3 { font-size: 2.5em; margin-bottom: 5px; }
+        .stat-card p { font-size: 1em; opacity: 0.9; }
+
+        /* Cards */
+        .card { background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #667eea; }
+        .card h3 { color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .card p { color: #666; margin-bottom: 8px; font-size: 14px; }
+        .card a { color: #667eea; text-decoration: none; }
+        .card a:hover { text-decoration: underline; }
+        .card-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .card.status-nominated { border-left-color: #6f42c1; }
+        .card.status-approved { border-left-color: #17a2b8; }
+        .card.status-requested { border-left-color: #ffc107; }
+        .card.status-granted { border-left-color: #28a745; }
+        .card.status-rejected { border-left-color: #dc3545; }
+        .card.status-live { border-left-color: #20c997; background: #f0fff4; }
+        .card.status-tech-blocked { border-left-color: #721c24; background: #fff5f5; }
+
+        /* Section box */
+        .section-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .section-box h4 { color: #495057; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #dee2e6; }
+
+        /* Contact/Event cards */
+        .contact-card, .event-card { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+        .contact-card h5, .event-card h5 { color: #333; margin-bottom: 8px; }
+        .contact-card p, .event-card p { margin: 4px 0; font-size: 13px; color: #666; }
+        .contact-card .contact-actions { margin-top: 10px; }
+
+        /* Profile header */
+        .profile-header { background: #f8f9fa; color: #333; padding: 20px 30px; margin: 0 0 20px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-bottom: 3px solid #667eea; }
+        .profile-header h2 { font-size: 1.5em; color: #333; }
+        .profile-header .org-status { color: #666; font-size: 0.95em; }
+
+        /* Info boxes */
+        .info-box { background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px; padding: 12px; margin: 10px 0; }
+        .info-box.warning { background: #fff3cd; border-color: #ffc107; }
+        .info-box.success { background: #d1e7dd; border-color: #198754; }
+        .info-box.danger { background: #f8d7da; border-color: #dc3545; }
+        .info-box p { margin: 4px 0; font-size: 13px; }
+
+        /* Inline selects */
+        .inline-status-select { padding: 6px 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 13px; background: white; cursor: pointer; }
+        .inline-status-select:focus { border-color: #667eea; outline: none; }
+
+        /* Badges */
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-nominated { background: #e2d4f0; color: #6f42c1; }
+        .badge-approved { background: #cce5ff; color: #004085; }
+        .badge-requested { background: #fff3cd; color: #856404; }
+        .badge-granted { background: #d4edda; color: #155724; }
+        .badge-rejected { background: #f8d7da; color: #721c24; }
+        .badge-live { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
+        .badge-danger { background: #dc3545; color: white; }
+        .badge-tou-flag { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .badge-tech-block { background: #dc3545; color: white; border: 1px solid #721c24; }
+        .badge-js-render { background: #e2e3f3; color: #3d4070; border: 1px solid #6c757d; }
+        .badge-permission-denied { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .badge-duplicate { background: #e2d4f0; color: #6f42c1; border: 1px solid #6f42c1; }
+        .badge-explicit { background: #d4edda; color: #155724; }
+
+        /* Icon Grid */
+        .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 10px 0; }
+        .icon-card { background: white; border: 1px solid #dee2e6; border-radius: 12px; padding: 15px; text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
+        .icon-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .icon-card img { width: 80px; height: 130px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .icon-card .icon-topics { font-size: 12px; color: #555; line-height: 1.4; min-height: 50px; }
+        .icon-card .icon-status { font-size: 11px; margin-top: 8px; padding: 4px 8px; border-radius: 12px; display: inline-block; }
+        .icon-card .icon-status.has-icon { background: #d4edda; color: #155724; }
+        .icon-card .icon-status.no-icon { background: #f8d7da; color: #721c24; }
+        .icon-stats { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .icon-stat { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 25px; border-radius: 10px; }
+        .icon-stat.success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        .icon-stat.warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); }
+        .icon-stat h4 { font-size: 1.8em; margin-bottom: 3px; }
+        .icon-stat p { font-size: 0.9em; opacity: 0.9; }
+
+        /* Event cards with icons */
+        .event-with-icon { display: flex; gap: 15px; align-items: flex-start; }
+        .event-icon { flex-shrink: 0; text-align: center; }
+        .event-icon img { width: 80px; height: 130px; object-fit: cover; border-radius: 6px; box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+        .event-icon .no-icon { width: 80px; height: 130px; background: linear-gradient(135deg, #e0e0e0, #f5f5f5); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 24px; }
+        .event-details { flex: 1; min-width: 0; }
+        .event-topics { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .event-topic-badge { background: #e7f3ff; color: #0066cc; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .event-region-badge { background: #fff3cd; color: #856404; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .event-country-badge { background: #d4edda; color: #155724; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .event-org-badge { background: #e2d4f0; color: #6f42c1; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .event-metadata { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        .event-actions { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; }
+        .event-meta-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-bottom: 5px; font-size: 12px; }
+        .event-meta-row strong { color: #666; margin-right: 5px; }
+        .icon-status-indicator { margin-top: 5px; font-size: 10px; }
+        .icon-found { color: #28a745; }
+        .icon-missing { color: #dc3545; }
+        .icon-key-debug { margin-top: 8px; padding: 5px 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; color: #666; word-break: break-all; }
+        .badge-implied { background: #e2e3e5; color: #383d41; }
+
+        /* Messages */
+        .message { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
+        .message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .message.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .message.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; padding: 20px; }
+        .modal.active { display: flex; align-items: flex-start; justify-content: center; }
+        .modal-content { background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; margin: 20px 0; }
+        .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 1.3em; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; padding: 5px 10px; }
+        .modal-body { padding: 25px; }
+
+        /* Section Headers */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .section-header h2 { color: #333; font-size: 1.4em; }
+
+        /* Filters */
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filters select, .filters input[type="text"] { padding: 10px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
+        .filters select { min-width: 180px; }
+
+        /* Loading & Empty */
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .loading::after { content: ''; display: inline-block; width: 20px; height: 20px; border: 2px solid #667eea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-state .icon { font-size: 4em; margin-bottom: 20px; }
+
+        .hidden { display: none !important; }
+        .draft-textarea { font-family: monospace; font-size: 12px; line-height: 1.5; min-height: 200px; }
+        .btn-copy { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); font-size: 12px; padding: 6px 12px; }
+
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+            .tabs { flex-direction: column; }
+            .tab { min-width: auto; }
+            .profile-header { flex-direction: column; align-items: flex-start; }
+            .header { flex-direction: column; gap: 10px; padding: 15px; }
+            .header-logo { height: 50px; }
+            .header-text { text-align: center; }
+            .header h1 { font-size: 1.5em; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="login-container">
+            <h2>🔐 Admin Login</h2>
+            <div id="loginMessage" class="message hidden"></div>
+            <form id="loginForm">
+                <div class="form-group"><label>Email</label><input type="email" id="loginEmail" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="loginPassword" required></div>
+                <button type="submit" class="btn btn-full">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden">
+        <div class="container">
+            <div class="header" onclick="goHome()">
+                <img src="logo.png" alt="Event Finder Logo" class="header-logo">
+                <div class="header-text">
+                    <h1>Event Finder Admin</h1>
+                    <p>National Security Events Database Management</p>
+                </div>
+            </div>
+
+            <div id="mainTabs" class="tabs">
+                <button class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+                <button class="tab" onclick="switchTab('byStatus')">📋 Org By Status</button>
+                <button class="tab" onclick="switchTab('organizations')">🏛️ Organizations</button>
+                <button class="tab" onclick="switchTab('contacts')">👤 Contacts</button>
+                <button class="tab" onclick="switchTab('events')">📅 Events</button>
+                <button class="tab" onclick="switchTab('icons')">🖼️ Icons</button>
+            </div>
+
+            <div id="mainContent">
+                <!-- Dashboard Tab -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card"><h3 id="statOrgs">-</h3><p>Total Organizations</p></div>
+                        <div class="stat-card info"><h3 id="statEvents">-</h3><p>Events</p></div>
+                        <div class="stat-card warning"><h3 id="statPending">-</h3><p>Nominated (Pending)</p></div>
+                        <div class="stat-card success"><h3 id="statLive">-</h3><p>Live (Scraping)</p></div>
+                        <div class="stat-card danger"><h3 id="statTechBlocked">-</h3><p>⛔ Tech Blocked</p></div>
+                        <div class="stat-card danger"><h3 id="statPermissionDenied">-</h3><p>🚫 Declined</p></div>
+                        <div class="stat-card warning"><h3 id="statDuplicates">-</h3><p>🔁 Duplicates</p></div>
+                    </div>
+                    <div id="dashboardContent"><div class="loading">Loading dashboard...</div></div>
+                </div>
+
+                <!-- Organization By Status Tab -->
+                <div id="byStatus" class="tab-content">
+                    <div class="section-header">
+                        <h2>📋 Organizations By Status</h2>
+                        <button class="btn btn-small btn-secondary" onclick="loadByStatus()">🔄 Refresh</button>
+                    </div>
+                    <div class="filters">
+                        <select id="filterByStatus" onchange="loadByStatus()">
+                            <option value="all">📋 All Organizations</option>
+                            <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
+                            <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
+                            <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
+                            <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
+                            <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                            <option value="Rejected by Org">⛔ Rejected by Org</option>
+                            <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
+                            <option value="duplicates">🔁 Duplicates Only</option>
+                        </select>
+                    </div>
+                    <div id="byStatusMessage" class="message info hidden"></div>
+                    <div id="byStatusList"><div class="loading">Loading organizations...</div></div>
+                </div>
+
+                <!-- Organizations Tab -->
+                <div id="organizations" class="tab-content">
+                    <div class="section-header">
+                        <h2>🏛️ All Organizations</h2>
+                        <button class="btn" onclick="addNewOrganization()">➕ Add Organization</button>
+                    </div>
+                    <div class="filters">
+                        <input type="text" id="orgSearchBox" placeholder="🔍 Quick search by name..." style="min-width: 200px;" oninput="filterOrgsByName()">
+                        <select id="orgJumpToName" onchange="jumpToOrgByName()">
+                            <option value="">📍 Jump to Organization...</option>
+                        </select>
+                        <select id="orgFilterByStatus" onchange="filterOrgsByStatus()">
+                            <option value="">📊 Filter by Status...</option>
+                            <option value="Nominated (Pending Mission Review)">🟣 Nominated</option>
+                            <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved</option>
+                            <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested</option>
+                            <option value="Permission Granted (Not Live)">🟢 Permission Granted</option>
+                            <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                            <option value="Rejected by Org">⛔ Rejected by Org</option>
+                            <option value="Live (Scraping Active)">✅ Live</option>
+                        </select>
+                    </div>
+                    <div id="organizationsMessage" class="message info hidden"></div>
+                    <div id="organizationsList"><div class="loading">Loading organizations...</div></div>
+                </div>
+
+                <!-- Contacts Tab -->
+                <div id="contacts" class="tab-content">
+                    <div class="section-header">
+                        <h2>👤 Contacts</h2>
+                        <button class="btn" onclick="openAddContactModal()">➕ Add Contact</button>
+                    </div>
+                    <div id="contactsList"><div class="loading">Loading contacts...</div></div>
+                </div>
+
+                <!-- Events Tab -->
+                <div id="events" class="tab-content">
+                    <div class="section-header"><h2>📅 Events</h2></div>
+                    <div class="filters">
+                        <select id="filterEventStatus" onchange="loadEvents()">
+                            <option value="">All Statuses</option>
+                            <option value="nominated">📋 Nominated (Needs Review)</option>
+                            <option value="approved">✅ Approved</option>
+                            <option value="rejected">❌ Rejected</option>
+                        </select>
+                        <select id="filterEventOrg" onchange="loadEvents()">
+                            <option value="">All Organizations</option>
+                        </select>
+                        <select id="sortEvents" onchange="loadEvents()">
+                            <option value="-start_date">📅 Date (Newest First)</option>
+                            <option value="start_date">📅 Date (Oldest First)</option>
+                            <option value="org-asc">🏢 Organization (A-Z)</option>
+                            <option value="org-desc">🏢 Organization (Z-A)</option>
+                            <option value="-created">🕐 Recently Added</option>
+                        </select>
+                    </div>
+                    <div id="eventsList"><div class="loading">Loading events...</div></div>
+                </div>
+
+                <!-- Icons Tab -->
+                <div id="icons" class="tab-content">
+                    <div class="section-header">
+                        <h2>🖼️ Topic Icons</h2>
+                        <button class="btn btn-small btn-secondary" onclick="loadIcons()">🔄 Refresh</button>
+                    </div>
+                    <div class="icon-stats" id="iconStats"></div>
+                    <div class="filters">
+                        <select id="filterIconStatus" onchange="loadIcons()">
+                            <option value="all">📋 All Icons</option>
+                            <option value="has-icon">✅ Has Icon</option>
+                            <option value="no-icon">❌ Missing Icon</option>
+                        </select>
+                    </div>
+                    <div id="iconsList"><div class="loading">Loading icons...</div></div>
+                </div>
+            </div>
+
+            <!-- Organization Profile Page -->
+            <div id="orgProfilePage" class="tab-content hidden" style="display: none;">
+                <div class="profile-header">
+                    <div>
+                        <h2 id="profileOrgName">Organization Name</h2>
+                        <p class="org-status" id="profileOrgStatus">Status</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-secondary" onclick="closeOrgProfile()">← Back to List</button>
+                        <button class="btn btn-danger" onclick="deleteOrganization()" id="deleteOrgBtn">🗑️ Delete Org</button>
+                    </div>
+                </div>
+
+                <div class="profile-tabs">
+                    <button class="profile-tab active" onclick="switchProfileTab('overview')">📋 Overview</button>
+                    <button class="profile-tab" onclick="switchProfileTab('profileContacts')">👤 Contacts</button>
+                    <button class="profile-tab" onclick="switchProfileTab('statusHistory')">📜 Status & History</button>
+                    <button class="profile-tab" onclick="switchProfileTab('profileEvents')">📅 Events</button>
+                </div>
+
+                <div id="profileMessage" class="message info hidden"></div>
+
+                <!-- Overview Tab -->
+                <div id="overview" class="profile-tab-content active">
+                    <form id="profileOverviewForm">
+                        <input type="hidden" id="profileOrgId">
+                        <div id="profileAlerts"></div>
+
+                        <div class="section-box">
+                            <h4>📋 Basic Information</h4>
+                            <div class="form-row">
+                                <div class="form-group"><label>Organization Name *</label><input type="text" id="profileName" required></div>
+                                <div class="form-group"><label>Type</label><input type="text" id="profileType" placeholder="e.g., Government, Nonprofit, Think Tank"></div>
+                            </div>
+                            <div class="form-group"><label>Description</label><textarea id="profileDescription"></textarea></div>
+                        </div>
+
+                        <div class="section-box">
+                            <h4>🌐 Web Information</h4>
+                            <div class="form-row">
+                                <div class="form-group"><label>Website</label><input type="url" id="profileWebsite"></div>
+                                <div class="form-group"><label>Source ID (Domain)</label><input type="text" id="profileSourceId" placeholder="e.g., csis.org"></div>
+                            </div>
+                            <div class="form-group"><label>Events URL</label><input type="url" id="profileEventsUrl"></div>
+                        </div>
+
+                        <div class="section-box">
+                            <h4>📊 Status</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Current Status *</label>
+                                    <select id="profileStatus" required>
+                                        <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
+                                        <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
+                                        <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
+                                        <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
+                                        <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                                        <option value="Rejected by Org">⛔ Rejected by Org</option>
+                                        <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Permission Type</label>
+                                    <select id="profilePermissionType">
+                                        <option value="">-- Not Set --</option>
+                                        <option value="Explicit">Explicit (Org Approved)</option>
+                                        <option value="Implied (No Response)">Implied (No Response)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Event Policy</label>
+                                    <select id="profileEventPolicy">
+                                        <option value="">-- Not Set --</option>
+                                        <option value="accept_all">🔓 Accept All (scrape all events)</option>
+                                        <option value="propose_events">📋 Propose Events (review before adding)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <!-- Placeholder for alignment -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-success">💾 Save Overview</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Contacts Tab -->
+                <div id="profileContacts" class="profile-tab-content">
+                    <div class="section-box">
+                        <h4>🏛️ Organization Info</h4>
+                        <div id="profileContactsOrgInfo"></div>
+                    </div>
+                    <div class="section-header">
+                        <h4>👤 Contacts</h4>
+                        <div>
+                            <select id="profileContactsSort" onchange="loadProfileContacts()" style="padding: 8px; border-radius: 6px; margin-right: 10px;">
+                                <option value="lastName">Sort by Last Name</option>
+                                <option value="firstName">Sort by First Name</option>
+                            </select>
+                            <button class="btn btn-small" onclick="addContactForCurrentOrg()">➕ Add Contact</button>
+                        </div>
+                    </div>
+                    <div id="profileContactsList"><div class="loading">Loading contacts...</div></div>
+                </div>
+
+                <!-- Status & History Tab -->
+                <div id="statusHistory" class="profile-tab-content">
+                    <div id="statusAlerts"></div>
+
+                    <div class="section-box" style="background: #fff8f8; border: 2px solid #dc3545;">
+                        <h4>🚩 Rejection Flags</h4>
+                        <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Check any flag that applies. Checking a flag will auto-set status to "Rejected by Org" and disable scraping.</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="touFlag" onchange="handleTouFlagChange()"> ⚠️ TOU Restriction</label>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="techBlockFlag" onchange="handleTechBlockChange()"> ⛔ Technical Block (403)</label>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="techRenderingFlag" onchange="handleTechRenderingChange()"> ⚙️ Tech-Rendered Site</label>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label><input type="checkbox" id="permissionDeniedFlag" onchange="handlePermissionDeniedChange()"> 🚫 Permission Denied</label>
+                            </div>
+                        </div>
+                        <div class="card-actions" style="margin-top: 15px;">
+                            <button type="button" class="btn btn-small btn-success" onclick="saveAllFlags()">💾 Save Flags</button>
+                        </div>
+                    </div>
+
+                    <!-- Duplicate Info Box (read-only, set by quality-audit.js) -->
+                    <div id="duplicateInfoBox" class="section-box hidden" style="background: #f3e8ff; border: 2px solid #6f42c1;">
+                        <h4>🔁 Duplicate Organization</h4>
+                        <p style="color: #666; font-size: 13px; margin-bottom: 10px;">This organization was flagged as a duplicate by the quality audit script.</p>
+                        <p><strong>Duplicate of:</strong> <a href="#" id="duplicateOfLink" onclick="openOrgProfile(currentOrg.duplicate_of); return false;"><span id="duplicateOfName">-</span></a></p>
+                        <p style="margin-top: 10px; font-size: 12px; color: #856404;">💡 Consider merging data into the primary org and then deleting this record.</p>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>📊 General Info</h4>
+                        <p><strong>Organization:</strong> <span id="statusOrgName"></span></p>
+                        <p><strong>Current Status:</strong> <span id="statusCurrentStatus"></span></p>
+                        <p><strong>Website:</strong> <a id="statusWebsite" href="#" target="_blank"></a></p>
+                        <div id="statusAiReasoning" class="info-box hidden">
+                            <p>🤖 <strong>AI Reasoning:</strong> <span id="statusAiReasoningText"></span></p>
+                        </div>
+                        <div id="statusTriggeringEvent" class="info-box hidden" style="background: #e8f4fd; border-color: #4a90d9;">
+                            <p style="margin-bottom: 8px;"><strong>📊 Triggering Event</strong> <span id="statusTriggeringScore" class="badge badge-live" style="margin-left: 10px;"></span></p>
+                            <p><strong>Title:</strong> <span id="statusTriggeringTitle"></span></p>
+                            <p id="statusTriggeringSnippetRow"><strong>Snippet:</strong> <span id="statusTriggeringSnippet" style="color: #555; font-style: italic;"></span></p>
+                            <p><strong>URL:</strong> <a id="statusTriggeringUrl" href="#" target="_blank" style="color: #0066cc;"></a></p>
+                        </div>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>📜 TOU Assessment</h4>
+                        <form id="touForm">
+                            <div class="form-group"><label>TOU Scanned Date</label><input type="date" id="touScannedDate"></div>
+                            <div class="form-group"><label>TOU Notes</label><textarea id="touNotes" placeholder="Notes about Terms of Use..."></textarea></div>
+                            <div class="card-actions">
+                                <button type="submit" class="btn btn-small btn-success">💾 Save TOU Info</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>📧 Permission Request</h4>
+                        <form id="permissionForm">
+                            <div class="form-group"><label>Permission Requested Date</label><input type="date" id="permissionRequestedDate"></div>
+                            <div id="goLiveDateInfo" class="info-box hidden">
+                                <p>📅 <strong>Calculated Go-Live Date:</strong> <span id="goLiveDate"></span> (sent + 2 weeks)</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Permission Request Draft Text</label>
+                                <textarea id="permissionDraft" class="draft-textarea" placeholder="Click 'Generate Draft' to create a new draft..."></textarea>
+                            </div>
+                            <div class="card-actions" style="margin-bottom: 15px;">
+                                <button type="button" class="btn btn-small btn-info" onclick="generatePermissionDraft()">📝 Generate Draft</button>
+                                <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('permissionDraft')">📋 Copy Draft</button>
+                                <button type="button" class="btn btn-small btn-secondary" onclick="previewDraft('permissionDraft')">👁️ Preview</button>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Permission Request Final Text <span style="font-weight: normal; color: #666;">(finalized version sent to org)</span></label>
+                                <textarea id="permissionFinal" class="draft-textarea" placeholder="Copy your finalized email text here after sending..."></textarea>
+                            </div>
+                            <div class="card-actions" style="margin-bottom: 15px;">
+                                <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('permissionFinal')">📋 Copy Final</button>
+                                <button type="button" class="btn btn-small btn-secondary" onclick="previewDraft('permissionFinal')">👁️ Preview</button>
+                            </div>
+
+                            <hr style="margin: 20px 0; border: none; border-top: 1px solid #dee2e6;">
+
+                            <div class="form-group"><label>Permission Response Date</label><input type="date" id="permissionResponseDate"></div>
+
+                            <div class="form-group">
+                                <label>Permission Response Text <span style="font-weight: normal; color: #666;">(org's reply)</span></label>
+                                <textarea id="permissionCorrespondence" placeholder="Paste the organization's response email or notes here..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-small btn-success">💾 Save Permission Info</button>
+                        </form>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>🤖 Scraping Info</h4>
+                        <form id="scrapingForm">
+                            <div class="form-row">
+                                <div class="form-group"><label>Events Scraped</label><input type="text" id="scrapingEventCount" readonly style="background: #f0f0f0;"></div>
+                                <div class="form-group"><label>Last Scraped</label><input type="text" id="scrapingLastScraped" readonly style="background: #f0f0f0;"></div>
+                            </div>
+                            <div class="form-row" style="margin: 15px 0;">
+                                <div class="form-group checkbox-group">
+                                    <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
+                                </div>
+                            </div>
+                            <div class="form-group"><label>Scrape Notes <span style="font-weight: normal; color: #666;">(auto-populated by scanner)</span></label><textarea id="scrapeNotes" placeholder="Auto-populated when JS-rendered site is detected..." style="min-height: 120px;"></textarea></div>
+                            <div class="form-group"><label>Manual Notes</label><textarea id="scrapingNotes" placeholder="Notes about scraping..."></textarea></div>
+                            <button type="submit" class="btn btn-small btn-success">💾 Save Scraping Info</button>
+                        </form>
+                    </div>
+
+                    <div class="section-box">
+                        <h4>📊 Change Status</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="statusDropdown" class="inline-status-select" style="width: 100%;" onchange="changeOrgStatus()">
+                                    <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
+                                    <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
+                                    <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
+                                    <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
+                                    <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                                    <option value="Rejected by Org">⛔ Rejected by Org</option>
+                                    <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Event Policy</label>
+                                <select id="statusEventPolicy" class="inline-status-select" style="width: 100%;" onchange="changeEventPolicy()">
+                                    <option value="">-- Not Set --</option>
+                                    <option value="accept_all">🔓 Accept All</option>
+                                    <option value="propose_events">📋 Propose Events</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Events Tab -->
+                <div id="profileEvents" class="profile-tab-content">
+                    <div class="section-box">
+                        <h4>🏛️ Organization Info</h4>
+                        <div id="profileEventsOrgInfo"></div>
+                    </div>
+                    <div class="section-header">
+                        <h4>📅 Events</h4>
+                        <span id="profileEventCount" class="badge badge-live">0 events</span>
+                    </div>
+                    <div id="profileEventsList"><div class="loading">Loading events...</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Contact Modal -->
+    <div id="addContactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Contact</h2>
+                <button class="modal-close" onclick="closeModal('addContactModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addContactForm">
+                    <div class="form-group"><label>Organization *</label><select id="contactOrg" required><option value="">-- Select --</option></select></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Name *</label><input type="text" id="contactName" required></div>
+                        <div class="form-group"><label>Title/Role</label><input type="text" id="contactTitle"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Email</label><input type="email" id="contactEmail"></div>
+                        <div class="form-group"><label>Phone</label><input type="text" id="contactPhone"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Type</label>
+                        <select id="contactType">
+                            <option value="">-- Select Type --</option>
+                            <option value="Main Contact">Main Contact</option>
+                            <option value="Leadership">Leadership</option>
+                            <option value="Events">Events</option>
+                            <option value="Legal/Permissions">Legal/Permissions</option>
+                            <option value="Media/PR">Media/PR</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Notes</label><textarea id="contactNotes"></textarea></div>
+                    <div class="card-actions">
+                        <button type="submit" class="btn btn-success">💾 Add Contact</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('addContactModal')">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Contact Modal -->
+    <div id="editContactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Contact</h2>
+                <button class="modal-close" onclick="closeModal('editContactModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editContactForm">
+                    <input type="hidden" id="editContactId">
+                    <div class="form-group"><label>Organization</label><input type="text" id="editContactOrgName" readonly style="background: #f0f0f0;"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Name *</label><input type="text" id="editContactName" required></div>
+                        <div class="form-group"><label>Title/Role</label><input type="text" id="editContactTitle"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Email</label><input type="email" id="editContactEmail"></div>
+                        <div class="form-group"><label>Phone</label><input type="text" id="editContactPhone"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Type</label>
+                        <select id="editContactType">
+                            <option value="">-- Select Type --</option>
+                            <option value="Main Contact">Main Contact</option>
+                            <option value="Leadership">Leadership</option>
+                            <option value="Events">Events</option>
+                            <option value="Legal/Permissions">Legal/Permissions</option>
+                            <option value="Media/PR">Media/PR</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Notes</label><textarea id="editContactNotes"></textarea></div>
+                    <div class="card-actions">
+                        <button type="submit" class="btn btn-success">💾 Save Changes</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('editContactModal')">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Draft Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📧 Permission Request Preview</h2>
+                <button class="modal-close" onclick="closeModal('previewModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre id="previewContent" style="white-space: pre-wrap; font-family: inherit; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const POCKETBASE_URL = 'https://event-discovery-backend-production.up.railway.app';
+        let authToken = null;
+        let allOrganizations = [];
+        let allContacts = [];
+        let currentOrgId = null;
+        let currentOrg = null;
+        let previousTab = 'byStatus';
+        let isNewOrg = false;
+
+        const STATUS_CONFIG = {
+            'Nominated (Pending Mission Review)': { icon: '🟣', badge: 'badge-nominated', cardClass: 'status-nominated' },
+            'Mission Approved (Request Not Sent)': { icon: '🔵', badge: 'badge-approved', cardClass: 'status-approved' },
+            'Permission Requested (Pending Org Response)': { icon: '🟡', badge: 'badge-requested', cardClass: 'status-requested' },
+            'Permission Granted (Not Live)': { icon: '🟢', badge: 'badge-granted', cardClass: 'status-granted' },
+            'Rejected by Mission': { icon: '🔴', badge: 'badge-rejected', cardClass: 'status-rejected' },
+            'Rejected by Org': { icon: '⛔', badge: 'badge-rejected', cardClass: 'status-rejected' },
+            'Live (Scraping Active)': { icon: '✅', badge: 'badge-live', cardClass: 'status-live' }
+        };
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // AUTHENTICATION
+        // ═══════════════════════════════════════════════════════════════════════
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const messageDiv = document.getElementById('loginMessage');
+
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/admins/auth-with-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identity: email, password: password })
+                });
+                if (!response.ok) throw new Error('Invalid credentials');
+                const data = await response.json();
+                authToken = data.token;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                loadDashboard();
+            } catch (error) {
+                messageDiv.textContent = '❌ ' + error.message;
+                messageDiv.className = 'message error';
+                messageDiv.classList.remove('hidden');
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TAB NAVIGATION
+        // ═══════════════════════════════════════════════════════════════════════
+        function switchTab(tabName) {
+            document.getElementById('orgProfilePage').classList.add('hidden');
+            document.getElementById('orgProfilePage').style.display = 'none';
+            document.getElementById('mainTabs').classList.remove('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('#mainContent > .tab-content').forEach(content => content.classList.remove('active'));
+            
+            const tabButton = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+            if (tabButton) tabButton.classList.add('active');
+            
+            const tabContent = document.getElementById(tabName);
+            if (tabContent) tabContent.classList.add('active');
+
+            previousTab = tabName;
+
+            switch(tabName) {
+                case 'dashboard': loadDashboard(); break;
+                case 'byStatus': loadByStatus(); break;
+                case 'organizations': loadOrganizations(); break;
+                case 'contacts': loadContacts(); break;
+                case 'events': loadEvents(); break;
+                case 'icons': loadIcons(); break;
+            }
+        }
+
+        function switchProfileTab(tabName) {
+            document.querySelectorAll('.profile-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.profile-tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector(`[onclick="switchProfileTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'profileContacts') loadProfileContacts();
+            if (tabName === 'profileEvents') loadProfileEvents();
+            if (tabName === 'statusHistory') loadStatusHistory();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ORGANIZATION PROFILE PAGE
+        // ═══════════════════════════════════════════════════════════════════════
+        async function openOrgProfile(orgId, targetTab = 'overview') {
+            currentOrgId = orgId;
+            isNewOrg = false;
+
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, { headers: { 'Authorization': authToken } });
+                currentOrg = await response.json();
+
+                document.getElementById('mainTabs').classList.add('hidden');
+                document.getElementById('mainContent').classList.add('hidden');
+                document.getElementById('orgProfilePage').classList.remove('hidden');
+                document.getElementById('orgProfilePage').style.display = 'block';
+
+                document.getElementById('profileOrgName').textContent = currentOrg.name;
+                const config = STATUS_CONFIG[currentOrg.status] || { icon: '❓' };
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} ${currentOrg.status || 'Unknown'}`;
+                
+                // Show delete button for existing orgs
+                document.getElementById('deleteOrgBtn').style.display = 'inline-block';
+
+                populateOverviewTab(currentOrg);
+                switchProfileTab(targetTab);
+
+            } catch (error) {
+                alert('Error loading organization: ' + error.message);
+            }
+        }
+
+        function addNewOrganization() {
+            isNewOrg = true;
+            currentOrgId = null;
+            currentOrg = {
+                name: '',
+                org_type: '',
+                description: '',
+                website: '',
+                source_id: '',
+                events_url: '',
+                status: 'Nominated (Pending Mission Review)',
+                permission_type: '',
+                tou_flag: false,
+                tech_block_flag: false,
+                tech_rendering_flag: false,
+                permission_denied_flag: false,
+                duplicate_flag: false,
+                duplicate_of: '',
+                tou_notes: '',
+                scrape_notes: '',
+                ai_reasoning: '',
+                permission_requested_date: '',
+                permission_response_date: '',
+                permission_request_draft: '',
+                permission_correspondence: '',
+                scraping_enabled: false,
+                notes: ''
+            };
+
+            document.getElementById('mainTabs').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+            document.getElementById('orgProfilePage').classList.remove('hidden');
+            document.getElementById('orgProfilePage').style.display = 'block';
+
+            document.getElementById('profileOrgName').textContent = 'New Organization';
+            document.getElementById('profileOrgStatus').innerHTML = '🟣 Nominated (Pending Mission Review)';
+            
+            // Hide delete button for new orgs
+            document.getElementById('deleteOrgBtn').style.display = 'none';
+
+            populateOverviewTab(currentOrg);
+            switchProfileTab('overview');
+        }
+
+        function closeOrgProfile() {
+            document.getElementById('orgProfilePage').classList.add('hidden');
+            document.getElementById('orgProfilePage').style.display = 'none';
+            document.getElementById('mainTabs').classList.remove('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            currentOrgId = null;
+            currentOrg = null;
+            isNewOrg = false;
+            switchTab(previousTab);
+        }
+
+        /**
+         * Delete an organization after confirmation
+         * Warns about associated events and contacts
+         */
+        async function deleteOrganization() {
+            if (!currentOrg || !currentOrgId) {
+                alert('❌ No organization selected');
+                return;
+            }
+
+            const orgName = currentOrg.name;
+
+            // First, check for associated events and contacts
+            let eventCount = 0;
+            let contactCount = 0;
+
+            try {
+                // Count events
+                const eventsRes = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${currentOrgId}')&perPage=1`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                if (eventsRes.ok) {
+                    const eventsData = await eventsRes.json();
+                    eventCount = eventsData.totalItems || 0;
+                }
+
+                // Count contacts
+                const contactsRes = await fetch(
+                    `${POCKETBASE_URL}/api/collections/contacts/records?filter=(organization='${currentOrgId}')&perPage=1`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                if (contactsRes.ok) {
+                    const contactsData = await contactsRes.json();
+                    contactCount = contactsData.totalItems || 0;
+                }
+            } catch (error) {
+                console.error('Error checking related records:', error);
+            }
+
+            // Build confirmation message
+            let confirmMsg = `🗑️ DELETE ORGANIZATION\n\n`;
+            confirmMsg += `Are you sure you want to delete "${orgName}"?\n\n`;
+
+            if (eventCount > 0 || contactCount > 0) {
+                confirmMsg += `⚠️ WARNING: This org has associated records:\n`;
+                if (eventCount > 0) confirmMsg += `   • ${eventCount} event(s)\n`;
+                if (contactCount > 0) confirmMsg += `   • ${contactCount} contact(s)\n`;
+                confirmMsg += `\nThese will become orphaned (not deleted).\n`;
+            }
+
+            confirmMsg += `\nThis action cannot be undone!`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            // Second confirmation for safety
+            const typeToConfirm = prompt(`Type the organization name to confirm deletion:\n\n"${orgName}"`);
+            if (typeToConfirm !== orgName) {
+                alert('❌ Deletion cancelled - name did not match');
+                return;
+            }
+
+            // Perform deletion
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { 'Authorization': authToken }
+                    }
+                );
+
+                if (response.ok) {
+                    alert(`✅ Organization "${orgName}" deleted successfully`);
+                    closeOrgProfile();
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Delete failed: ${JSON.stringify(error)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error deleting organization: ${error.message}`);
+            }
+        }
+
+        function goHome() {
+            // If on profile page, close it first
+            if (document.getElementById('orgProfilePage').style.display === 'block') {
+                document.getElementById('orgProfilePage').classList.add('hidden');
+                document.getElementById('orgProfilePage').style.display = 'none';
+            }
+            currentOrgId = null;
+            currentOrg = null;
+            isNewOrg = false;
+            switchTab('dashboard');
+        }
+
+        function populateOverviewTab(org) {
+            document.getElementById('profileOrgId').value = org.id || '';
+            document.getElementById('profileName').value = org.name || '';
+            document.getElementById('profileType').value = org.org_type || '';
+            document.getElementById('profileDescription').value = org.description || '';
+            document.getElementById('profileWebsite').value = org.website || '';
+            document.getElementById('profileSourceId').value = org.source_id || '';
+            document.getElementById('profileEventsUrl').value = org.events_url || '';
+            document.getElementById('profileStatus').value = org.status || 'Nominated (Pending Mission Review)';
+            document.getElementById('profilePermissionType').value = org.permission_type || '';
+            document.getElementById('profileEventPolicy').value = org.event_policy || '';
+
+            const alertsDiv = document.getElementById('profileAlerts');
+            let alertsHtml = '';
+            if (org.tech_block_flag) {
+                alertsHtml += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
+            }
+            if (org.tou_flag && !org.tech_block_flag) {
+                alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            if (org.tech_rendering_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape.</p></div>`;
+            }
+            if (org.duplicate_flag) {
+                alertsHtml += `<div class="info-box" style="background: #f3e8ff; border-color: #6f42c1;"><p>🔁 <strong>Duplicate:</strong> This organization is flagged as a duplicate. See Status & History tab for details.</p></div>`;
+            }
+            alertsDiv.innerHTML = alertsHtml;
+        }
+
+        document.getElementById('profileOverviewForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('profileName').value,
+                org_type: document.getElementById('profileType').value,
+                description: document.getElementById('profileDescription').value,
+                website: document.getElementById('profileWebsite').value,
+                source_id: document.getElementById('profileSourceId').value,
+                events_url: document.getElementById('profileEventsUrl').value,
+                status: document.getElementById('profileStatus').value,
+                permission_type: document.getElementById('profilePermissionType').value || null,
+                event_policy: document.getElementById('profileEventPolicy').value || null
+            };
+
+            try {
+                let response;
+                if (isNewOrg) {
+                    response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(data)
+                    });
+                    const newOrg = await response.json();
+                    currentOrgId = newOrg.id;
+                    currentOrg = newOrg;
+                    isNewOrg = false;
+                    document.getElementById('profileOrgId').value = newOrg.id;
+                } else {
+                    response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(data)
+                    });
+                    currentOrg = { ...currentOrg, ...data };
+                }
+                
+                document.getElementById('profileOrgName').textContent = data.name;
+                const config = STATUS_CONFIG[data.status] || { icon: '❓' };
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} ${data.status}`;
+                
+                showMessage('profileMessage', isNewOrg ? '✅ Organization created!' : '✅ Overview saved!', 'success');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PROFILE - CONTACTS TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadProfileContacts() {
+            const container = document.getElementById('profileContactsList');
+            const orgInfoDiv = document.getElementById('profileContactsOrgInfo');
+            container.innerHTML = '<div class="loading">Loading contacts...</div>';
+
+            // Org info section
+            const config = STATUS_CONFIG[currentOrg.status] || { icon: '❓', badge: '' };
+            let alertsHtml = '';
+            if (currentOrg.tech_block_flag) {
+                alertsHtml = `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests.</p></div>`;
+            } else if (currentOrg.tou_flag) {
+                alertsHtml = `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            if (currentOrg.tech_rendering_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires Puppeteer to scrape.</p></div>`;
+            }
+            orgInfoDiv.innerHTML = `
+                ${alertsHtml}
+                <p><strong>Organization:</strong> ${escapeHtml(currentOrg.name)}</p>
+                <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${currentOrg.status}</span></p>
+            `;
+
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/contacts/records?filter=(organization='${currentOrgId}')`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                let contacts = data.items || [];
+
+                // Sort contacts
+                const sortBy = document.getElementById('profileContactsSort').value;
+                contacts.sort((a, b) => {
+                    const nameA = a.name || '';
+                    const nameB = b.name || '';
+                    if (sortBy === 'lastName') {
+                        const lastA = nameA.split(' ').pop().toLowerCase();
+                        const lastB = nameB.split(' ').pop().toLowerCase();
+                        return lastA.localeCompare(lastB);
+                    } else {
+                        return nameA.toLowerCase().localeCompare(nameB.toLowerCase());
+                    }
+                });
+
+                if (contacts.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><div class="icon">👤</div><h3>No Contacts Yet</h3></div>`;
+                    return;
+                }
+
+                container.innerHTML = contacts.map(c => `
+                    <div class="contact-card">
+                        <h5>${escapeHtml(c.name)} ${c.contact_type ? `<span class="badge">${escapeHtml(c.contact_type)}</span>` : ''}</h5>
+                        ${c.title ? `<p><strong>Role/Position:</strong> ${escapeHtml(c.title)}</p>` : ''}
+                        ${c.email ? `<p><strong>Email:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></p>` : '<p><strong>Email:</strong> <span style="color: #dc3545;">Not set</span></p>'}
+                        ${c.phone ? `<p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>` : ''}
+                        ${c.notes ? `<p><strong>Notes:</strong> ${escapeHtml(c.notes)}</p>` : ''}
+                        <div class="contact-actions">
+                            <button class="btn btn-small" onclick="editContact('${c.id}')">✏️ Edit Contact</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteContact('${c.id}', true)">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function addContactForCurrentOrg() {
+            document.getElementById('contactOrg').innerHTML = `<option value="${currentOrgId}" selected>${escapeHtml(currentOrg.name)}</option>`;
+            document.getElementById('addContactForm').reset();
+            document.getElementById('contactOrg').value = currentOrgId;
+            openModal('addContactModal');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PROFILE - STATUS & HISTORY TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadStatusHistory() {
+            if (!currentOrg) return;
+
+            document.getElementById('statusOrgName').textContent = currentOrg.name;
+            const config = STATUS_CONFIG[currentOrg.status] || { icon: '❓', badge: '' };
+            document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} ${currentOrg.status || 'Unknown'}</span>`;
+            document.getElementById('statusWebsite').href = currentOrg.website || '#';
+            document.getElementById('statusWebsite').textContent = currentOrg.website || 'N/A';
+
+            if (currentOrg.ai_reasoning) {
+                document.getElementById('statusAiReasoning').classList.remove('hidden');
+                document.getElementById('statusAiReasoningText').textContent = currentOrg.ai_reasoning;
+            } else {
+                document.getElementById('statusAiReasoning').classList.add('hidden');
+            }
+
+            // Display triggering event info (for nominated orgs discovered via events)
+            if (currentOrg.triggering_event_title) {
+                document.getElementById('statusTriggeringEvent').classList.remove('hidden');
+                document.getElementById('statusTriggeringTitle').textContent = currentOrg.triggering_event_title;
+                document.getElementById('statusTriggeringScore').textContent = currentOrg.triggering_event_score ? `${currentOrg.triggering_event_score}% match` : '';
+                document.getElementById('statusTriggeringUrl').href = currentOrg.triggering_event_url || '#';
+                document.getElementById('statusTriggeringUrl').textContent = currentOrg.triggering_event_url || 'N/A';
+                
+                // Show snippet if available
+                if (currentOrg.triggering_event_snippet) {
+                    document.getElementById('statusTriggeringSnippet').textContent = currentOrg.triggering_event_snippet;
+                    document.getElementById('statusTriggeringSnippetRow').style.display = 'block';
+                } else {
+                    document.getElementById('statusTriggeringSnippetRow').style.display = 'none';
+                }
+            } else {
+                document.getElementById('statusTriggeringEvent').classList.add('hidden');
+            }
+
+            const alertsDiv = document.getElementById('statusAlerts');
+            let alertsHtml = '';
+            if (currentOrg.tech_block_flag) {
+                alertsHtml += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
+            }
+            if (currentOrg.tou_flag && !currentOrg.tech_block_flag) {
+                alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            if (currentOrg.permission_denied_flag) {
+                alertsHtml += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
+            }
+            if (currentOrg.tech_rendering_flag) {
+                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape. See Scrape Notes for details.</p></div>`;
+            }
+            alertsDiv.innerHTML = alertsHtml;
+
+            document.getElementById('touFlag').checked = currentOrg.tou_flag || false;
+            document.getElementById('techBlockFlag').checked = currentOrg.tech_block_flag || false;
+            document.getElementById('touNotes').value = currentOrg.tou_notes || '';
+            document.getElementById('touScannedDate').value = currentOrg.tou_scanned_date ? currentOrg.tou_scanned_date.split(' ')[0] : '';
+
+            document.getElementById('permissionRequestedDate').value = currentOrg.permission_requested_date ? currentOrg.permission_requested_date.split(' ')[0] : '';
+            document.getElementById('permissionResponseDate').value = currentOrg.permission_response_date ? currentOrg.permission_response_date.split(' ')[0] : '';
+            document.getElementById('permissionDeniedFlag').checked = currentOrg.permission_denied_flag || false;
+            
+            // Permission draft and final text - editable by default
+            document.getElementById('permissionDraft').value = currentOrg.permission_request_draft || '';
+            document.getElementById('permissionFinal').value = currentOrg.permission_request_final || '';
+            
+            document.getElementById('permissionCorrespondence').value = currentOrg.permission_correspondence || '';
+            updateGoLiveDate();
+
+            document.getElementById('scrapingEnabled').checked = currentOrg.scraping_enabled || false;
+            document.getElementById('techRenderingFlag').checked = currentOrg.tech_rendering_flag || false;
+            document.getElementById('scrapingLastScraped').value = currentOrg.last_scraped ? new Date(currentOrg.last_scraped).toLocaleString() : 'Never';
+            document.getElementById('scrapeNotes').value = currentOrg.scrape_notes || '';
+            document.getElementById('scrapingNotes').value = currentOrg.notes || '';
+            document.getElementById('statusDropdown').value = currentOrg.status || 'Nominated (Pending Mission Review)';
+            document.getElementById('statusEventPolicy').value = currentOrg.event_policy || '';
+
+            // Show/hide duplicate info box
+            const duplicateInfoBox = document.getElementById('duplicateInfoBox');
+            if (currentOrg.duplicate_flag && currentOrg.duplicate_of) {
+                duplicateInfoBox.classList.remove('hidden');
+                // Fetch the primary org name
+                fetchDuplicateOfName(currentOrg.duplicate_of);
+            } else {
+                duplicateInfoBox.classList.add('hidden');
+            }
+
+            try {
+                const eventsRes = await fetch(`${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${currentOrgId}')&perPage=1`, { headers: { 'Authorization': authToken } });
+                const eventsData = await eventsRes.json();
+                document.getElementById('scrapingEventCount').value = eventsData.totalItems || 0;
+            } catch (e) {
+                document.getElementById('scrapingEventCount').value = 'Error';
+            }
+        }
+
+        function updateGoLiveDate() {
+            const requestedDate = document.getElementById('permissionRequestedDate').value;
+            const goLiveDateDiv = document.getElementById('goLiveDateInfo');
+            if (requestedDate) {
+                const sent = new Date(requestedDate);
+                const goLive = new Date(sent);
+                goLive.setDate(goLive.getDate() + 14);
+                document.getElementById('goLiveDate').textContent = goLive.toLocaleDateString();
+                goLiveDateDiv.classList.remove('hidden');
+            } else {
+                goLiveDateDiv.classList.add('hidden');
+            }
+        }
+        document.getElementById('permissionRequestedDate').addEventListener('change', updateGoLiveDate);
+
+        /**
+         * Fetch the name of the primary org for duplicate display
+         */
+        async function fetchDuplicateOfName(orgId) {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
+                    headers: { 'Authorization': authToken }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('duplicateOfName').textContent = data.name || 'Unknown';
+                    document.getElementById('duplicateOfLink').onclick = function() {
+                        openOrgProfile(orgId);
+                        return false;
+                    };
+                } else {
+                    document.getElementById('duplicateOfName').textContent = 'Unable to load';
+                }
+            } catch (error) {
+                document.getElementById('duplicateOfName').textContent = 'Error loading';
+            }
+        }
+
+        async function changeOrgStatus() {
+            const newStatus = document.getElementById('statusDropdown').value;
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                currentOrg.status = newStatus;
+                const config = STATUS_CONFIG[newStatus] || { icon: '❓' };
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} ${newStatus}`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} ${newStatus}</span>`;
+                showMessage('profileMessage', '✅ Status changed!', 'success');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function changeEventPolicy() {
+            const newPolicy = document.getElementById('statusEventPolicy').value;
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ event_policy: newPolicy || null })
+                });
+                currentOrg.event_policy = newPolicy;
+                // Also update the Overview tab dropdown
+                document.getElementById('profileEventPolicy').value = newPolicy;
+                showMessage('profileMessage', '✅ Event policy updated!', 'success');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        document.getElementById('touForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = { 
+                tou_flag: document.getElementById('touFlag').checked, 
+                tech_block_flag: document.getElementById('techBlockFlag').checked,
+                tou_notes: document.getElementById('touNotes').value,
+                tou_scanned_date: document.getElementById('touScannedDate').value || null
+            };
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
+                });
+                currentOrg.tou_flag = data.tou_flag;
+                currentOrg.tech_block_flag = data.tech_block_flag;
+                currentOrg.tou_notes = data.tou_notes;
+                currentOrg.tou_scanned_date = data.tou_scanned_date;
+                showMessage('profileMessage', '✅ TOU info saved!', 'success');
+            } catch (error) { alert('Error: ' + error.message); }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // TOU FLAG & TECHNICAL BLOCK AUTOMATION
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        /**
+         * Handle TOU Flag checkbox change
+         * When checked: auto-set date, uncheck scraping, set status to Rejected
+         */
+        function handleTouFlagChange() {
+            console.log('TOU Flag changed');
+            const touFlag = document.getElementById('touFlag').checked;
+            
+            if (touFlag) {
+                // Auto-set TOU Scanned Date to today if not already set
+                const touDateField = document.getElementById('touScannedDate');
+                if (!touDateField.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    touDateField.value = today;
+                    console.log('Set TOU Scanned Date to:', today);
+                }
+                
+                // Uncheck Scraping Enabled
+                document.getElementById('scrapingEnabled').checked = false;
+                console.log('Unchecked Scraping Enabled');
+                
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
+                
+                // Auto-save changes
+                saveTouBlockChanges('tou');
+            }
+        }
+        
+        /**
+         * Handle Technical Block checkbox change
+         * When checked: auto-set date, uncheck scraping, set status to Rejected, set TOU flag
+         */
+        function handleTechBlockChange() {
+            console.log('Tech Block changed');
+            const techBlockFlag = document.getElementById('techBlockFlag').checked;
+            
+            if (techBlockFlag) {
+                // Auto-set TOU Scanned Date to today if not already set
+                const touDateField = document.getElementById('touScannedDate');
+                const today = new Date().toISOString().split('T')[0];
+                if (!touDateField.value) {
+                    touDateField.value = today;
+                    console.log('Set TOU Scanned Date to:', today);
+                }
+                
+                // Also check TOU Flag (technical block implies TOU issue)
+                document.getElementById('touFlag').checked = true;
+                console.log('Checked TOU Flag');
+                
+                // Uncheck Scraping Enabled
+                document.getElementById('scrapingEnabled').checked = false;
+                console.log('Unchecked Scraping Enabled');
+                
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
+                
+                // Auto-populate TOU Notes if empty
+                const touNotes = document.getElementById('touNotes');
+                if (!touNotes.value && currentOrg) {
+                    touNotes.value = `❌ ${currentOrg.name} is actively blocking automated requests (403 Forbidden).`;
+                    console.log('Set TOU Notes');
+                }
+                
+                // Auto-save changes
+                saveTouBlockChanges('tech');
+            }
+        }
+        
+        /**
+         * Handle Permission Denied checkbox change
+         * When checked: auto-set date, uncheck scraping, set status to Rejected
+         */
+        function handlePermissionDeniedChange() {
+            console.log('Permission Denied changed');
+            const permissionDeniedFlag = document.getElementById('permissionDeniedFlag').checked;
+            
+            if (permissionDeniedFlag) {
+                // Auto-set Permission Response Date to today if not already set
+                const responseDateField = document.getElementById('permissionResponseDate');
+                if (!responseDateField.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    responseDateField.value = today;
+                    console.log('Set Permission Response Date to:', today);
+                }
+                
+                // Uncheck Scraping Enabled
+                document.getElementById('scrapingEnabled').checked = false;
+                console.log('Unchecked Scraping Enabled');
+                
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
+                
+                // Auto-save changes
+                savePermissionDeniedChanges();
+            }
+        }
+        
+        /**
+         * Save Permission Denied changes to PocketBase
+         */
+        async function savePermissionDeniedChanges() {
+            if (!currentOrg || !currentOrg.id) return;
+            
+            const updates = {
+                permission_denied_flag: document.getElementById('permissionDeniedFlag').checked,
+                permission_response_date: document.getElementById('permissionResponseDate').value || null,
+                scraping_enabled: document.getElementById('scrapingEnabled').checked,
+                status: document.getElementById('statusDropdown').value
+            };
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${currentOrg.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(updates)
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentOrg.permission_denied_flag = data.permission_denied_flag;
+                    currentOrg.status = data.status;
+                    console.log('✅ Permission Denied changes saved');
+                }
+            } catch (error) {
+                console.error('Error saving permission denied changes:', error);
+            }
+        }
+        
+        /**
+         * Handle Tech Rendering Flag checkbox change
+         * When checked: uncheck scraping, set status to Rejected
+         */
+        function handleTechRenderingChange() {
+            console.log('Tech Rendering Flag changed');
+            const techRenderingFlag = document.getElementById('techRenderingFlag').checked;
+            
+            if (techRenderingFlag) {
+                // Uncheck Scraping Enabled
+                document.getElementById('scrapingEnabled').checked = false;
+                console.log('Unchecked Scraping Enabled');
+                
+                // Change status to Rejected by Org
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                console.log('Set status to Rejected by Org');
+                
+                // Auto-save changes
+                saveAllFlags();
+            }
+        }
+        
+        /**
+         * Save all rejection flags to PocketBase
+         */
+        async function saveAllFlags() {
+            if (!currentOrg || !currentOrg.id) {
+                alert('Error: No organization selected');
+                return;
+            }
+            
+            const touFlag = document.getElementById('touFlag').checked;
+            const techBlockFlag = document.getElementById('techBlockFlag').checked;
+            const techRenderingFlag = document.getElementById('techRenderingFlag').checked;
+            const permissionDeniedFlag = document.getElementById('permissionDeniedFlag').checked;
+            
+            // If any flag is checked, set status to Rejected and disable scraping
+            const anyFlagChecked = touFlag || techBlockFlag || techRenderingFlag || permissionDeniedFlag;
+            
+            if (anyFlagChecked) {
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+                document.getElementById('scrapingEnabled').checked = false;
+            }
+            
+            const updates = {
+                tou_flag: touFlag,
+                tech_block_flag: techBlockFlag,
+                tech_rendering_flag: techRenderingFlag,
+                permission_denied_flag: permissionDeniedFlag,
+                scraping_enabled: document.getElementById('scrapingEnabled').checked,
+                status: document.getElementById('statusDropdown').value
+            };
+            
+            // Set TOU scanned date if TOU or tech block flag is checked
+            if (touFlag || techBlockFlag) {
+                const today = new Date().toISOString().split('T')[0];
+                const touDateField = document.getElementById('touScannedDate');
+                if (!touDateField.value) {
+                    touDateField.value = today;
+                }
+                updates.tou_scanned_date = touDateField.value;
+            }
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${currentOrg.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                        body: JSON.stringify(updates)
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    currentOrg.tou_flag = data.tou_flag;
+                    currentOrg.tech_block_flag = data.tech_block_flag;
+                    currentOrg.tech_rendering_flag = data.tech_rendering_flag;
+                    currentOrg.permission_denied_flag = data.permission_denied_flag;
+                    currentOrg.status = data.status;
+                    console.log('✅ All flags saved');
+                    alert('✅ Flags saved successfully');
+                } else {
+                    alert('❌ Error saving flags');
+                }
+            } catch (error) {
+                console.error('Error saving flags:', error);
+                alert('❌ Error saving flags: ' + error.message);
+            }
+        }
+        
+        /**
+         * Save TOU/Tech Block changes to PocketBase
+         */
+        function saveTouBlockChanges(blockType) {
+            if (!currentOrgId) {
+                console.error('No currentOrgId - cannot save');
+                alert('Error: No organization selected');
+                return;
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            const touScannedDate = document.getElementById('touScannedDate').value || today;
+            
+            const data = {
+                tou_flag: document.getElementById('touFlag').checked,
+                tech_block_flag: document.getElementById('techBlockFlag').checked,
+                tou_notes: document.getElementById('touNotes').value,
+                tou_scanned_date: touScannedDate,
+                status: 'Rejected by Org',
+                scraping_enabled: false,
+                permission_response_date: today
+            };
+            
+            // If tech block, also update permission correspondence
+            if (blockType === 'tech') {
+                data.permission_correspondence = document.getElementById('touNotes').value;
+            }
+            
+            console.log('Saving data:', data);
+            
+            fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Save failed: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(result => {
+                console.log('Save successful:', result);
+                
+                // Update local state
+                if (currentOrg) {
+                    Object.assign(currentOrg, data);
+                }
+                
+                // Update UI
+                const config = STATUS_CONFIG['Rejected by Org'];
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected by Org`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected by Org</span>`;
+                document.getElementById('permissionResponseDate').value = today;
+                
+                // Update alerts
+                const alertsDiv = document.getElementById('statusAlerts');
+                if (document.getElementById('techBlockFlag').checked) {
+                    alertsDiv.innerHTML = `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
+                } else {
+                    alertsDiv.innerHTML = `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(data.tou_notes) || 'May prohibit scraping'}</p></div>`;
+                }
+                
+                const blockTypeLabel = blockType === 'tech' ? 'Technical Block' : 'TOU Flag';
+                showMessage('profileMessage', `⚠️ ${blockTypeLabel} set - Status changed to Rejected by Org, Scraping disabled`, 'warning');
+            })
+            .catch(error => {
+                console.error('Save error:', error);
+                alert('Error saving changes: ' + error.message);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // MARK AS TECHNICALLY BLOCKED
+        // ═══════════════════════════════════════════════════════════════════════
+        async function markAsTechBlocked() {
+            if (!currentOrg || !currentOrgId) {
+                alert('No organization selected');
+                return;
+            }
+
+            const orgName = currentOrg.name;
+            const blockMessage = `❌ ${orgName} is actively blocking automated requests (403 Forbidden).`;
+            const today = new Date().toISOString().split('T')[0];
+
+            if (!confirm(`Mark "${orgName}" as technically blocked?\n\nThis will:\n• Set status to "Rejected by Org"\n• Set Technical Block flag to true\n• Set TOU flag to true\n• Update TOU Notes and Permission Response\n• Set Permission Response Date to today`)) {
+                return;
+            }
+
+            const data = {
+                status: 'Rejected by Org',
+                tech_block_flag: true,
+                tou_flag: true,
+                tou_notes: blockMessage,
+                permission_correspondence: blockMessage,
+                permission_response_date: today,
+                scraping_enabled: false
+            };
+
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify(data)
+                });
+
+                // Update local state
+                Object.assign(currentOrg, data);
+
+                // Update UI
+                document.getElementById('touFlag').checked = true;
+                document.getElementById('techBlockFlag').checked = true;
+                document.getElementById('touNotes').value = blockMessage;
+                document.getElementById('permissionCorrespondence').value = blockMessage;
+                document.getElementById('permissionResponseDate').value = today;
+                document.getElementById('scrapingEnabled').checked = false;
+                document.getElementById('statusDropdown').value = 'Rejected by Org';
+
+                const config = STATUS_CONFIG['Rejected by Org'];
+                document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected by Org`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected by Org</span>`;
+
+                // Update alerts
+                const alertsDiv = document.getElementById('statusAlerts');
+                alertsDiv.innerHTML = `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
+
+                showMessage('profileMessage', '⛔ Organization marked as technically blocked!', 'warning');
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        document.getElementById('permissionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                permission_requested_date: document.getElementById('permissionRequestedDate').value || null,
+                permission_response_date: document.getElementById('permissionResponseDate').value || null,
+                permission_request_draft: document.getElementById('permissionDraft').value,
+                permission_request_final: document.getElementById('permissionFinal').value,
+                permission_correspondence: document.getElementById('permissionCorrespondence').value
+            };
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
+                });
+                Object.assign(currentOrg, data);
+                showMessage('profileMessage', '✅ Permission info saved!', 'success');
+            } catch (error) { alert('Error: ' + error.message); }
+        });
+
+        document.getElementById('scrapingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = { 
+                scraping_enabled: document.getElementById('scrapingEnabled').checked, 
+                tech_rendering_flag: document.getElementById('techRenderingFlag').checked,
+                scrape_notes: document.getElementById('scrapeNotes').value,
+                notes: document.getElementById('scrapingNotes').value 
+            };
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
+                });
+                Object.assign(currentOrg, data);
+                // Update alerts if tech_rendering_flag changed
+                loadStatusHistory();
+                showMessage('profileMessage', '✅ Scraping info saved!', 'success');
+            } catch (error) { alert('Error: ' + error.message); }
+        });
+
+        function generatePermissionDraft() {
+            const orgName = currentOrg.name;
+            // Calculate a date 2 weeks from now
+            const proceedDate = new Date();
+            proceedDate.setDate(proceedDate.getDate() + 14);
+            const proceedDateStr = proceedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            const draft = `Subject: Notice: Automated Event Collection from ${orgName}
+
+Hello,
+
+I am gathering publicly available information on events related to national security, defense, and intelligence events, and I would like to automate collection of events information from ${orgName}'s website.
+
+The ${orgName} website's terms of use did not appear to put constraints on gathering this information. I believe this work will drive additional visitors to your site and events. Additionally, I will ensure that:
+- All listings will link directly to your original event pages
+- Your organization will be clearly credited as the source
+- Rate limits will be respected 
+- Gathering stops if you request it at any time
+
+I wanted to notify you before I begin, so you have the opportunity to decline or set specific terms. I understand you may be busy, so I plan to proceed on ${proceedDateStr} unless I hear otherwise. A quick "okay" or "no thanks" would be appreciated, but no response is needed if you are fine with this.
+
+Thank you for your time.
+
+Regards,
+Matt Taylor
+matthew_e_taylor@hotmail.com
+Mobile: 703-795-0217`;
+            document.getElementById('permissionDraft').value = draft;
+            showMessage('profileMessage', '📝 Draft generated! You can edit it directly.', 'success');
+        }
+
+        function copyDraft(fieldId) {
+            const text = document.getElementById(fieldId).value;
+            if (!text) {
+                showMessage('profileMessage', '⚠️ Nothing to copy - field is empty.', 'warning');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                const label = fieldId === 'permissionDraft' ? 'Draft' : 'Final text';
+                showMessage('profileMessage', `📋 ${label} copied to clipboard!`, 'success');
+            }).catch(() => alert('Failed to copy.'));
+        }
+
+        function previewDraft(fieldId) {
+            const text = document.getElementById(fieldId).value;
+            const label = fieldId === 'permissionDraft' ? 'Draft' : 'Final Text';
+            document.getElementById('previewContent').textContent = text || `No ${label.toLowerCase()} to preview.`;
+            openModal('previewModal');
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PROFILE - EVENTS TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadProfileEvents() {
+            const container = document.getElementById('profileEventsList');
+            const orgInfoDiv = document.getElementById('profileEventsOrgInfo');
+            container.innerHTML = '<div class="loading">Loading events...</div>';
+
+            const config = STATUS_CONFIG[currentOrg.status] || { icon: '❓', badge: '' };
+            let alertsHtml = '';
+            if (currentOrg.tech_block_flag) {
+                alertsHtml = `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests.</p></div>`;
+            } else if (currentOrg.tou_flag) {
+                alertsHtml = `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            orgInfoDiv.innerHTML = `
+                ${alertsHtml}
+                <p><strong>Organization:</strong> ${escapeHtml(currentOrg.name)}</p>
+                <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${currentOrg.status}</span></p>
+                <p><strong>Website:</strong> <a href="${escapeHtml(currentOrg.website)}" target="_blank">${escapeHtml(currentOrg.website) || 'N/A'}</a></p>
+                ${currentOrg.ai_reasoning ? `<p><strong>AI Reasoning:</strong> ${escapeHtml(currentOrg.ai_reasoning)}</p>` : ''}
+            `;
+
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${currentOrgId}')&sort=-start_date&perPage=100`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                const events = data.items || [];
+
+                // Count by status
+                const nominatedCount = events.filter(e => e.event_status === 'nominated' || !e.event_status).length;
+                const approvedCount = events.filter(e => e.event_status === 'approved').length;
+                const rejectedCount = events.filter(e => e.event_status === 'rejected').length;
+
+                document.getElementById('profileEventCount').textContent = `${events.length} events`;
+
+                if (events.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>No Events Yet</h3></div>`;
+                    return;
+                }
+
+                // Add status summary
+                let summaryHtml = `<div class="event-status-summary" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <strong>Event Status:</strong> 
+                    <span style="margin-left: 10px;">📋 Nominated: ${nominatedCount}</span>
+                    <span style="margin-left: 10px;">✅ Approved: ${approvedCount}</span>
+                    <span style="margin-left: 10px;">❌ Rejected: ${rejectedCount}</span>
+                </div>`;
+
+                container.innerHTML = summaryHtml + events.map(e => {
+                    const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    
+                    // Event status badge
+                    const eventStatus = e.event_status || 'nominated';
+                    const statusBadge = eventStatus === 'approved' 
+                        ? '<span class="badge badge-live">✅ Approved</span>'
+                        : eventStatus === 'rejected'
+                        ? '<span class="badge badge-danger">❌ Rejected</span>'
+                        : '<span class="badge badge-warning">📋 Nominated</span>';
+                    
+                    // Action buttons
+                    const actionButtons = eventStatus === 'nominated' || !eventStatus
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatusFromProfile('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatusFromProfile('${e.id}', 'rejected')">❌ Reject</button>
+                           </div>`
+                        : eventStatus === 'approved'
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatusFromProfile('${e.id}', 'rejected')">❌ Reject</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatusFromProfile('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`
+                        : `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatusFromProfile('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatusFromProfile('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`;
+                    
+                    return `
+                        <div class="event-card" id="profile-event-${e.id}">
+                            <h5>${escapeHtml(e.title)} ${statusBadge}</h5>
+                            <p><strong>Date:</strong> ${startDate}</p>
+                            ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
+                            ${e.event_type ? `<p><strong>Type:</strong> ${escapeHtml(e.event_type)}</p>` : ''}
+                            ${e.url ? `<p><a href="${escapeHtml(e.url)}" target="_blank">View Event →</a></p>` : ''}
+                            ${actionButtons}
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        /**
+         * Update event status from org profile page
+         */
+        async function updateEventStatusFromProfile(eventId, newStatus) {
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records/${eventId}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authToken
+                        },
+                        body: JSON.stringify({ event_status: newStatus })
+                    }
+                );
+                
+                if (response.ok) {
+                    console.log(`✅ Event ${eventId} updated to ${newStatus}`);
+                    // Reload profile events to reflect change
+                    loadProfileEvents();
+                } else {
+                    const err = await response.json();
+                    alert(`❌ Error updating event: ${JSON.stringify(err)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DASHBOARD
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadDashboard() {
+            try {
+                const [orgsRes, eventsRes] = await Promise.all([
+                    fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=1`, { headers: { 'Authorization': authToken } })
+                ]);
+                const orgsData = await orgsRes.json();
+                const eventsData = await eventsRes.json();
+                const orgs = orgsData.items || [];
+
+                document.getElementById('statOrgs').textContent = orgsData.totalItems || 0;
+                document.getElementById('statEvents').textContent = eventsData.totalItems || 0;
+                document.getElementById('statPending').textContent = orgs.filter(o => o.status === 'Nominated (Pending Mission Review)').length;
+                document.getElementById('statLive').textContent = orgs.filter(o => o.status === 'Live (Scraping Active)').length;
+                document.getElementById('statTechBlocked').textContent = orgs.filter(o => o.tech_block_flag === true).length;
+                document.getElementById('statPermissionDenied').textContent = orgs.filter(o => o.permission_denied_flag === true).length;
+                document.getElementById('statDuplicates').textContent = orgs.filter(o => o.duplicate_flag === true).length;
+
+                const statusCounts = {};
+                orgs.forEach(org => { statusCounts[org.status] = (statusCounts[org.status] || 0) + 1; });
+
+                let summaryHtml = '<h3 style="margin-bottom: 15px;">📊 Status Overview</h3>';
+                for (const [status, count] of Object.entries(statusCounts)) {
+                    const config = STATUS_CONFIG[status] || { icon: '❓' };
+                    summaryHtml += `<p>${config.icon} <strong>${status}:</strong> ${count}</p>`;
+                }
+                
+                // Add tech blocked count
+                const techBlockedCount = orgs.filter(o => o.tech_block_flag === true).length;
+                if (techBlockedCount > 0) {
+                    summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    summaryHtml += `<p>⛔ <strong>Technically Blocked:</strong> ${techBlockedCount}</p>`;
+                }
+                
+                // Add permission denied count
+                const permissionDeniedCount = orgs.filter(o => o.permission_denied_flag === true).length;
+                if (permissionDeniedCount > 0) {
+                    if (techBlockedCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>🚫 <strong>Permission Denied:</strong> ${permissionDeniedCount}</p>`;
+                }
+                
+                // Add JS rendered count
+                const techRenderingCount = orgs.filter(o => o.tech_rendering_flag === true).length;
+                if (techRenderingCount > 0) {
+                    if (techBlockedCount === 0 && permissionDeniedCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>⚙️ <strong>Tech-Rendered Sites:</strong> ${techRenderingCount}</p>`;
+                }
+                
+                // Add duplicates count
+                const duplicateCount = orgs.filter(o => o.duplicate_flag === true).length;
+                if (duplicateCount > 0) {
+                    if (techBlockedCount === 0 && permissionDeniedCount === 0 && techRenderingCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>🔁 <strong>Duplicates:</strong> ${duplicateCount}</p>`;
+                }
+                
+                document.getElementById('dashboardContent').innerHTML = `<div class="card">${summaryHtml}</div>`;
+            } catch (error) {
+                document.getElementById('dashboardContent').innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ORGANIZATION BY STATUS
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadByStatus() {
+            const container = document.getElementById('byStatusList');
+            const statusFilter = document.getElementById('filterByStatus').value;
+
+            try {
+                container.innerHTML = '<div class="loading">Loading organizations...</div>';
+
+                let filterParam = '';
+                if (statusFilter && statusFilter !== 'all') {
+                    if (statusFilter === 'duplicates') {
+                        filterParam = `&filter=(duplicate_flag=true)`;
+                    } else {
+                        filterParam = `&filter=(status='${statusFilter}')`;
+                    }
+                }
+
+                const [orgsRes, contactsRes, eventsRes] = await Promise.all([
+                    fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500${filterParam}`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500`, { headers: { 'Authorization': authToken } })
+                ]);
+
+                const orgsData = await orgsRes.json();
+                const contactsData = await contactsRes.json();
+                const eventsData = await eventsRes.json();
+
+                const orgs = orgsData.items || [];
+                const contacts = contactsData.items || [];
+                const events = eventsData.items || [];
+
+                // Build lookups
+                const contactsByOrg = {};
+                contacts.forEach(c => {
+                    if (!contactsByOrg[c.organization]) contactsByOrg[c.organization] = [];
+                    contactsByOrg[c.organization].push(c);
+                });
+
+                const eventCountByOrg = {};
+                events.forEach(e => { eventCountByOrg[e.organization] = (eventCountByOrg[e.organization] || 0) + 1; });
+
+                if (orgs.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><h3>No Organizations Found</h3></div>`;
+                    return;
+                }
+
+                orgs.sort((a, b) => {
+                    const nameA = a.name.replace(/^The\s+/i, '').toLowerCase();
+                    const nameB = b.name.replace(/^The\s+/i, '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+                container.innerHTML = orgs.map(org => renderByStatusCard(org, contactsByOrg[org.id] || [], eventCountByOrg[org.id] || 0, statusFilter)).join('');
+
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderByStatusCard(org, contacts, eventCount, filterType) {
+            const config = STATUS_CONFIG[org.status] || { icon: '❓', badge: '', cardClass: '' };
+            const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
+            const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
+            const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
+            const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
+            const duplicateBadge = org.duplicate_flag ? '<span class="badge badge-duplicate">🔁 DUPLICATE</span>' : '';
+            
+            // Add tech-blocked card class if applicable
+            const cardClass = org.tech_block_flag ? 'status-tech-blocked' : config.cardClass;
+            
+            let html = `<div class="card ${cardClass}">`;
+            
+            // Show tech block alert first (takes precedence)
+            if (org.tech_block_flag) {
+                html += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
+            } else if (org.tou_flag) {
+                html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
+            }
+            
+            // Permission denied alert
+            if (org.permission_denied_flag) {
+                html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
+            }
+            
+            // Tech rendering alert (can appear alongside other warnings)
+            if (org.tech_rendering_flag) {
+                html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires headless browser (Puppeteer) for scraping.</p></div>`;
+            }
+            
+            // Duplicate alert
+            if (org.duplicate_flag) {
+                html += `<div class="info-box" style="background: #f3e8ff; border-color: #6f42c1;"><p>🔁 <strong>Duplicate:</strong> This org is flagged as a duplicate. Check duplicate_of field for the primary org.</p></div>`;
+            }
+
+            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge} ${duplicateBadge}</h3>`;
+            html += `<p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>`;
+            
+            if (org.description) {
+                html += `<p><strong>Description:</strong> ${escapeHtml(org.description).substring(0, 150)}${org.description.length > 150 ? '...' : ''}</p>`;
+            }
+            
+            if (org.website) {
+                html += `<p><strong>Website:</strong> <a href="${escapeHtml(org.website)}" target="_blank">${escapeHtml(org.website)}</a></p>`;
+            }
+
+            // Status-specific content
+            if (filterType === 'Nominated (Pending Mission Review)' && org.ai_reasoning) {
+                html += `<div class="info-box"><p>🤖 <strong>AI Reasoning:</strong> ${escapeHtml(org.ai_reasoning).substring(0, 200)}${org.ai_reasoning.length > 200 ? '...' : ''}</p></div>`;
+            }
+
+            if ((filterType === 'Mission Approved (Request Not Sent)' || filterType === 'Permission Requested (Pending Org Response)') && org.permission_requested_date) {
+                const sentDate = new Date(org.permission_requested_date);
+                html += `<p><strong>Request Sent:</strong> ${sentDate.toLocaleDateString()}</p>`;
+            }
+
+            if (filterType === 'Permission Requested (Pending Org Response)' && org.permission_requested_date) {
+                const sentDate = new Date(org.permission_requested_date);
+                const goLiveDate = new Date(sentDate);
+                goLiveDate.setDate(goLiveDate.getDate() + 14);
+                html += `<div class="info-box"><p>📅 <strong>Go Live Date:</strong> ${goLiveDate.toLocaleDateString()}</p></div>`;
+            }
+
+            if (filterType === 'Permission Granted (Not Live)') {
+                const permBadge = org.permission_type === 'Explicit' ? '<span class="badge badge-explicit">✅ Explicit</span>' : '<span class="badge badge-implied">⏱️ Implied</span>';
+                html += `<p><strong>Permission Type:</strong> ${permBadge}</p>`;
+            }
+
+            if (filterType === 'Rejected by Mission' || filterType === 'Rejected by Org') {
+                if (contacts.length > 0) {
+                    html += '<p><strong>POCs:</strong></p><ul style="margin-left: 20px; font-size: 13px;">';
+                    contacts.forEach(c => {
+                        html += `<li>${escapeHtml(c.name)}${c.title ? ` (${escapeHtml(c.title)})` : ''}: ${c.email || 'No email'}${c.phone ? `, ${escapeHtml(c.phone)}` : ''}</li>`;
+                    });
+                    html += '</ul>';
+                }
+            }
+
+            if (filterType === 'Live (Scraping Active)') {
+                html += `<div class="info-box success"><p>📊 <strong>Events:</strong> ${eventCount} | 🕐 <strong>Last:</strong> ${org.last_scraped ? new Date(org.last_scraped).toLocaleString() : 'Never'}</p></div>`;
+            }
+
+            // Status dropdown
+            html += `<div style="margin: 15px 0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+                <div><label style="font-weight: 500; margin-right: 10px;">Change Status:</label>
+                <select class="inline-status-select" onchange="quickStatusChange('${org.id}', this.value)">
+                    ${Object.keys(STATUS_CONFIG).map(s => `<option value="${s}" ${org.status === s ? 'selected' : ''}>${STATUS_CONFIG[s].icon} ${s}</option>`).join('')}
+                </select></div>
+                <div><label style="font-weight: 500; margin-right: 10px;">Event Policy:</label>
+                <select class="inline-status-select" onchange="quickEventPolicyChange('${org.id}', this.value)">
+                    <option value="" ${!org.event_policy ? 'selected' : ''}>-- Not Set --</option>
+                    <option value="accept_all" ${org.event_policy === 'accept_all' ? 'selected' : ''}>🔓 Accept All</option>
+                    <option value="propose_events" ${org.event_policy === 'propose_events' ? 'selected' : ''}>📋 Propose Events</option>
+                </select></div>
+            </div>`;
+
+            // Action buttons
+            html += `<div class="card-actions">
+                <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'overview')">✏️ Edit Org</button>
+                <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Edit Contacts</button>
+                <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
+                <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>`;
+
+            if (filterType === 'Nominated (Pending Mission Review)' || (filterType === 'all' && org.status === 'Nominated (Pending Mission Review)')) {
+                html += `<button class="btn btn-small btn-success" onclick="quickApprove('${org.id}')">✅ Approve Mission</button>`;
+            }
+            if (filterType === 'Mission Approved (Request Not Sent)' || (filterType === 'all' && org.status === 'Mission Approved (Request Not Sent)')) {
+                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Request</button>`;
+            }
+
+            // Delete button always last (far right)
+            html += `<button class="btn btn-small btn-danger" onclick="deleteOrgFromByStatus('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🗑️ Delete</button>`;
+
+            html += '</div></div>';
+            return html;
+        }
+
+        async function quickStatusChange(orgId, newStatus) {
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                showMessage('byStatusMessage', `✅ Status changed to "${newStatus}"`, 'success');
+                loadByStatus();
+            } catch (error) { alert('Error: ' + error.message); }
+        }
+
+        async function quickEventPolicyChange(orgId, newPolicy) {
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ event_policy: newPolicy || null })
+                });
+                const policyLabel = newPolicy === 'accept_all' ? '🔓 Accept All' : newPolicy === 'propose_events' ? '📋 Propose Events' : 'Not Set';
+                showMessage('byStatusMessage', `✅ Event policy set to "${policyLabel}"`, 'success');
+            } catch (error) { alert('Error: ' + error.message); }
+        }
+
+        async function quickApprove(orgId) {
+            if (!confirm('Approve this organization for mission?')) return;
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ status: 'Mission Approved (Request Not Sent)' })
+                });
+                showMessage('byStatusMessage', '✅ Mission approved!', 'success');
+                loadByStatus();
+            } catch (error) { alert('Error: ' + error.message); }
+        }
+
+        /**
+         * Delete organization from the byStatus view
+         */
+        async function deleteOrgFromByStatus(orgId, orgName) {
+            // Check for associated events and contacts
+            let eventCount = 0;
+            let contactCount = 0;
+
+            try {
+                const eventsRes = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${orgId}')&perPage=1`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                if (eventsRes.ok) {
+                    const eventsData = await eventsRes.json();
+                    eventCount = eventsData.totalItems || 0;
+                }
+
+                const contactsRes = await fetch(
+                    `${POCKETBASE_URL}/api/collections/contacts/records?filter=(organization='${orgId}')&perPage=1`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                if (contactsRes.ok) {
+                    const contactsData = await contactsRes.json();
+                    contactCount = contactsData.totalItems || 0;
+                }
+            } catch (error) {
+                console.error('Error checking related records:', error);
+            }
+
+            // Build confirmation message
+            let confirmMsg = `🗑️ DELETE ORGANIZATION\n\n`;
+            confirmMsg += `Are you sure you want to delete "${orgName}"?\n\n`;
+
+            if (eventCount > 0 || contactCount > 0) {
+                confirmMsg += `⚠️ WARNING: This org has associated records:\n`;
+                if (eventCount > 0) confirmMsg += `   • ${eventCount} event(s)\n`;
+                if (contactCount > 0) confirmMsg += `   • ${contactCount} contact(s)\n`;
+                confirmMsg += `\nThese will become orphaned (not deleted).\n`;
+            }
+
+            confirmMsg += `\nThis action cannot be undone!`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            // Second confirmation
+            const typeToConfirm = prompt(`Type the organization name to confirm deletion:\n\n"${orgName}"`);
+            if (typeToConfirm !== orgName) {
+                alert('❌ Deletion cancelled - name did not match');
+                return;
+            }
+
+            // Perform deletion
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { 'Authorization': authToken }
+                    }
+                );
+
+                if (response.ok) {
+                    showMessage('byStatusMessage', `✅ Organization "${orgName}" deleted successfully`, 'success');
+                    loadByStatus(); // Refresh the list
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Delete failed: ${JSON.stringify(error)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error deleting organization: ${error.message}`);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ORGANIZATIONS TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadOrganizations() {
+            const container = document.getElementById('organizationsList');
+
+            try {
+                const [orgsRes, contactsRes] = await Promise.all([
+                    fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } })
+                ]);
+
+                const orgsData = await orgsRes.json();
+                const contactsData = await contactsRes.json();
+
+                allOrganizations = orgsData.items || [];
+                allContacts = contactsData.items || [];
+
+                // Sort orgs alphabetically (ignoring "The")
+                allOrganizations.sort((a, b) => {
+                    const nameA = a.name.replace(/^The\s+/i, '').toLowerCase();
+                    const nameB = b.name.replace(/^The\s+/i, '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+                // Populate Jump To dropdown
+                const jumpToSelect = document.getElementById('orgJumpToName');
+                jumpToSelect.innerHTML = '<option value="">📍 Jump to Organization...</option>' +
+                    allOrganizations.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+
+                renderOrganizationsList(allOrganizations);
+
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderOrganizationsList(orgs) {
+            const container = document.getElementById('organizationsList');
+
+            if (orgs.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">🏛️</div><h3>No Organizations Found</h3></div>`;
+                return;
+            }
+
+            // Build contact lookup for phone numbers
+            const contactsByOrg = {};
+            allContacts.forEach(c => {
+                if (!contactsByOrg[c.organization]) contactsByOrg[c.organization] = [];
+                contactsByOrg[c.organization].push(c);
+            });
+
+            container.innerHTML = orgs.map(org => {
+                const config = STATUS_CONFIG[org.status] || { icon: '❓', badge: '', cardClass: '' };
+                const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
+                const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
+                const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
+                const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
+                const duplicateBadge = org.duplicate_flag ? '<span class="badge badge-duplicate">🔁 DUPLICATE</span>' : '';
+
+                // Find phone number
+                const orgContacts = contactsByOrg[org.id] || [];
+                let phoneNumber = 'No phone';
+                const mainContact = orgContacts.find(c => c.contact_type === 'Main Contact' && c.phone);
+                if (mainContact) {
+                    phoneNumber = mainContact.phone;
+                } else {
+                    const otherContact = orgContacts.find(c => c.contact_type !== 'Leadership' && c.phone);
+                    if (otherContact) phoneNumber = otherContact.phone;
+                }
+
+                const cardClass = org.tech_block_flag ? 'status-tech-blocked' : config.cardClass;
+
+                let html = `<div class="card ${cardClass}" id="org-${org.id}">`;
+
+                if (org.tech_block_flag) {
+                    html += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests.</p></div>`;
+                } else if (org.tou_flag) {
+                    html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
+                }
+                if (org.permission_denied_flag) {
+                    html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
+                }
+                if (org.tech_rendering_flag) {
+                    html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires headless browser (Puppeteer) to scrape events.</p></div>`;
+                }
+                if (org.duplicate_flag) {
+                    html += `<div class="info-box" style="background: #f3e8ff; border-color: #6f42c1;"><p>🔁 <strong>Duplicate:</strong> This org is flagged as a duplicate.</p></div>`;
+                }
+
+                html += `
+                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge} ${duplicateBadge}</h3>
+                    <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>
+                    ${org.description ? `<p><strong>Description:</strong> ${escapeHtml(org.description).substring(0, 150)}${org.description.length > 150 ? '...' : ''}</p>` : ''}
+                    ${org.website ? `<p><strong>Website:</strong> <a href="${escapeHtml(org.website)}" target="_blank">${escapeHtml(org.website)}</a></p>` : ''}
+                    <p><strong>Phone:</strong> ${escapeHtml(phoneNumber)}</p>
+                    <div style="margin: 15px 0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+                        <div><label style="font-weight: 500; margin-right: 10px;">Change Status:</label>
+                        <select class="inline-status-select" onchange="quickStatusChangeFromOrgs('${org.id}', this.value)">
+                            ${Object.keys(STATUS_CONFIG).map(s => `<option value="${s}" ${org.status === s ? 'selected' : ''}>${STATUS_CONFIG[s].icon} ${s}</option>`).join('')}
+                        </select></div>
+                        <div><label style="font-weight: 500; margin-right: 10px;">Event Policy:</label>
+                        <select class="inline-status-select" onchange="quickEventPolicyChangeFromOrgs('${org.id}', this.value)">
+                            <option value="" ${!org.event_policy ? 'selected' : ''}>-- Not Set --</option>
+                            <option value="accept_all" ${org.event_policy === 'accept_all' ? 'selected' : ''}>🔓 Accept All</option>
+                            <option value="propose_events" ${org.event_policy === 'propose_events' ? 'selected' : ''}>📋 Propose Events</option>
+                        </select></div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'overview')">✏️ Edit Org</button>
+                        <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Edit Contacts</button>
+                        <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
+                        <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 See Events</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteOrgFromList('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🗑️ Delete</button>
+                    </div>
+                </div>`;
+                return html;
+            }).join('');
+        }
+
+        async function quickStatusChangeFromOrgs(orgId, newStatus) {
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                showMessage('organizationsMessage', `✅ Status changed to "${newStatus}"`, 'success');
+                loadOrganizations();
+            } catch (error) { alert('Error: ' + error.message); }
+        }
+
+        async function quickEventPolicyChangeFromOrgs(orgId, newPolicy) {
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify({ event_policy: newPolicy || null })
+                });
+                const policyLabel = newPolicy === 'accept_all' ? '🔓 Accept All' : newPolicy === 'propose_events' ? '📋 Propose Events' : 'Not Set';
+                showMessage('organizationsMessage', `✅ Event policy set to "${policyLabel}"`, 'success');
+            } catch (error) { alert('Error: ' + error.message); }
+        }
+
+        /**
+         * Delete organization from the list view
+         */
+        async function deleteOrgFromList(orgId, orgName) {
+            // Check for associated events and contacts
+            let eventCount = 0;
+            let contactCount = 0;
+
+            try {
+                const eventsRes = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${orgId}')&perPage=1`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                if (eventsRes.ok) {
+                    const eventsData = await eventsRes.json();
+                    eventCount = eventsData.totalItems || 0;
+                }
+
+                const contactsRes = await fetch(
+                    `${POCKETBASE_URL}/api/collections/contacts/records?filter=(organization='${orgId}')&perPage=1`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                if (contactsRes.ok) {
+                    const contactsData = await contactsRes.json();
+                    contactCount = contactsData.totalItems || 0;
+                }
+            } catch (error) {
+                console.error('Error checking related records:', error);
+            }
+
+            // Build confirmation message
+            let confirmMsg = `🗑️ DELETE ORGANIZATION\n\n`;
+            confirmMsg += `Are you sure you want to delete "${orgName}"?\n\n`;
+
+            if (eventCount > 0 || contactCount > 0) {
+                confirmMsg += `⚠️ WARNING: This org has associated records:\n`;
+                if (eventCount > 0) confirmMsg += `   • ${eventCount} event(s)\n`;
+                if (contactCount > 0) confirmMsg += `   • ${contactCount} contact(s)\n`;
+                confirmMsg += `\nThese will become orphaned (not deleted).\n`;
+            }
+
+            confirmMsg += `\nThis action cannot be undone!`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            // Second confirmation
+            const typeToConfirm = prompt(`Type the organization name to confirm deletion:\n\n"${orgName}"`);
+            if (typeToConfirm !== orgName) {
+                alert('❌ Deletion cancelled - name did not match');
+                return;
+            }
+
+            // Perform deletion
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { 'Authorization': authToken }
+                    }
+                );
+
+                if (response.ok) {
+                    showMessage('organizationsMessage', `✅ Organization "${orgName}" deleted successfully`, 'success');
+                    loadOrganizations(); // Refresh the list
+                } else {
+                    const error = await response.json();
+                    alert(`❌ Delete failed: ${JSON.stringify(error)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error deleting organization: ${error.message}`);
+            }
+        }
+
+        function filterOrgsByName() {
+            const searchTerm = document.getElementById('orgSearchBox').value.toLowerCase();
+            const filtered = allOrganizations.filter(org => 
+                org.name.toLowerCase().includes(searchTerm)
+            );
+            renderOrganizationsList(filtered);
+        }
+
+        function jumpToOrgByName() {
+            const orgId = document.getElementById('orgJumpToName').value;
+            if (orgId) {
+                openOrgProfile(orgId);
+                document.getElementById('orgJumpToName').value = '';
+            }
+        }
+
+        function filterOrgsByStatus() {
+            const status = document.getElementById('orgFilterByStatus').value;
+            if (status) {
+                document.getElementById('orgFilterByStatus').value = '';
+                document.getElementById('filterByStatus').value = status;
+                switchTab('byStatus');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CONTACTS TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadContacts() {
+            const container = document.getElementById('contactsList');
+
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/contacts/records?expand=organization&perPage=500`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                const contacts = data.items || [];
+
+                if (contacts.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><div class="icon">👤</div><h3>No Contacts Yet</h3></div>`;
+                    return;
+                }
+
+                container.innerHTML = contacts.map(c => {
+                    const orgName = c.expand?.organization?.name || 'Unknown';
+                    return `
+                        <div class="contact-card">
+                            <h5>${escapeHtml(c.name)} ${c.contact_type ? `<span class="badge">${escapeHtml(c.contact_type)}</span>` : ''}</h5>
+                            <p><strong>Organization:</strong> ${escapeHtml(orgName)}</p>
+                            ${c.title ? `<p><strong>Title:</strong> ${escapeHtml(c.title)}</p>` : ''}
+                            ${c.email ? `<p><strong>Email:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></p>` : ''}
+                            ${c.phone ? `<p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>` : ''}
+                            <div class="contact-actions">
+                                <button class="btn btn-small" onclick="editContact('${c.id}')">✏️ Edit</button>
+                                <button class="btn btn-small btn-danger" onclick="deleteContact('${c.id}', false)">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function openAddContactModal() {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?sort=name&perPage=500`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                const orgs = data.items || [];
+                
+                document.getElementById('contactOrg').innerHTML = '<option value="">-- Select Organization --</option>' +
+                    orgs.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+                
+                document.getElementById('addContactForm').reset();
+                openModal('addContactModal');
+            } catch (error) {
+                alert('Error loading organizations: ' + error.message);
+            }
+        }
+
+        document.getElementById('addContactForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                organization: document.getElementById('contactOrg').value,
+                name: document.getElementById('contactName').value,
+                title: document.getElementById('contactTitle').value,
+                email: document.getElementById('contactEmail').value,
+                phone: document.getElementById('contactPhone').value,
+                contact_type: document.getElementById('contactType').value,
+                notes: document.getElementById('contactNotes').value,
+                last_verified: new Date().toISOString()
+            };
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/contacts/records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify(data)
+                });
+                closeModal('addContactModal');
+                if (currentOrgId) { loadProfileContacts(); showMessage('profileMessage', '✅ Contact added!', 'success'); }
+                else { loadContacts(); alert('✅ Contact added!'); }
+            } catch (error) { alert('Error: ' + error.message); }
+        });
+
+        async function editContact(id) {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/contacts/records/${id}?expand=organization`, { headers: { 'Authorization': authToken } });
+                const contact = await response.json();
+                document.getElementById('editContactId').value = contact.id;
+                document.getElementById('editContactOrgName').value = contact.expand?.organization?.name || 'Unknown';
+                document.getElementById('editContactName').value = contact.name || '';
+                document.getElementById('editContactTitle').value = contact.title || '';
+                document.getElementById('editContactEmail').value = contact.email || '';
+                document.getElementById('editContactPhone').value = contact.phone || '';
+                document.getElementById('editContactType').value = contact.contact_type || '';
+                document.getElementById('editContactNotes').value = contact.notes || '';
+                openModal('editContactModal');
+            } catch (error) { alert('Error loading contact: ' + error.message); }
+        }
+
+        document.getElementById('editContactForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editContactId').value;
+            const data = {
+                name: document.getElementById('editContactName').value,
+                title: document.getElementById('editContactTitle').value,
+                email: document.getElementById('editContactEmail').value,
+                phone: document.getElementById('editContactPhone').value,
+                contact_type: document.getElementById('editContactType').value,
+                notes: document.getElementById('editContactNotes').value,
+                last_verified: new Date().toISOString()
+            };
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/contacts/records/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
+                    body: JSON.stringify(data)
+                });
+                closeModal('editContactModal');
+                if (currentOrgId) { loadProfileContacts(); showMessage('profileMessage', '✅ Contact updated!', 'success'); }
+                else { loadContacts(); alert('✅ Contact updated!'); }
+            } catch (error) { alert('Error: ' + error.message); }
+        });
+
+        async function deleteContact(id, isFromProfile) {
+            if (!confirm('Delete this contact?')) return;
+            try {
+                await fetch(`${POCKETBASE_URL}/api/collections/contacts/records/${id}`, { method: 'DELETE', headers: { 'Authorization': authToken } });
+                if (isFromProfile) { loadProfileContacts(); showMessage('profileMessage', '🗑️ Contact deleted', 'info'); }
+                else { loadContacts(); }
+            } catch (error) { alert('Error: ' + error.message); }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // EVENTS TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadEvents() {
+            const container = document.getElementById('eventsList');
+            const orgFilter = document.getElementById('filterEventOrg').value;
+            const statusFilter = document.getElementById('filterEventStatus').value;
+            const sortBy = document.getElementById('sortEvents').value || '-start_date';
+            
+            console.log('🔍 loadEvents called');
+            console.log('   orgFilter:', orgFilter);
+            console.log('   statusFilter:', statusFilter);
+            console.log('   sortBy:', sortBy);
+
+            try {
+                // Load organization filter dropdown
+                if (document.getElementById('filterEventOrg').options.length <= 1) {
+                    const orgsRes = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?sort=name&perPage=500`, { headers: { 'Authorization': authToken } });
+                    const orgsData = await orgsRes.json();
+                    document.getElementById('filterEventOrg').innerHTML = '<option value="">All Organizations</option>' +
+                        (orgsData.items || []).map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+                }
+
+                // Load all topic_icons for lookup
+                const iconsRes = await fetch(`${POCKETBASE_URL}/api/collections/topic_icons/records?perPage=500`, { headers: { 'Authorization': authToken } });
+                const iconsData = await iconsRes.json();
+                const iconMap = {};
+                (iconsData.items || []).forEach(icon => {
+                    if (icon.topic_combination && icon.icon_file) {
+                        iconMap[icon.topic_combination] = {
+                            id: icon.id,
+                            file: icon.icon_file
+                        };
+                    }
+                });
+
+                // Build filter
+                let filterParts = [];
+                if (orgFilter) filterParts.push(`organization='${orgFilter}'`);
+                
+                // Handle event_status filter - 'nominated' includes null/empty (legacy events)
+                if (statusFilter === 'nominated') {
+                    // Match 'nominated' OR empty string OR null (events created before event_status field)
+                    filterParts.push(`(event_status='nominated' || event_status='' || event_status=null)`);
+                } else if (statusFilter) {
+                    filterParts.push(`event_status='${statusFilter}'`);
+                }
+                
+                let filter = filterParts.length > 0 ? `&filter=${encodeURIComponent('(' + filterParts.join(' && ') + ')')}` : '';
+                
+                console.log('   filterParts:', filterParts);
+                console.log('   filter:', filter);
+                
+                // Determine API sort (use -start_date for org sorts, we'll sort client-side)
+                const apiSort = sortBy.startsWith('org-') ? '-start_date' : sortBy;
+                
+                // Load events with topics expanded
+                const apiUrl = `${POCKETBASE_URL}/api/collections/events/records?sort=${apiSort}&expand=organization,topics&perPage=100${filter}`;
+                console.log('   API URL:', apiUrl);
+                
+                const response = await fetch(apiUrl, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                let events = data.items || [];
+                
+                console.log('   Events found:', events.length);
+                if (events.length > 0) {
+                    console.log('   First event org:', events[0].organization);
+                }
+                
+                // Client-side sort for organization name
+                if (sortBy === 'org-asc') {
+                    events.sort((a, b) => {
+                        const nameA = (a.expand?.organization?.name || '').toLowerCase();
+                        const nameB = (b.expand?.organization?.name || '').toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    });
+                } else if (sortBy === 'org-desc') {
+                    events.sort((a, b) => {
+                        const nameA = (a.expand?.organization?.name || '').toLowerCase();
+                        const nameB = (b.expand?.organization?.name || '').toLowerCase();
+                        return nameB.localeCompare(nameA);
+                    });
+                }
+
+                if (events.length === 0) {
+                    let filterDesc = [];
+                    if (statusFilter) filterDesc.push(`status "${statusFilter}"`);
+                    if (orgFilter) {
+                        const orgName = document.getElementById('filterEventOrg').selectedOptions[0]?.text || 'selected org';
+                        filterDesc.push(`org "${orgName}"`);
+                    }
+                    const filterMsg = filterDesc.length > 0 ? `<p style="color: #666;">No events match: ${filterDesc.join(' + ')}</p><p style="color: #666; font-size: 12px;">Try changing the filters above.</p>` : '';
+                    container.innerHTML = `<div class="empty-state"><div class="icon">📅</div><h3>No Events Found</h3>${filterMsg}</div>`;
+                    return;
+                }
+
+                container.innerHTML = events.map(e => {
+                    const orgName = e.expand?.organization?.name || 'Unknown';
+                    const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    
+                    // Event status badge
+                    const eventStatus = e.event_status || 'nominated';
+                    const statusBadge = eventStatus === 'approved' 
+                        ? '<span class="badge badge-live">✅ Approved</span>'
+                        : eventStatus === 'rejected'
+                        ? '<span class="badge badge-danger">❌ Rejected</span>'
+                        : '<span class="badge badge-warning">📋 Nominated</span>';
+                    
+                    // Action buttons based on status
+                    const actionButtons = eventStatus === 'nominated'
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatus('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatus('${e.id}', 'rejected')">❌ Reject</button>
+                           </div>`
+                        : eventStatus === 'approved'
+                        ? `<div class="event-actions">
+                               <button class="btn btn-small btn-danger" onclick="updateEventStatus('${e.id}', 'rejected')">❌ Reject</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatus('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`
+                        : `<div class="event-actions">
+                               <button class="btn btn-small btn-success" onclick="updateEventStatus('${e.id}', 'approved')">✅ Accept</button>
+                               <button class="btn btn-small btn-secondary" onclick="updateEventStatus('${e.id}', 'nominated')">↩️ Back to Review</button>
+                           </div>`;
+                    
+                    // Get topics and create combination key (4-part format)
+                    // Format: "Topics|Regions|Countries|TransnationalOrgs"
+                    const topicNames = (e.topics || []).slice().sort();
+                    const regionNames = (e.regions || []).slice().sort();
+                    const countryNames = (e.countries || []).slice().sort();
+                    const orgNames = (e.transnational_orgs || []).slice().sort(); // events uses plural
+                    const topicCombination = `${topicNames.join(',')}|${regionNames.join(',')}|${countryNames.join(',')}|${orgNames.join(',')}`;
+                    
+                    // Look up icon
+                    const iconInfo = iconMap[topicCombination];
+                    const iconHtml = iconInfo 
+                        ? `<img src="${POCKETBASE_URL}/api/files/topic_icons/${iconInfo.id}/${iconInfo.file}?thumb=120x194" alt="${escapeHtml(topicCombination)}" loading="lazy">`
+                        : `<div class="no-icon">📅</div>`;
+                    
+                    // Icon status indicator
+                    const iconStatus = iconInfo 
+                        ? `<span class="icon-found">✅ Icon matched</span>`
+                        : `<span class="icon-missing">❌ No icon found</span>`;
+                    
+                    // Topic badges
+                    const topicBadges = topicNames.length > 0 
+                        ? `<div class="event-meta-row"><strong>Topics:</strong> ${topicNames.map(t => `<span class="event-topic-badge">${escapeHtml(t)}</span>`).join('')}</div>`
+                        : '';
+                    
+                    // Region badges
+                    const regionBadges = regionNames.length > 0 
+                        ? `<div class="event-meta-row"><strong>Regions:</strong> ${regionNames.map(r => `<span class="event-region-badge">${escapeHtml(r)}</span>`).join('')}</div>`
+                        : '';
+                    
+                    // Country badges
+                    const countryBadges = countryNames.length > 0 
+                        ? `<div class="event-meta-row"><strong>Countries:</strong> ${countryNames.map(c => `<span class="event-country-badge">${escapeHtml(c)}</span>`).join('')}</div>`
+                        : '';
+                    
+                    // Transnational org badges
+                    const orgBadges = orgNames.length > 0 
+                        ? `<div class="event-meta-row"><strong>Orgs:</strong> ${orgNames.map(o => `<span class="event-org-badge">${escapeHtml(o)}</span>`).join('')}</div>`
+                        : '';
+
+                    return `
+                        <div class="card" id="event-${e.id}">
+                            <div class="event-with-icon">
+                                <div class="event-icon">
+                                    ${iconHtml}
+                                    <div class="icon-status-indicator">${iconStatus}</div>
+                                </div>
+                                <div class="event-details">
+                                    <h3>${escapeHtml(e.title)} ${statusBadge}</h3>
+                                    <p><strong>Organization:</strong> ${escapeHtml(orgName)}</p>
+                                    <p><strong>Date:</strong> ${startDate}</p>
+                                    ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
+                                    ${e.url ? `<p><a href="${escapeHtml(e.url)}" target="_blank">View Event →</a></p>` : ''}
+                                    <div class="event-metadata">
+                                        ${topicBadges}
+                                        ${regionBadges}
+                                        ${countryBadges}
+                                        ${orgBadges}
+                                    </div>
+                                    <div class="icon-key-debug" title="Icon lookup key"><small>🔑 ${escapeHtml(topicCombination)}</small></div>
+                                    ${actionButtons}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        /**
+         * Update event status (approve/reject/nominate)
+         */
+        async function updateEventStatus(eventId, newStatus) {
+            const statusFilter = document.getElementById('filterEventStatus').value;
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/events/records/${eventId}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authToken
+                        },
+                        body: JSON.stringify({ event_status: newStatus })
+                    }
+                );
+                
+                if (response.ok) {
+                    console.log(`✅ Event ${eventId} updated to ${newStatus}`);
+                    
+                    // If we have a filter active and the new status doesn't match,
+                    // fade out and remove the card
+                    if (statusFilter && statusFilter !== newStatus) {
+                        const card = document.getElementById(`event-${eventId}`);
+                        if (card) {
+                            card.style.transition = 'opacity 0.3s, transform 0.3s';
+                            card.style.opacity = '0';
+                            card.style.transform = 'translateX(50px)';
+                            setTimeout(() => card.remove(), 300);
+                        }
+                    } else {
+                        // No filter or status still matches - reload to update badges
+                        loadEvents();
+                    }
+                } else {
+                    const err = await response.json();
+                    alert(`❌ Error updating event: ${JSON.stringify(err)}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ICONS TAB
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadIcons() {
+            const container = document.getElementById('iconsList');
+            const statsContainer = document.getElementById('iconStats');
+            const filterStatus = document.getElementById('filterIconStatus').value;
+
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/topic_icons/records?sort=topic_combination&perPage=200`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                const icons = data.items || [];
+
+                // Calculate stats
+                const withIcon = icons.filter(i => i.icon_file).length;
+                const withoutIcon = icons.length - withIcon;
+
+                statsContainer.innerHTML = `
+                    <div class="icon-stat"><h4>${icons.length}</h4><p>Total Combinations</p></div>
+                    <div class="icon-stat success"><h4>${withIcon}</h4><p>✅ Has Icon</p></div>
+                    <div class="icon-stat warning"><h4>${withoutIcon}</h4><p>❌ Missing Icon</p></div>
+                `;
+
+                // Filter icons
+                let filtered = icons;
+                if (filterStatus === 'has-icon') {
+                    filtered = icons.filter(i => i.icon_file);
+                } else if (filterStatus === 'no-icon') {
+                    filtered = icons.filter(i => !i.icon_file);
+                }
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="empty-state"><div class="icon">🖼️</div><h3>No Icons Found</h3><p>Try changing the filter above.</p></div>`;
+                    return;
+                }
+
+                container.innerHTML = `<div class="icon-grid">${filtered.map(icon => {
+                    const hasIcon = !!icon.icon_file;
+                    const topics = icon.topic_combination || 'Unknown';
+                    const imgUrl = hasIcon 
+                        ? `${POCKETBASE_URL}/api/files/topic_icons/${icon.id}/${icon.icon_file}?thumb=160x260`
+                        : '';
+                    
+                    return `
+                        <div class="icon-card">
+                            ${hasIcon 
+                                ? `<img src="${imgUrl}" alt="${escapeHtml(topics)}" loading="lazy">`
+                                : `<div style="width: 80px; height: 130px; background: #f0f0f0; border-radius: 8px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 24px;">❓</div>`
+                            }
+                            <div class="icon-topics">${escapeHtml(topics)}</div>
+                            <div class="icon-status ${hasIcon ? 'has-icon' : 'no-icon'}">${hasIcon ? '✅ Has Icon' : '❌ Missing'}</div>
+                        </div>
+                    `;
+                }).join('')}</div>`;
+            } catch (error) {
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UTILITIES
+        // ═══════════════════════════════════════════════════════════════════════
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+
+        function showMessage(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `message ${type}`;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 5000);
+        }
+
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
+        });
+    </script>
+</body>
+</html>

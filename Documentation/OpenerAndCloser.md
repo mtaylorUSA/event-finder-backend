@@ -1,14 +1,37 @@
-Opener:
-Please find the attached ConOp for the Event Finder Project. It is long, so please: 1) scan headers to understand the structure, 2) read the section on scraping, and 3) read the session handoff at the end. Other files are attached for reference. We are now trying to identify when a scanner/scraper detects a website that uses java script to serve content and record those events in the database and admin interface. Let me know when you are ready.
+Please find the attached ConOp for the Event Finder Project. It is long, so please: 1) scan headers to understand the structure, 2) read the section on scraping, and 3) read the session handoff at the end. Other files are attached for reference. 
+
+
+
+We are now working on the highest priority issue:  addressing quality issues with scanning and scanning/scraping website to identify restrictions with an absolute minimum of false negatives.
+
+
+
+
+
+✅ 2026-01-18-ConOp\_Event\_Finder.md (this updated version)
+
+✅ scrapers/scan-and-scrape-all-live-orgs.js
+
+✅ scrapers/org-scanner.js
+
+✅ scrapers/quality-audit.js
+
+✅ admin-interface-v21.html
+
+node scrapers/scan-and-scrape-all-live-orgs.js --all --scan-only
+
+node scrapers/scan-and-scrape-all-live-orgs.js --all
+
+
+
 
 
 Closer:
-Please update the ConOp.  Please do not truncate it.  Please preserve formatting.  I believe there were significant changes to the Database schema and key files and scripts.  There may have also been impacts to the workflow sections.  Please pay special attention to the session handoff section.  Please take as much time as you need to ensure updates are throgough, accuracte, and complete.
+Please update the ConOp with the results of our work in this chat.  Please do not truncate it, and preserve formatting.  Take as much time as you need to ensure updates are thorough, accurate, and complete.
 
 
-Is it:
-     * checking all restrcitions:  TOU, blocker, java rendering
-     * Nominating things vs adding them
-     * Deduping Orgs
-     * Updating dupe events
-     * Generating images
+
+
+
+
+

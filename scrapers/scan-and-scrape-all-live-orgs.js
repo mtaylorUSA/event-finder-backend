@@ -10,6 +10,7 @@
  * - Deduplication checks
  * - JS-rendered site detection
  * - Batch processing of ALL orgs
+ * - Cross-domain TOU scanning (NEW 2026-01-18)
  * 
  * Usage:
  *   node scrapers/scan-and-scrape-all-live-orgs.js --org "CNAS"           # Existing org by name
@@ -18,7 +19,13 @@
  *   node scrapers/scan-and-scrape-all-live-orgs.js --all                  # Scan + scrape ALL Live orgs
  *   node scrapers/scan-and-scrape-all-live-orgs.js --all --scan-only      # Scan ALL Live orgs (no scraping)
  * 
- * Last Updated: 2026-01-17
+ * Last Updated: 2026-01-18
+ * - CRITICAL: Works with updated org-scanner.js that adds:
+ *   - /terms-use URL pattern (CFR uses this format)
+ *   - Cross-domain TOU scanning when events_url domain differs from website
+ * - Both files must be updated together to ensure thorough restriction scanning
+ * 
+ * Previous Updates (2026-01-17):
  * - Consolidated unified scanner/scraper
  * - Uses org-scanner.js for comprehensive scanning before each scrape
  * - Duplicate events get UPDATED with new information instead of skipped
@@ -99,6 +106,8 @@ function parseArgs() {
         scanOnly: false,
         skipScan: false,
         all: false,
+        allStatuses: false,  // Scan all orgs regardless of status
+        approvedOnly: false, // NEW 2026-01-19: Scan only mission-approved orgs
         help: false
     };
     
@@ -118,6 +127,14 @@ function parseArgs() {
                 break;
             case '--all':
                 options.all = true;
+                break;
+            case '--all-statuses':
+                options.all = true;  // Implies --all
+                options.allStatuses = true;
+                break;
+            case '--approved':  // NEW 2026-01-19
+                options.all = true;  // Implies --all
+                options.approvedOnly = true;
                 break;
             case '--help':
             case '-h':
@@ -142,6 +159,8 @@ OPTIONS:
   --org "Name"      Scan/scrape existing organization by name
   --domain "x.org"  Discover new organization by domain
   --all             Scan/scrape ALL Live organizations (batch mode)
+  --approved        Scan all orgs EXCEPT "Rejected by Mission" (batch mode)
+  --all-statuses    Scan ALL organizations regardless of status (batch mode)
   --scan-only       Run scan only, don't scrape events
   --skip-scan       Skip pre-scrape scan (use with caution)
   --help, -h        Show this help
@@ -162,14 +181,39 @@ EXAMPLES:
   # Scan ALL Live organizations (no scraping)
   node scrapers/scan-and-scrape-all-live-orgs.js --all --scan-only
 
+  # Scan all orgs except "Rejected by Mission" (no scraping) - NEW 2026-01-19
+  node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only
+
+  # Scan ALL organizations regardless of status (no scraping)
+  node scrapers/scan-and-scrape-all-live-orgs.js --all-statuses --scan-only
+
 BATCH MODE (--all):
   Processes all organizations with status "Live (Scraping Active)"
   For each org:
     1. Full scan via org-scanner.js (TOU, tech block, JS rendering)
-    2. Updates database flags and status if issues found
-    3. Checks 5 safety gates
-    4. If gates pass → scrapes with universal AI scraper
-    5. Saves/updates events based on event_policy
+    2. Cross-domain TOU scan if events_url domain differs from website
+    3. Updates database flags and status if issues found
+    4. Checks 5 safety gates
+    5. If gates pass → scrapes with universal AI scraper
+    6. Saves/updates events based on event_policy
+
+APPROVED MODE (--approved) - NEW 2026-01-19:
+  Scans all orgs EXCEPT "Rejected by Mission"
+  Includes:
+    ✅ Nominated (Pending Mission Review)
+    ✅ Mission Approved (Request Not Sent)
+    ✅ Permission Requested (Pending Org Response)
+    ✅ Permission Granted (Not Live)
+    ✅ Rejected by Org (re-scan in case restrictions changed)
+    ✅ Live (Scraping Active)
+  Excludes:
+    ❌ Rejected by Mission (doesn't fit project mission)
+
+TOU SCANNING (2026-01-18):
+  - Scans 25+ URL patterns including /terms-use, /privacy-policy, etc.
+  - Cross-domain: If events_url domain differs from website domain,
+    BOTH domains are scanned for legal pages (e.g., CNAS microsite)
+  - Context-aware: Avoids false positives from content pages
 
 SAFETY GATES (must ALL pass):
   ✅ status = "Live (Scraping Active)"
@@ -329,16 +373,36 @@ async function getOrganizationByName(name) {
 }
 
 /**
- * Get ALL organizations with status "Live (Scraping Active)"
- * Returns all Live orgs - safety gate checks happen individually
+ * Get organizations based on filter mode
+ * 
+ * Modes:
+ * - default (no flags): Only "Live (Scraping Active)"
+ * - allStatuses=true: ALL organizations regardless of status
+ * - approvedOnly=true: All orgs EXCEPT "Rejected by Mission"
+ * 
+ * Returns orgs - safety gate checks happen individually
+ * 
+ * Updated 2026-01-19: Added approvedOnly filter
  */
-async function getAllLiveOrganizations() {
+async function getAllLiveOrganizations(allStatuses = false, approvedOnly = false) {
     try {
-        const filter = encodeURIComponent('status = "Live (Scraping Active)"');
-        const response = await fetch(
-            `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}&perPage=500&sort=name`,
-            { headers: { 'Authorization': authToken } }
-        );
+        let url;
+        if (allStatuses) {
+            // Get ALL organizations regardless of status
+            url = `${POCKETBASE_URL}/api/collections/organizations/records?perPage=500&sort=name`;
+        } else if (approvedOnly) {
+            // Get all orgs EXCEPT "Rejected by Mission"
+            // This includes: Nominated, Mission Approved, Permission Requested, 
+            //                Permission Granted, Rejected by Org, Live
+            const filter = encodeURIComponent('status != "Rejected by Mission"');
+            url = `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}&perPage=500&sort=name`;
+        } else {
+            // Get only Live organizations
+            const filter = encodeURIComponent('status = "Live (Scraping Active)"');
+            url = `${POCKETBASE_URL}/api/collections/organizations/records?filter=${filter}&perPage=500&sort=name`;
+        }
+        
+        const response = await fetch(url, { headers: { 'Authorization': authToken } });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -1204,25 +1268,49 @@ function checkSafetyGates(org) {
 
 /**
  * Process ALL Live organizations
+ * Updated 2026-01-19: Added approvedOnly filter
  */
 async function processAllOrganizations(options) {
+    // Determine mode label
+    let modeLabel;
+    if (options.allStatuses) {
+        modeLabel = 'ALL Organizations (any status)';
+    } else if (options.approvedOnly) {
+        modeLabel = 'All Orgs (except Rejected by Mission)';
+    } else {
+        modeLabel = 'ALL Live Organizations';
+    }
+    
     console.log('');
     console.log('════════════════════════════════════════════════════════════════');
-    console.log('🔄 BATCH MODE: Processing ALL Live Organizations');
+    console.log(`🔄 BATCH MODE: Processing ${modeLabel}`);
     console.log('════════════════════════════════════════════════════════════════');
     console.log(`   Mode: ${options.scanOnly ? 'Scan Only' : 'Scan + Scrape'}`);
+    if (options.approvedOnly) {
+        console.log('   Filter: Excludes "Rejected by Mission" only');
+    }
     console.log('');
     
-    // Get all Live organizations
-    console.log('📡 Fetching all Live organizations...');
-    const allOrgs = await getAllLiveOrganizations();
+    // Get organizations
+    let fetchLabel = 'Live';
+    if (options.allStatuses) fetchLabel = 'all';
+    else if (options.approvedOnly) fetchLabel = 'non-rejected-by-mission';
+    
+    console.log(`📡 Fetching ${fetchLabel} organizations...`);
+    const allOrgs = await getAllLiveOrganizations(options.allStatuses, options.approvedOnly);
     
     if (allOrgs.length === 0) {
-        console.log('   ⚠️ No organizations with status "Live (Scraping Active)" found');
+        if (options.allStatuses) {
+            console.log('   ⚠️ No organizations found in database');
+        } else if (options.approvedOnly) {
+            console.log('   ⚠️ No organizations found (all are Rejected by Mission?)');
+        } else {
+            console.log('   ⚠️ No organizations with status "Live (Scraping Active)" found');
+        }
         return;
     }
     
-    console.log(`   ✅ Found ${allOrgs.length} Live organization(s)`);
+    console.log(`   ✅ Found ${allOrgs.length} organization(s)`);
     console.log('');
     
     // List them
@@ -1282,7 +1370,8 @@ async function processAllOrganizations(options) {
                 updateDb: true,
                 skipTOU: false,
                 skipEventsUrl: false,
-                skipAI: true  // Skip AI for batch mode to save API calls
+                skipAI: true,  // Skip AI for batch mode to save API calls
+                scanType: 'pre-scrape'  // NEW 2026-01-19: Track scan type for logging
             });
             
             orgResult.scanned = true;
@@ -1292,6 +1381,9 @@ async function processAllOrganizations(options) {
             if (scanResult.touFlag) orgResult.flagsSet.push('tou_flag');
             if (scanResult.techBlockFlag) orgResult.flagsSet.push('tech_block_flag');
             if (scanResult.techRenderingFlag) orgResult.flagsSet.push('tech_rendering_flag');
+            // NEW 2026-01-19: Track additional flags
+            if (scanResult.noLegalPagesFlag) orgResult.flagsSet.push('no_legal_pages_flag');
+            if (scanResult.micrositeSuspectFlag) orgResult.flagsSet.push('microsite_suspect_flag');
             
             // ─────────────────────────────────────────────────────────────────
             // STEP 2: Re-fetch org to get updated flags
@@ -1538,7 +1630,8 @@ async function main() {
             updateDb: !isNewOrg,
             skipTOU: false,
             skipEventsUrl: false,
-            skipAI: false
+            skipAI: false,
+            scanType: isNewOrg ? 'discovery' : 'manual'  // NEW 2026-01-19: Track scan type
         });
         
         // For new orgs, display discovery info
