@@ -78,6 +78,7 @@
         .card-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
 
         .card.status-nominated { border-left-color: #6f42c1; }
+        .card.status-restrictions { border-left-color: #e67e22; background: #fff8f0; }
         .card.status-approved { border-left-color: #17a2b8; }
         .card.status-requested { border-left-color: #ffc107; }
         .card.status-granted { border-left-color: #28a745; }
@@ -114,6 +115,7 @@
         /* Badges */
         .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .badge-nominated { background: #e2d4f0; color: #6f42c1; }
+        .badge-restrictions { background: #ffe5cc; color: #d35400; border: 1px solid #e67e22; }
         .badge-approved { background: #cce5ff; color: #004085; }
         .badge-requested { background: #fff3cd; color: #856404; }
         .badge-granted { background: #d4edda; color: #155724; }
@@ -253,8 +255,9 @@
                     <div class="stats-grid">
                         <div class="stat-card"><h3 id="statOrgs">-</h3><p>Total Organizations</p></div>
                         <div class="stat-card info"><h3 id="statEvents">-</h3><p>Events</p></div>
-                        <div class="stat-card warning"><h3 id="statPending">-</h3><p>Nominated (Pending)</p></div>
-                        <div class="stat-card success"><h3 id="statLive">-</h3><p>Live (Scraping)</p></div>
+                        <div class="stat-card warning"><h3 id="statPending">-</h3><p>🟣 Nominated</p></div>
+                        <div class="stat-card success"><h3 id="statLive">-</h3><p>✅ Live (Scraping)</p></div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);"><h3 id="statRestrictions">-</h3><p>🟠 Has Restrictions</p></div>
                         <div class="stat-card danger"><h3 id="statTechBlocked">-</h3><p>⛔ Tech Blocked</p></div>
                         <div class="stat-card danger"><h3 id="statPermissionDenied">-</h3><p>🚫 Declined</p></div>
                         <div class="stat-card warning"><h3 id="statDuplicates">-</h3><p>🔁 Duplicates</p></div>
@@ -271,14 +274,21 @@
                     <div class="filters">
                         <select id="filterByStatus" onchange="loadByStatus()">
                             <option value="all">📋 All Organizations</option>
-                            <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
-                            <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
-                            <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
+                            <option value="Nominated (Pending Mission Review)">🟣 Nominated - All</option>
+                            <option value="nominated-clean">🟣 Nominated - Clean (No Restrictions)</option>
+                            <option value="nominated-restrictions">🟠 Nominated - Has Restrictions</option>
+                            <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved - All</option>
+                            <option value="approved-clean">🔵 Mission Approved - Clean</option>
+                            <option value="approved-restrictions">🟠 Mission Approved - Has Restrictions</option>
+                            <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested - All</option>
+                            <option value="requested-clean">🟡 Permission Requested - Clean (7-day deadline)</option>
+                            <option value="requested-restrictions">🟠 Permission Requested - Awaiting Explicit Reply</option>
                             <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
                             <option value="Rejected by Mission">🔴 Rejected by Mission</option>
                             <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
                             <option value="duplicates">🔁 Duplicates Only</option>
+                            <option value="has-restrictions">🟠 All With Restrictions (Any Status)</option>
                         </select>
                     </div>
                     <div id="byStatusMessage" class="message info hidden"></div>
@@ -305,6 +315,7 @@
                             <option value="Rejected by Mission">🔴 Rejected by Mission</option>
                             <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live</option>
+                            <option value="has-restrictions">🟠 Has Restrictions</option>
                         </select>
                     </div>
                     <div id="organizationsMessage" class="message info hidden"></div>
@@ -1322,12 +1333,35 @@
         function updateGoLiveDate() {
             const requestedDate = document.getElementById('permissionRequestedDate').value;
             const goLiveDateDiv = document.getElementById('goLiveDateInfo');
+            
+            // If org has TOU restrictions, never show a go-live date (explicit permission required)
+            if (currentOrg && currentOrg.tou_flag) {
+                goLiveDateDiv.innerHTML = `
+                    <p style="color: #856404;">
+                        <strong>⚠️ Explicit Permission Required</strong><br>
+                        <span style="font-size: 13px;">This organization has TOU restrictions. No automatic go-live date — we must wait for their explicit approval before proceeding.</span>
+                    </p>
+                `;
+                goLiveDateDiv.classList.remove('hidden');
+                goLiveDateDiv.style.background = '#fff3cd';
+                goLiveDateDiv.style.borderColor = '#ffc107';
+                return;
+            }
+            
+            // For orgs without restrictions, show calculated go-live date
             if (requestedDate) {
                 const sent = new Date(requestedDate);
                 const goLive = new Date(sent);
                 goLive.setDate(goLive.getDate() + 7); // Updated 2026-01-17: changed from 14 to 7 days
-                document.getElementById('goLiveDate').textContent = goLive.toLocaleDateString();
+                goLiveDateDiv.innerHTML = `
+                    <p>
+                        📅 <strong>Calculated Go-Live Date:</strong> ${goLive.toLocaleDateString()} (sent + 1 week)<br>
+                        <span style="font-size: 13px; color: #666;">If no response by this date, permission is implied and we may proceed.</span>
+                    </p>
+                `;
                 goLiveDateDiv.classList.remove('hidden');
+                goLiveDateDiv.style.background = '#e7f3ff';
+                goLiveDateDiv.style.borderColor = '#b6d4fe';
             } else {
                 goLiveDateDiv.classList.add('hidden');
             }
@@ -1623,6 +1657,26 @@
 
         async function changeOrgStatus() {
             const newStatus = document.getElementById('statusDropdown').value;
+            
+            // Safety check: warn if trying to go Live with restriction flags
+            if (newStatus === 'Live (Scraping Active)') {
+                const hasRestrictions = currentOrg.tou_flag || currentOrg.tech_block_flag || currentOrg.permission_denied_flag;
+                if (hasRestrictions) {
+                    const flags = [];
+                    if (currentOrg.tou_flag) flags.push('TOU Restriction');
+                    if (currentOrg.tech_block_flag) flags.push('Tech Block');
+                    if (currentOrg.permission_denied_flag) flags.push('Permission Denied');
+                    
+                    const proceed = confirm(
+                        `⚠️ WARNING: This organization has active restriction flags:\n\n` +
+                        `• ${flags.join('\n• ')}\n\n` +
+                        `Setting to Live with these flags may cause issues.\n\n` +
+                        `Do you want to proceed anyway?`
+                    );
+                    if (!proceed) return;
+                }
+            }
+            
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
                     method: 'PATCH',
@@ -2079,13 +2133,7 @@
             const orgName = currentOrg.name;
             const hasRestriction = currentOrg.tou_flag && currentOrg.restriction_context;
             const restrictionContext = currentOrg.restriction_context || '';
-            const restrictionSourceUrl = currentOrg.restriction_source_urls || '';
-            
-            // Get selected contact
-            const contactSelect = document.getElementById('permissionContactSelect');
-            const selectedOption = contactSelect.options[contactSelect.selectedIndex];
-            const contactEmail = selectedOption ? selectedOption.value : '';
-            const contactName = selectedOption ? selectedOption.dataset.name || '' : '';
+            const restrictionSourceUrls = currentOrg.restriction_source_urls || '';
             
             // Calculate a date 1 week from now (updated from 2 weeks - 2026-01-17)
             const proceedDate = new Date();
@@ -2095,64 +2143,79 @@
             let draft;
             
             if (hasRestriction) {
-                // Context-aware draft that references their specific TOU language
-                const greeting = contactName ? `Dear ${contactName.split(' ')[0]},` : 'Hello,';
+                // Parse multiple restriction sources and contexts
+                // Sources and contexts are stored newline-separated
+                const sourceLines = restrictionSourceUrls.split('\n').filter(line => line.trim());
+                const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                
+                // Build bullet points for each restriction source
+                let restrictionBullets = '';
+                sourceLines.forEach((sourceUrl, index) => {
+                    const context = contextLines[index] || contextLines[0] || 'restricts automated access';
+                    // Try to detect source type from URL
+                    let sourceType = 'Terms page';
+                    const urlLower = sourceUrl.toLowerCase();
+                    if (urlLower.includes('privacy')) sourceType = 'Privacy Policy';
+                    else if (urlLower.includes('terms') || urlLower.includes('tos')) sourceType = 'Terms of Use';
+                    else if (urlLower.includes('legal')) sourceType = 'Legal page';
+                    else if (urlLower.includes('copyright')) sourceType = 'Copyright page';
+                    
+                    restrictionBullets += `• The ${sourceType} states: "${context.trim()}"\n  ${sourceUrl.trim()}\n`;
+                });
+                
+                // If no structured sources, use a generic bullet
+                if (!restrictionBullets) {
+                    restrictionBullets = `• Your website's terms restrict automated gathering of information.\n`;
+                }
+                
                 draft = `Subject: Permission Request: Event Listing from ${orgName}
 
-${greeting}
+Hello,
 
-I am developing a non-commercial event aggregator for the national security, defense, and intelligence community. I would like to request permission to include ${orgName}'s publicly-listed events in this service.
+We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to request permission to include ${orgName}'s publicly-listed events in this service.
 
-I noticed your website's terms at:
-${restrictionSourceUrl}
+Looking at your website, we noticed a restriction on automatic gathering of information:
 
-The relevant section states:
-"${restrictionContext.trim()}"
+${restrictionBullets.trim()}
 
-Given these terms, I wanted to reach out directly to request permission rather than proceed without authorization.
+Given these terms, we wanted to reach out directly to request permission rather than proceed without authorization.
 
-If granted permission, I will ensure that:
+If granted permission, we will ensure that:
 • All event listings link directly to your original event pages
 • ${orgName} is clearly credited as the source
 • Our access respects your server (rate-limited, off-peak hours)
 • We immediately stop if you request it at any time
 
-I understand you may be busy, so I plan to follow up by ${proceedDateStr} if I haven't heard back. A quick "yes" or "no" reply would be greatly appreciated.
+Would you please reply with a quick note giving us permission to do automatic gathering of information?
 
 Thank you for your time and consideration.
 
-Best regards,
-Matt Taylor
-matthew_e_taylor@hotmail.com
-Mobile: 703-795-0217`;
+Regards,`;
             } else {
                 // Standard notice-style draft for orgs without TOU restrictions
                 draft = `Subject: Notice: Automated Event Collection from ${orgName}
 
 Hello,
 
-I am gathering publicly available information on events related to national security, defense, and intelligence, and I would like to automate collection of event information from ${orgName}'s website.
+We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to include ${orgName}'s publicly-listed events in this service.
 
-The ${orgName} website's terms of use did not appear to put constraints on gathering this information. I believe this work will drive additional visitors to your site and events. Additionally, I will ensure that:
+${orgName}'s website terms did not appear to restrict gathering this information. We believe this work will drive additional visitors to your site and events. Additionally, we will ensure that:
 • All listings will link directly to your original event pages
-• Your organization will be clearly credited as the source
-• Rate limits will be respected 
-• Gathering stops if you request it at any time
+• ${orgName} is clearly credited as the source
+• Our access respects your server (rate-limited, off-peak hours)
+• We immediately stop if you request it at any time
 
-I wanted to notify you before I begin, so you have the opportunity to decline or set specific terms. I understand you may be busy, so I plan to proceed on ${proceedDateStr} unless I hear otherwise. A quick "okay" or "no thanks" would be appreciated, but no response is needed if you are fine with this.
+We wanted to notify you before we begin, so you have the opportunity to decline or set specific terms. We plan to proceed on ${proceedDateStr} unless we hear otherwise. A quick "okay" or "no thanks" would be appreciated, but no response is needed if you are fine with this.
 
 Thank you for your time.
 
-Regards,
-Matt Taylor
-matthew_e_taylor@hotmail.com
-Mobile: 703-795-0217`;
+Regards,`;
             }
             
             document.getElementById('permissionDraft').value = draft;
             
             const draftType = hasRestriction ? '⚠️ TOU-aware draft' : '📝 Standard notice draft';
-            showMessage('profileMessage', `${draftType} generated! Review and edit as needed.`, 'success');
+            showMessage('profileMessage', `${draftType} generated! Add your signature in your email app.`, 'success');
         }
 
         function copyDraft(fieldId) {
@@ -2312,6 +2375,7 @@ Mobile: 703-795-0217`;
                 document.getElementById('statOrgs').textContent = orgsData.totalItems || 0;
                 document.getElementById('statEvents').textContent = eventsData.totalItems || 0;
                 document.getElementById('statPending').textContent = orgs.filter(o => o.status === 'Nominated (Pending Mission Review)').length;
+                document.getElementById('statRestrictions').textContent = orgs.filter(o => o.tou_flag === true || o.tech_block_flag === true).length;
                 document.getElementById('statLive').textContent = orgs.filter(o => o.status === 'Live (Scraping Active)').length;
                 document.getElementById('statTechBlocked').textContent = orgs.filter(o => o.tech_block_flag === true).length;
                 document.getElementById('statPermissionDenied').textContent = orgs.filter(o => o.permission_denied_flag === true).length;
@@ -2380,6 +2444,21 @@ Mobile: 703-795-0217`;
                 if (statusFilter && statusFilter !== 'all') {
                     if (statusFilter === 'duplicates') {
                         filterParam = `&filter=(duplicate_flag=true)`;
+                    } else if (statusFilter === 'has-restrictions') {
+                        // All orgs with any restriction flag (across all statuses)
+                        filterParam = `&filter=(tou_flag=true||tech_block_flag=true)`;
+                    } else if (statusFilter === 'nominated-clean') {
+                        filterParam = `&filter=(status='Nominated (Pending Mission Review)'&&tou_flag!=true&&tech_block_flag!=true)`;
+                    } else if (statusFilter === 'nominated-restrictions') {
+                        filterParam = `&filter=(status='Nominated (Pending Mission Review)'&&(tou_flag=true||tech_block_flag=true))`;
+                    } else if (statusFilter === 'approved-clean') {
+                        filterParam = `&filter=(status='Mission Approved (Request Not Sent)'&&tou_flag!=true&&tech_block_flag!=true)`;
+                    } else if (statusFilter === 'approved-restrictions') {
+                        filterParam = `&filter=(status='Mission Approved (Request Not Sent)'&&(tou_flag=true||tech_block_flag=true))`;
+                    } else if (statusFilter === 'requested-clean') {
+                        filterParam = `&filter=(status='Permission Requested (Pending Org Response)'&&tou_flag!=true&&tech_block_flag!=true)`;
+                    } else if (statusFilter === 'requested-restrictions') {
+                        filterParam = `&filter=(status='Permission Requested (Pending Org Response)'&&(tou_flag=true||tech_block_flag=true))`;
                     } else {
                         filterParam = `&filter=(status='${statusFilter}')`;
                     }
@@ -2474,20 +2553,29 @@ Mobile: 703-795-0217`;
             }
 
             // Status-specific content
-            if (filterType === 'Nominated (Pending Mission Review)' && org.ai_reasoning) {
+            const isNominatedFilter = filterType === 'Nominated (Pending Mission Review)' || filterType === 'nominated-clean' || filterType === 'nominated-restrictions';
+            if (isNominatedFilter && org.ai_reasoning) {
                 html += `<div class="info-box"><p>🤖 <strong>AI Reasoning:</strong> ${escapeHtml(org.ai_reasoning).substring(0, 200)}${org.ai_reasoning.length > 200 ? '...' : ''}</p></div>`;
             }
 
-            if ((filterType === 'Mission Approved (Request Not Sent)' || filterType === 'Permission Requested (Pending Org Response)') && org.permission_requested_date) {
+            if ((filterType === 'Mission Approved (Request Not Sent)' || filterType === 'approved-clean' || filterType === 'approved-restrictions' || filterType === 'Permission Requested (Pending Org Response)' || filterType === 'requested-clean' || filterType === 'requested-restrictions') && org.permission_requested_date) {
                 const sentDate = new Date(org.permission_requested_date);
                 html += `<p><strong>Request Sent:</strong> ${sentDate.toLocaleDateString()}</p>`;
             }
 
-            if (filterType === 'Permission Requested (Pending Org Response)' && org.permission_requested_date) {
-                const sentDate = new Date(org.permission_requested_date);
-                const goLiveDate = new Date(sentDate);
-                goLiveDate.setDate(goLiveDate.getDate() + 14);
-                html += `<div class="info-box"><p>📅 <strong>Go Live Date:</strong> ${goLiveDate.toLocaleDateString()}</p></div>`;
+            // Go-Live Date display - only for orgs WITHOUT TOU restrictions
+            const isRequestedFilter = filterType === 'Permission Requested (Pending Org Response)' || filterType === 'requested-clean' || filterType === 'requested-restrictions';
+            if (isRequestedFilter && org.permission_requested_date) {
+                if (org.tou_flag) {
+                    // Has restrictions - no auto go-live
+                    html += `<div class="info-box warning"><p>⚠️ <strong>Explicit Permission Required</strong> - No auto go-live date (TOU restrictions)</p></div>`;
+                } else {
+                    // No restrictions - show calculated go-live date
+                    const sentDate = new Date(org.permission_requested_date);
+                    const goLiveDate = new Date(sentDate);
+                    goLiveDate.setDate(goLiveDate.getDate() + 7); // Updated to 7 days
+                    html += `<div class="info-box"><p>📅 <strong>Go Live Date:</strong> ${goLiveDate.toLocaleDateString()} (implied permission if no response)</p></div>`;
+                }
             }
 
             if (filterType === 'Permission Granted (Not Live)') {
@@ -2530,10 +2618,18 @@ Mobile: 703-795-0217`;
                 <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
                 <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>`;
 
-            if (filterType === 'Nominated (Pending Mission Review)' || (filterType === 'all' && org.status === 'Nominated (Pending Mission Review)')) {
+            // Helper to check if org is in nominated status (handles both filter types)
+            const isNominated = org.status === 'Nominated (Pending Mission Review)';
+            const isMissionApproved = org.status === 'Mission Approved (Request Not Sent)';
+            const isRequested = org.status === 'Permission Requested (Pending Org Response)';
+            const hasRestrictions = org.tou_flag || org.tech_block_flag;
+            
+            // Show Approve Mission button for nominated orgs (regardless of restrictions filter)
+            if (isNominated || filterType === 'nominated-clean' || filterType === 'nominated-restrictions') {
                 html += `<button class="btn btn-small btn-success" onclick="quickApprove('${org.id}')">✅ Approve Mission</button>`;
             }
-            if (filterType === 'Mission Approved (Request Not Sent)' || (filterType === 'all' && org.status === 'Mission Approved (Request Not Sent)')) {
+            // Show Generate Request button for mission approved orgs
+            if (isMissionApproved || filterType === 'approved-clean' || filterType === 'approved-restrictions') {
                 html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Request</button>`;
             }
 
