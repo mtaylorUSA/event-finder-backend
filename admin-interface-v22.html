@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v22</title>
+    <title>Event Finder Admin v24</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -212,6 +212,413 @@
             .header-logo { height: 50px; }
             .header-text { text-align: center; }
             .header h1 { font-size: 1.5em; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════ */
+        /* v23: CORRESPONDENCE ACCORDION STYLES                                    */
+        /* ═══════════════════════════════════════════════════════════════════════ */
+        
+        /* Correspondence Type Accordion */
+        .corr-accordion { margin-bottom: 20px; }
+        .corr-accordion-header {
+            display: flex;
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .corr-type-btn {
+            padding: 12px 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .corr-type-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .corr-type-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .corr-panel {
+            display: none;
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 10px;
+            animation: slideDown 0.3s ease;
+        }
+        .corr-panel.active { display: block; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .corr-panel h5 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #d0d9ff;
+        }
+        
+        /* Recommended Contact Box */
+        .recommended-contact {
+            background: #e8f4fd;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+        }
+        .recommended-contact label {
+            font-size: 12px;
+            color: #004085;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .recommended-contact .contact-info {
+            font-weight: 600;
+            color: #0056b3;
+        }
+        
+        /* Correspondence Timeline Entries */
+        .corr-entry {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .corr-entry.type-phone { background: #f0fff4; border-left: 4px solid #28a745; }
+        .corr-entry.type-email-out { background: #fff8e6; border-left: 4px solid #ffc107; }
+        .corr-entry.type-email-in { background: #e8f4fd; border-left: 4px solid #17a2b8; }
+        .corr-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .corr-entry-type {
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .corr-entry-date { color: #666; font-size: 13px; }
+        .corr-entry-contact { color: #555; font-size: 13px; margin-bottom: 8px; }
+        .corr-entry-subject { font-weight: 600; color: #333; margin-bottom: 5px; }
+        .corr-entry-text {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+            color: #555;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .corr-entry-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+        }
+        .corr-followup-badge {
+            display: inline-block;
+            background: #fff3cd;
+            color: #856404;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        /* Summary Cards for Status & History */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 18px;
+        }
+        .summary-card h5 {
+            color: #495057;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .summary-card p {
+            margin: 6px 0;
+            font-size: 13px;
+            color: #555;
+        }
+        .summary-card p strong { color: #333; }
+        
+        /* Flag Dashboard */
+        .flag-dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .flag-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .flag-item.flag-off { background: #e9ecef; color: #6c757d; }
+        .flag-item.flag-on-tou { background: #fff3cd; color: #856404; border: 2px solid #ffc107; }
+        .flag-item.flag-on-block { background: #f8d7da; color: #721c24; border: 2px solid #dc3545; }
+        .flag-item.flag-on-js { background: #cce5ff; color: #004085; border: 2px solid #17a2b8; }
+        .flag-item.flag-on-denied { background: #f5c6cb; color: #721c24; border: 2px solid #c82333; }
+        
+        /* Restriction Details Box */
+        .restriction-details {
+            background: #fff8e6;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .restriction-details h6 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        .restriction-details .restriction-item {
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .restriction-details .restriction-item:last-child { margin-bottom: 0; }
+        
+        /* Draft Generator Box */
+        .draft-generator-box {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .draft-generator-box h6 {
+            margin-bottom: 12px;
+            color: #495057;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════ */
+        /* v24: SCAN & SCRAPE STATUS STYLES                                        */
+        /* ═══════════════════════════════════════════════════════════════════════ */
+        
+        /* Status Summary Box */
+        .scan-status-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .scan-status-box h4 {
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+            color: #495057;
+        }
+        .scan-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .scan-stat {
+            text-align: center;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .scan-stat-value {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #333;
+        }
+        .scan-stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        /* Alert Boxes - Keep prominent yellow for TOU! */
+        .scan-alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .scan-alert-icon {
+            font-size: 1.5em;
+            flex-shrink: 0;
+        }
+        .scan-alert-content {
+            flex: 1;
+        }
+        .scan-alert-title {
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .scan-alert-detail {
+            font-size: 13px;
+            color: #555;
+        }
+        .scan-alert.alert-tou {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        .scan-alert.alert-tou .scan-alert-title { color: #856404; }
+        .scan-alert.alert-block {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+        }
+        .scan-alert.alert-block .scan-alert-title { color: #721c24; }
+        .scan-alert.alert-js {
+            background: #cce5ff;
+            border: 2px solid #17a2b8;
+        }
+        .scan-alert.alert-js .scan-alert-title { color: #004085; }
+        .scan-alert.alert-denied {
+            background: #f5c6cb;
+            border: 2px solid #c82333;
+        }
+        .scan-alert.alert-denied .scan-alert-title { color: #721c24; }
+        .scan-alert.alert-success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+        .scan-alert.alert-success .scan-alert-title { color: #155724; }
+        
+        /* Scan History Accordion */
+        .scan-history-accordion {
+            margin-top: 15px;
+        }
+        .scan-history-toggle {
+            background: #e9ecef;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #495057;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .scan-history-toggle:hover {
+            background: #dee2e6;
+        }
+        .scan-history-toggle .arrow {
+            transition: transform 0.2s;
+        }
+        .scan-history-toggle.expanded .arrow {
+            transform: rotate(180deg);
+        }
+        .scan-history-content {
+            display: none;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .scan-history-content.show {
+            display: block;
+        }
+        
+        /* Individual Scan Log Entry */
+        .scan-log-entry {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .scan-log-entry:last-child {
+            margin-bottom: 0;
+        }
+        .scan-log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .scan-log-type {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .scan-log-date {
+            font-size: 12px;
+            color: #666;
+        }
+        .scan-log-result {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .scan-log-result.result-clean { background: #d4edda; color: #155724; }
+        .scan-log-result.result-tou { background: #fff3cd; color: #856404; }
+        .scan-log-result.result-block { background: #f8d7da; color: #721c24; }
+        .scan-log-result.result-js { background: #cce5ff; color: #004085; }
+        .scan-log-details {
+            font-size: 13px;
+            color: #555;
+        }
+        .scan-log-details p {
+            margin: 4px 0;
+        }
+        .scan-log-change {
+            background: #e7f3ff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        /* Empty state for scan history */
+        .scan-history-empty {
+            text-align: center;
+            padding: 30px;
+            color: #999;
         }
     </style>
 </head>
@@ -439,8 +846,10 @@
                                     <label>Permission Type</label>
                                     <select id="profilePermissionType">
                                         <option value="">-- Not Set --</option>
-                                        <option value="Explicit">Explicit (Org Approved)</option>
-                                        <option value="Implied (No Response)">Implied (No Response)</option>
+                                        <option value="Explicit">✅ Explicit (Org Approved)</option>
+                                        <option value="Implied (No Response)">⏱️ Implied (No Response)</option>
+                                        <option value="Waiver">🔓 Waiver (Flags exist, but approved)</option>
+                                        <option value="Denied">🚫 Denied (Org explicitly declined)</option>
                                     </select>
                                 </div>
                             </div>
@@ -484,29 +893,113 @@
                     <div id="profileContactsList"><div class="loading">Loading contacts...</div></div>
                 </div>
 
-                <!-- Status & History Tab -->
+                <!-- Status & History Tab (v23 - Redesigned for Partner Engagement Specialists) -->
                 <div id="statusHistory" class="profile-tab-content">
                     <div id="statusAlerts"></div>
 
-                    <div class="section-box" style="background: #fff8f8; border: 2px solid #dc3545;">
-                        <h4>🚩 Rejection Flags</h4>
-                        <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Check any flag that applies. Checking a flag will auto-set status to "Rejected by Org" and disable scraping.</p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="form-group checkbox-group">
-                                <label><input type="checkbox" id="touFlag" onchange="handleTouFlagChange()"> ⚠️ TOU Restriction</label>
-                            </div>
-                            <div class="form-group checkbox-group">
-                                <label><input type="checkbox" id="techBlockFlag" onchange="handleTechBlockChange()"> ⛔ Technical Block (403)</label>
-                            </div>
-                            <div class="form-group checkbox-group">
-                                <label><input type="checkbox" id="techRenderingFlag" onchange="handleTechRenderingChange()"> ⚙️ Tech-Rendered Site</label>
-                            </div>
-                            <div class="form-group checkbox-group">
-                                <label><input type="checkbox" id="permissionDeniedFlag" onchange="handlePermissionDeniedChange()"> 🚫 Permission Denied</label>
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <!-- SECTION 1: ORG SUMMARY                                                  -->
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <h5>📋 Organization Summary</h5>
+                            <p><strong>Name:</strong> <span id="statusOrgName"></span></p>
+                            <p><strong>Status:</strong> <span id="statusCurrentStatus"></span></p>
+                            <p><strong>Website:</strong> <a id="statusWebsite" href="#" target="_blank"></a></p>
+                            <p><strong>Events URL:</strong> <a id="statusEventsUrl" href="#" target="_blank"></a></p>
+                            <div id="statusAiReasoning" class="hidden" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                <p style="font-size: 12px; margin: 0;">🤖 <strong>AI Summary:</strong> <span id="statusAiReasoningText" style="color: #555;"></span></p>
                             </div>
                         </div>
-                        <div class="card-actions" style="margin-top: 15px;">
-                            <button type="button" class="btn btn-small btn-success" onclick="saveAllFlags()">💾 Save Flags</button>
+                        
+                        <div class="summary-card">
+                            <h5>🔍 Latest Scan Results</h5>
+                            <p><strong>Last Scanned:</strong> <span id="statusLastScanned">Not scanned yet</span></p>
+                            <p><strong>Events Found:</strong> <span id="statusEventsFound">0</span></p>
+                            <p><strong>Scan Result:</strong> <span id="statusScanResult">-</span></p>
+                            <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                                <label style="font-size: 12px;">TOU Scanned Date</label>
+                                <input type="date" id="touScannedDate" style="padding: 6px 10px; font-size: 13px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <!-- SECTION 2: SCAN & SCRAPE STATUS (v24)                                     -->
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <div class="scan-status-box">
+                        <h4>🔍 Scan & Scrape Status</h4>
+                        
+                        <!-- Stats Grid -->
+                        <div class="scan-stats-grid">
+                            <div class="scan-stat">
+                                <div class="scan-stat-value" id="statLastScanned">-</div>
+                                <div class="scan-stat-label">Last Scanned</div>
+                            </div>
+                            <div class="scan-stat">
+                                <div class="scan-stat-value" id="statLastScraped">-</div>
+                                <div class="scan-stat-label">Last Scraped</div>
+                            </div>
+                            <div class="scan-stat">
+                                <div class="scan-stat-value" id="statEventCount">0</div>
+                                <div class="scan-stat-label">Events</div>
+                            </div>
+                            <div class="scan-stat">
+                                <div class="scan-stat-value" id="statScrapeEnabled">-</div>
+                                <div class="scan-stat-label">Scraping</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Alert Boxes (dynamically shown based on flags) -->
+                        <div id="scanAlertContainer">
+                            <!-- Alerts populated by JS -->
+                        </div>
+                        
+                        <!-- Edit Flags (collapsible) -->
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; font-weight: 600; color: #667eea;">✏️ Edit Flags & Settings</summary>
+                            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div class="form-group checkbox-group">
+                                        <label><input type="checkbox" id="touFlag" onchange="handleTouFlagChange()"> ⚠️ TOU Restriction</label>
+                                    </div>
+                                    <div class="form-group checkbox-group">
+                                        <label><input type="checkbox" id="techBlockFlag" onchange="handleTechBlockChange()"> ⛔ Technical Block (403)</label>
+                                    </div>
+                                    <div class="form-group checkbox-group">
+                                        <label><input type="checkbox" id="techRenderingFlag" onchange="handleTechRenderingChange()"> ⚙️ Tech-Rendered Site</label>
+                                    </div>
+                                </div>
+                                <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
+                                    💡 Permission denied is now set via <strong>Permission Type = "Denied"</strong> in Edit Org tab.
+                                </p>
+                                <div class="form-group checkbox-group" style="margin-bottom: 15px;">
+                                    <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="font-size: 12px;">TOU Scanned Date</label>
+                                    <input type="date" id="touScannedDate" style="padding: 6px 10px; font-size: 13px;">
+                                </div>
+                                <div class="card-actions">
+                                    <button type="button" class="btn btn-small btn-success" onclick="saveAllFlags()">💾 Save Flags</button>
+                                </div>
+                            </div>
+                        </details>
+                        
+                        <!-- Scan History Accordion -->
+                        <div class="scan-history-accordion">
+                            <button type="button" class="scan-history-toggle" onclick="toggleScanHistory()">
+                                <span>📜 View Scan & Scrape History</span>
+                                <span class="arrow">▼</span>
+                            </button>
+                            <div id="scanHistoryContent" class="scan-history-content">
+                                <div id="scanHistoryList">
+                                    <div class="scan-history-empty">
+                                        <p>📋 No scan history available yet.</p>
+                                        <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -518,129 +1011,201 @@
                         <p style="margin-top: 10px; font-size: 12px; color: #856404;">💡 Consider merging data into the primary org and then deleting this record.</p>
                     </div>
 
-                    <div class="section-box">
-                        <h4>📊 General Info</h4>
-                        <p><strong>Organization:</strong> <span id="statusOrgName"></span></p>
-                        <p><strong>Current Status:</strong> <span id="statusCurrentStatus"></span></p>
-                        <p><strong>Website:</strong> <a id="statusWebsite" href="#" target="_blank"></a></p>
-                        <div id="statusAiReasoning" class="info-box hidden">
-                            <p>🤖 <strong>AI Reasoning:</strong> <span id="statusAiReasoningText"></span></p>
-                        </div>
-                        <div id="statusTriggeringEvent" class="info-box hidden" style="background: #e8f4fd; border-color: #4a90d9;">
-                            <p style="margin-bottom: 8px;"><strong>📊 Triggering Event</strong> <span id="statusTriggeringScore" class="badge badge-live" style="margin-left: 10px;"></span></p>
-                            <p><strong>Title:</strong> <span id="statusTriggeringTitle"></span></p>
-                            <p id="statusTriggeringSnippetRow"><strong>Snippet:</strong> <span id="statusTriggeringSnippet" style="color: #555; font-style: italic;"></span></p>
-                            <p><strong>URL:</strong> <a id="statusTriggeringUrl" href="#" target="_blank" style="color: #0066cc;"></a></p>
-                        </div>
-                    </div>
-
-                    <div class="section-box">
-                        <h4>📜 TOU Assessment</h4>
-                        <form id="touForm">
-                            <div class="form-group"><label>TOU Scanned Date</label><input type="date" id="touScannedDate"></div>
-                            <div class="form-group"><label>TOU Notes</label><textarea id="touNotes" placeholder="Notes about Terms of Use..."></textarea></div>
-                            <div class="card-actions">
-                                <button type="submit" class="btn btn-small btn-success">💾 Save TOU Info</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div class="section-box">
-                        <h4>📧 Permission Request</h4>
-                        <form id="permissionForm">
-                            <div class="form-group"><label>Permission Requested Date</label><input type="date" id="permissionRequestedDate"></div>
-                            <div id="goLiveDateInfo" class="info-box hidden">
-                                <p>📅 <strong>Calculated Go-Live Date:</strong> <span id="goLiveDate"></span> (sent + 1 week)</p>
-                            </div>
-                            
-                            <!-- Contact Selector for Permission Request -->
-                            <div class="form-group">
-                                <label>📧 Send To (Select Contact)</label>
-                                <select id="permissionContactSelect" class="inline-status-select" style="width: 100%;">
-                                    <option value="">-- Loading contacts... --</option>
-                                </select>
-                                <p style="font-size: 12px; color: #666; margin-top: 5px;">
-                                    Priority: Legal/Permissions → Events → Main Contact → Other
-                                    <a href="#" onclick="switchProfileTab('profileContacts'); return false;" style="margin-left: 10px;">➕ Add Contact</a>
-                                </p>
-                            </div>
-                            
-                            <!-- TOU Context Display (if restriction_context exists) -->
-                            <div id="restrictionContextBox" class="info-box warning hidden" style="margin-bottom: 15px;">
-                                <p><strong>⚠️ TOU Restriction Found:</strong></p>
-                                <p id="restrictionSourceUrl" style="font-size: 12px; color: #666;"></p>
-                                <p id="restrictionContextText" style="font-style: italic; background: #fff; padding: 10px; border-radius: 4px; margin-top: 8px;"></p>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Permission Request Draft Text</label>
-                                <textarea id="permissionDraft" class="draft-textarea" placeholder="Click 'Generate Draft' to create a new draft..."></textarea>
-                            </div>
-                            <div class="card-actions" style="margin-bottom: 15px;">
-                                <button type="button" class="btn btn-small btn-info" onclick="generatePermissionDraft()">📝 Generate Draft</button>
-                                <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('permissionDraft')">📋 Copy Draft</button>
-                                <button type="button" class="btn btn-small btn-secondary" onclick="previewDraft('permissionDraft')">👁️ Preview</button>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Permission Request Final Text <span style="font-weight: normal; color: #666;">(finalized version sent to org)</span></label>
-                                <textarea id="permissionFinal" class="draft-textarea" placeholder="Copy your finalized email text here after sending..."></textarea>
-                            </div>
-                            <div class="card-actions" style="margin-bottom: 15px;">
-                                <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('permissionFinal')">📋 Copy Final</button>
-                                <button type="button" class="btn btn-small btn-secondary" onclick="previewDraft('permissionFinal')">👁️ Preview</button>
-                            </div>
-
-                            <hr style="margin: 20px 0; border: none; border-top: 1px solid #dee2e6;">
-
-                            <div class="form-group"><label>Permission Response Date</label><input type="date" id="permissionResponseDate"></div>
-
-                            <div class="form-group">
-                                <label>Permission Response Text <span style="font-weight: normal; color: #666;">(org's reply)</span></label>
-                                <textarea id="permissionCorrespondence" placeholder="Paste the organization's response email or notes here..."></textarea>
-                            </div>
-
-                            <button type="submit" class="btn btn-small btn-success">💾 Save Permission Info</button>
-                        </form>
-                    </div>
-
-                    <!-- NEW: Correspondence Log Section -->
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <!-- SECTION 3: CORRESPONDENCE LOG                                           -->
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
                     <div class="section-box" id="correspondenceLogSection">
-                        <h4>📬 Correspondence Log</h4>
-                        <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Track all email exchanges with this organization. Newest entries appear first.</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #dee2e6;">
+                            <h4 style="margin: 0; border: none; padding: 0;">📬 Correspondence Log</h4>
+                            <button type="button" class="btn btn-small btn-info" onclick="toggleAddCorrespondence()">➕ Add Correspondence</button>
+                        </div>
                         
-                        <!-- Add New Entry Form -->
-                        <div style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                            <h5 style="margin-bottom: 10px;">➕ Add Correspondence Entry</h5>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Date</label>
-                                    <input type="date" id="corrLogDate" style="width: 100%;">
+                        <!-- Add Correspondence Accordion -->
+                        <div id="addCorrespondenceSection" class="corr-accordion hidden">
+                            <div class="corr-accordion-header">
+                                <button type="button" class="corr-type-btn" data-type="phone" onclick="selectCorrType('phone')">
+                                    📞 Phone Call
+                                </button>
+                                <button type="button" class="corr-type-btn" data-type="email-out" onclick="selectCorrType('email-out')">
+                                    📤 Email Outreach
+                                </button>
+                                <button type="button" class="corr-type-btn" data-type="email-in" onclick="selectCorrType('email-in')">
+                                    📥 Email Response
+                                </button>
+                            </div>
+                            
+                            <!-- ═══════════════════════════════════════════════════════════════ -->
+                            <!-- PHONE CALL PANEL                                                -->
+                            <!-- ═══════════════════════════════════════════════════════════════ -->
+                            <div id="corrPanelPhone" class="corr-panel">
+                                <h5>📞 Log Phone Call</h5>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Date of Call</label>
+                                        <input type="date" id="phoneCallDate">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Follow-up Needed By (optional)</label>
+                                        <input type="date" id="phoneFollowupDate">
+                                    </div>
                                 </div>
+                                
+                                <div class="recommended-contact">
+                                    <label>📇 Recommended Contact</label>
+                                    <div id="phoneRecommendedContact" class="contact-info">Loading...</div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Actual Contact Called</label>
+                                        <select id="phoneContactSelect" class="inline-status-select" style="width: 100%;">
+                                            <option value="">-- Select contact --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Or Enter Other</label>
+                                        <input type="text" id="phoneContactOther" placeholder="Name if not in list...">
+                                    </div>
+                                </div>
+                                
                                 <div class="form-group">
-                                    <label>Direction</label>
-                                    <select id="corrLogDirection" class="inline-status-select" style="width: 100%;">
-                                        <option value="sent">📤 Sent (We → Org)</option>
-                                        <option value="received">📥 Received (Org → We)</option>
-                                        <option value="note">📝 Internal Note</option>
-                                    </select>
+                                    <label>Recommended Phone Number</label>
+                                    <input type="text" id="phoneRecommendedNumber" readonly style="background: #f0f0f0;">
+                                </div>
+                                
+                                <div class="draft-generator-box">
+                                    <h6>📝 Call Notes Generator</h6>
+                                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Generate talking points based on this org's restrictions.</p>
+                                    <button type="button" class="btn btn-small btn-info" onclick="generateCallNotes()">📝 Generate Talking Points</button>
+                                    <div class="form-group" style="margin-top: 10px;">
+                                        <textarea id="phoneCallNotesDraft" class="draft-textarea" style="min-height: 120px;" placeholder="Click 'Generate Talking Points' or type your own notes..."></textarea>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Call Notes (what was discussed)</label>
+                                    <textarea id="phoneCallNotes" placeholder="Summarize the call - who answered, what was discussed, outcome, next steps..." style="min-height: 120px;"></textarea>
+                                </div>
+                                
+                                <div class="card-actions">
+                                    <button type="button" class="btn btn-small btn-success" onclick="saveCorrespondence('phone')">💾 Save Phone Call</button>
+                                    <button type="button" class="btn btn-small btn-secondary" onclick="cancelAddCorrespondence()">Cancel</button>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Contact Used</label>
-                                <select id="corrLogContact" class="inline-status-select" style="width: 100%;">
-                                    <option value="">-- Select contact --</option>
-                                </select>
+                            
+                            <!-- ═══════════════════════════════════════════════════════════════ -->
+                            <!-- EMAIL OUTREACH PANEL                                            -->
+                            <!-- ═══════════════════════════════════════════════════════════════ -->
+                            <div id="corrPanelEmailOut" class="corr-panel">
+                                <h5>📤 Log Email Outreach</h5>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Date of Email</label>
+                                        <input type="date" id="emailOutDate">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Follow-up Needed By (optional)</label>
+                                        <input type="date" id="emailOutFollowupDate">
+                                    </div>
+                                </div>
+                                
+                                <div class="recommended-contact">
+                                    <label>📇 Recommended Recipients (priority order)</label>
+                                    <div id="emailOutRecommendedContacts" class="contact-info">Loading...</div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Actual Contact Emailed</label>
+                                        <select id="emailOutContactSelect" class="inline-status-select" style="width: 100%;">
+                                            <option value="">-- Select contact --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Or Enter Other Email</label>
+                                        <input type="email" id="emailOutContactOther" placeholder="email@example.com">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Subject Line</label>
+                                    <input type="text" id="emailOutSubject" placeholder="Email subject...">
+                                </div>
+                                
+                                <div class="draft-generator-box">
+                                    <h6>📝 Email Draft Generator</h6>
+                                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Auto-generates TOU-aware email based on org restrictions.</p>
+                                    <button type="button" class="btn btn-small btn-info" onclick="generateEmailDraft()">📝 Generate Draft</button>
+                                    <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('emailOutDraft')" style="margin-left: 5px;">📋 Copy</button>
+                                    <div class="form-group" style="margin-top: 10px;">
+                                        <textarea id="emailOutDraft" class="draft-textarea" placeholder="Click 'Generate Draft' to create email..."></textarea>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Final Text Sent <span style="font-weight: normal; color: #666;">(the actual email you sent)</span></label>
+                                    <textarea id="emailOutFinal" class="draft-textarea" placeholder="Paste or type the final email text you actually sent..."></textarea>
+                                </div>
+                                
+                                <div class="card-actions">
+                                    <button type="button" class="btn btn-small btn-success" onclick="saveCorrespondence('email-out')">💾 Save Email Outreach</button>
+                                    <button type="button" class="btn btn-small btn-secondary" onclick="cancelAddCorrespondence()">Cancel</button>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Subject / Summary</label>
-                                <input type="text" id="corrLogSubject" placeholder="Brief summary or email subject line...">
+                            
+                            <!-- ═══════════════════════════════════════════════════════════════ -->
+                            <!-- EMAIL RESPONSE PANEL                                            -->
+                            <!-- ═══════════════════════════════════════════════════════════════ -->
+                            <div id="corrPanelEmailIn" class="corr-panel">
+                                <h5>📥 Log Email Response</h5>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Date of Response</label>
+                                        <input type="date" id="emailInDate">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Follow-up Needed By (optional)</label>
+                                        <input type="date" id="emailInFollowupDate">
+                                    </div>
+                                </div>
+                                
+                                <div class="recommended-contact">
+                                    <label>📇 Known Contacts at This Org</label>
+                                    <div id="emailInKnownContacts" class="contact-info">Loading...</div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Who Responded?</label>
+                                        <select id="emailInContactSelect" class="inline-status-select" style="width: 100%;">
+                                            <option value="">-- Select known contact --</option>
+                                            <option value="__other__">➕ Other (enter below)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Or Enter New Contact</label>
+                                        <input type="text" id="emailInContactOther" placeholder="Name / email of responder...">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Subject Line</label>
+                                    <input type="text" id="emailInSubject" placeholder="RE: Permission Request...">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Response Text <span style="font-weight: normal; color: #666;">(paste the email they sent)</span></label>
+                                    <textarea id="emailInText" class="draft-textarea" placeholder="Paste the full response email here..."></textarea>
+                                </div>
+                                
+                                <div class="card-actions">
+                                    <button type="button" class="btn btn-small btn-success" onclick="saveCorrespondence('email-in')">💾 Save Response</button>
+                                    <button type="button" class="btn btn-small btn-secondary" onclick="cancelAddCorrespondence()">Cancel</button>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Full Text</label>
-                                <textarea id="corrLogText" placeholder="Paste the full email text or notes here..." style="min-height: 100px;"></textarea>
-                            </div>
-                            <button type="button" class="btn btn-small btn-success" onclick="addCorrespondenceEntry()">➕ Add Entry</button>
                         </div>
                         
                         <!-- Correspondence Timeline -->
@@ -649,21 +1214,19 @@
                         </div>
                     </div>
 
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <!-- SECTION 4: NOTES (v24 - Consolidated)                                     -->
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
                     <div class="section-box">
-                        <h4>🤖 Scraping Info</h4>
-                        <form id="scrapingForm">
-                            <div class="form-row">
-                                <div class="form-group"><label>Events Scraped</label><input type="text" id="scrapingEventCount" readonly style="background: #f0f0f0;"></div>
-                                <div class="form-group"><label>Last Scraped</label><input type="text" id="scrapingLastScraped" readonly style="background: #f0f0f0;"></div>
+                        <h4>📝 Notes</h4>
+                        <form id="notesForm">
+                            <div class="form-group">
+                                <textarea id="orgNotes" placeholder="Notes about this organization (contact follow-ups, special instructions, observations, etc.)..." style="min-height: 120px;"></textarea>
                             </div>
-                            <div class="form-row" style="margin: 15px 0;">
-                                <div class="form-group checkbox-group">
-                                    <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
-                                </div>
-                            </div>
-                            <div class="form-group"><label>Scrape Notes <span style="font-weight: normal; color: #666;">(auto-populated by scanner)</span></label><textarea id="scrapeNotes" placeholder="Auto-populated when JS-rendered site is detected..." style="min-height: 120px;"></textarea></div>
-                            <div class="form-group"><label>Manual Notes</label><textarea id="scrapingNotes" placeholder="Notes about scraping..."></textarea></div>
-                            <button type="submit" class="btn btn-small btn-success">💾 Save Scraping Info</button>
+                            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
+                                💡 Use this field for any human commentary. Technical scan results are tracked automatically in the Scan History above.
+                            </p>
+                            <button type="submit" class="btn btn-small btn-success">💾 Save Notes</button>
                         </form>
                     </div>
 
@@ -693,6 +1256,7 @@
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Events Tab -->
                 <div id="profileEvents" class="profile-tab-content">
@@ -939,7 +1503,6 @@
                 tou_flag: false,
                 tech_block_flag: false,
                 tech_rendering_flag: false,
-                permission_denied_flag: false,
                 duplicate_flag: false,
                 duplicate_of: '',
                 tou_notes: '',
@@ -1232,12 +1795,23 @@
         async function loadStatusHistory() {
             if (!currentOrg) return;
 
+            // ═══════════════════════════════════════════════════════════════════
+            // v24: ORG SUMMARY SECTION
+            // ═══════════════════════════════════════════════════════════════════
             document.getElementById('statusOrgName').textContent = currentOrg.name;
             const config = STATUS_CONFIG[currentOrg.status] || { icon: '❓', badge: '' };
             document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} ${currentOrg.status || 'Unknown'}</span>`;
             document.getElementById('statusWebsite').href = currentOrg.website || '#';
             document.getElementById('statusWebsite').textContent = currentOrg.website || 'N/A';
+            
+            // Events URL
+            const eventsUrlEl = document.getElementById('statusEventsUrl');
+            if (eventsUrlEl) {
+                eventsUrlEl.href = currentOrg.events_url || '#';
+                eventsUrlEl.textContent = currentOrg.events_url || 'Not set';
+            }
 
+            // AI Reasoning
             if (currentOrg.ai_reasoning) {
                 document.getElementById('statusAiReasoning').classList.remove('hidden');
                 document.getElementById('statusAiReasoningText').textContent = currentOrg.ai_reasoning;
@@ -1245,145 +1819,331 @@
                 document.getElementById('statusAiReasoning').classList.add('hidden');
             }
 
-            // Display triggering event info (for nominated orgs discovered via events)
-            if (currentOrg.triggering_event_title) {
-                document.getElementById('statusTriggeringEvent').classList.remove('hidden');
-                document.getElementById('statusTriggeringTitle').textContent = currentOrg.triggering_event_title;
-                document.getElementById('statusTriggeringScore').textContent = currentOrg.triggering_event_score ? `${currentOrg.triggering_event_score}% match` : '';
-                document.getElementById('statusTriggeringUrl').href = currentOrg.triggering_event_url || '#';
-                document.getElementById('statusTriggeringUrl').textContent = currentOrg.triggering_event_url || 'N/A';
-                
-                // Show snippet if available
-                if (currentOrg.triggering_event_snippet) {
-                    document.getElementById('statusTriggeringSnippet').textContent = currentOrg.triggering_event_snippet;
-                    document.getElementById('statusTriggeringSnippetRow').style.display = 'block';
-                } else {
-                    document.getElementById('statusTriggeringSnippetRow').style.display = 'none';
-                }
-            } else {
-                document.getElementById('statusTriggeringEvent').classList.add('hidden');
+            // ═══════════════════════════════════════════════════════════════════
+            // v24: SCAN & SCRAPE STATUS SECTION
+            // ═══════════════════════════════════════════════════════════════════
+            
+            // Stats
+            const statLastScanned = document.getElementById('statLastScanned');
+            if (statLastScanned) {
+                statLastScanned.textContent = currentOrg.tou_scanned_date 
+                    ? new Date(currentOrg.tou_scanned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : '-';
+            }
+            
+            const statLastScraped = document.getElementById('statLastScraped');
+            if (statLastScraped) {
+                statLastScraped.textContent = currentOrg.last_scraped 
+                    ? new Date(currentOrg.last_scraped).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : '-';
+            }
+            
+            const statScrapeEnabled = document.getElementById('statScrapeEnabled');
+            if (statScrapeEnabled) {
+                statScrapeEnabled.textContent = currentOrg.scraping_enabled ? '✅ On' : '❌ Off';
             }
 
-            const alertsDiv = document.getElementById('statusAlerts');
-            let alertsHtml = '';
-            if (currentOrg.tech_block_flag) {
-                alertsHtml += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
-            }
-            if (currentOrg.tou_flag && !currentOrg.tech_block_flag) {
-                alertsHtml += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(currentOrg.tou_notes) || 'May prohibit scraping'}</p></div>`;
-            }
-            if (currentOrg.permission_denied_flag) {
-                alertsHtml += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
-            }
-            if (currentOrg.tech_rendering_flag) {
-                alertsHtml += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Events page requires headless browser (Puppeteer) to scrape. See Scrape Notes for details.</p></div>`;
-            }
-            alertsDiv.innerHTML = alertsHtml;
+            // ═══════════════════════════════════════════════════════════════════
+            // v24: ALERT BOXES (bright yellow for TOU!)
+            // ═══════════════════════════════════════════════════════════════════
+            populateScanAlerts();
 
+            // ═══════════════════════════════════════════════════════════════════
+            // FLAG CHECKBOXES
+            // ═══════════════════════════════════════════════════════════════════
             document.getElementById('touFlag').checked = currentOrg.tou_flag || false;
             document.getElementById('techBlockFlag').checked = currentOrg.tech_block_flag || false;
-            document.getElementById('touNotes').value = currentOrg.tou_notes || '';
-            document.getElementById('touScannedDate').value = currentOrg.tou_scanned_date ? currentOrg.tou_scanned_date.split(' ')[0] : '';
-
-            document.getElementById('permissionRequestedDate').value = currentOrg.permission_requested_date ? currentOrg.permission_requested_date.split(' ')[0] : '';
-            document.getElementById('permissionResponseDate').value = currentOrg.permission_response_date ? currentOrg.permission_response_date.split(' ')[0] : '';
-            document.getElementById('permissionDeniedFlag').checked = currentOrg.permission_denied_flag || false;
-            
-            // Permission draft and final text - editable by default
-            document.getElementById('permissionDraft').value = currentOrg.permission_request_draft || '';
-            document.getElementById('permissionFinal').value = currentOrg.permission_request_final || '';
-            
-            document.getElementById('permissionCorrespondence').value = currentOrg.permission_correspondence || '';
-            updateGoLiveDate();
-
-            document.getElementById('scrapingEnabled').checked = currentOrg.scraping_enabled || false;
             document.getElementById('techRenderingFlag').checked = currentOrg.tech_rendering_flag || false;
-            document.getElementById('scrapingLastScraped').value = currentOrg.last_scraped ? new Date(currentOrg.last_scraped).toLocaleString() : 'Never';
-            document.getElementById('scrapeNotes').value = currentOrg.scrape_notes || '';
-            document.getElementById('scrapingNotes').value = currentOrg.notes || '';
+            document.getElementById('scrapingEnabled').checked = currentOrg.scraping_enabled || false;
+            document.getElementById('touScannedDate').value = currentOrg.tou_scanned_date ? currentOrg.tou_scanned_date.split(' ')[0] : '';
+            
+            // Status dropdowns
             document.getElementById('statusDropdown').value = currentOrg.status || 'Nominated (Pending Mission Review)';
             document.getElementById('statusEventPolicy').value = currentOrg.event_policy || '';
+
+            // ═══════════════════════════════════════════════════════════════════
+            // v24: NOTES SECTION (consolidated)
+            // ═══════════════════════════════════════════════════════════════════
+            // Migrate: combine tou_notes + scrape_notes + notes into one field display
+            let combinedNotes = currentOrg.notes || '';
+            // Note: Migration would be done once via script, not on every load
+            document.getElementById('orgNotes').value = combinedNotes;
 
             // Show/hide duplicate info box
             const duplicateInfoBox = document.getElementById('duplicateInfoBox');
             if (currentOrg.duplicate_flag && currentOrg.duplicate_of) {
                 duplicateInfoBox.classList.remove('hidden');
-                // Fetch the primary org name
                 fetchDuplicateOfName(currentOrg.duplicate_of);
             } else {
                 duplicateInfoBox.classList.add('hidden');
             }
 
+            // Get event count
             try {
                 const eventsRes = await fetch(`${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${currentOrgId}')&perPage=1`, { headers: { 'Authorization': authToken } });
                 const eventsData = await eventsRes.json();
-                document.getElementById('scrapingEventCount').value = eventsData.totalItems || 0;
+                const eventCount = eventsData.totalItems || 0;
+                
+                const statEventCount = document.getElementById('statEventCount');
+                if (statEventCount) {
+                    statEventCount.textContent = eventCount;
+                }
             } catch (e) {
-                document.getElementById('scrapingEventCount').value = 'Error';
+                console.error('Error loading event count:', e);
             }
             
-            // Load permission-related UI elements (NEW v22)
-            loadPermissionContacts();
-            loadRestrictionContext();
+            // ═══════════════════════════════════════════════════════════════════
+            // v24: LOAD CORRESPONDENCE & SCAN HISTORY
+            // ═══════════════════════════════════════════════════════════════════
+            loadCorrespondenceContacts();
             loadCorrespondenceTimeline();
-            
-            // Set default date for new correspondence entries
-            document.getElementById('corrLogDate').value = new Date().toISOString().split('T')[0];
+            loadScanHistory();
         }
-
-        function updateGoLiveDate() {
-            const requestedDate = document.getElementById('permissionRequestedDate').value;
-            const goLiveDateDiv = document.getElementById('goLiveDateInfo');
-            
-            // If org has TOU restrictions, never show a go-live date (explicit permission required)
-            if (currentOrg && currentOrg.tou_flag) {
-                goLiveDateDiv.innerHTML = `
-                    <p style="color: #856404;">
-                        <strong>⚠️ Explicit Permission Required</strong><br>
-                        <span style="font-size: 13px;">This organization has TOU restrictions. No automatic go-live date — we must wait for their explicit approval before proceeding.</span>
-                    </p>
-                `;
-                goLiveDateDiv.classList.remove('hidden');
-                goLiveDateDiv.style.background = '#fff3cd';
-                goLiveDateDiv.style.borderColor = '#ffc107';
-                return;
-            }
-            
-            // For orgs without restrictions, show calculated go-live date
-            if (requestedDate) {
-                const sent = new Date(requestedDate);
-                const goLive = new Date(sent);
-                goLive.setDate(goLive.getDate() + 7); // Updated 2026-01-17: changed from 14 to 7 days
-                goLiveDateDiv.innerHTML = `
-                    <p>
-                        📅 <strong>Calculated Go-Live Date:</strong> ${goLive.toLocaleDateString()} (sent + 1 week)<br>
-                        <span style="font-size: 13px; color: #666;">If no response by this date, permission is implied and we may proceed.</span>
-                    </p>
-                `;
-                goLiveDateDiv.classList.remove('hidden');
-                goLiveDateDiv.style.background = '#e7f3ff';
-                goLiveDateDiv.style.borderColor = '#b6d4fe';
-            } else {
-                goLiveDateDiv.classList.add('hidden');
-            }
-        }
-        document.getElementById('permissionRequestedDate').addEventListener('change', updateGoLiveDate);
 
         /**
-         * Load contacts for the permission request contact selector
-         * Priority order: Legal/Permissions → Events → Main Contact → Media/PR → Other → Leadership
+         * v24: Populate scan alert boxes with bright colors
          */
-        async function loadPermissionContacts() {
-            const select = document.getElementById('permissionContactSelect');
-            const corrLogSelect = document.getElementById('corrLogContact');
+        function populateScanAlerts() {
+            const container = document.getElementById('scanAlertContainer');
+            if (!container) return;
             
+            let alertsHtml = '';
+            
+            // TOU Restriction - BRIGHT YELLOW
+            if (currentOrg.tou_flag) {
+                const restrictionDetails = currentOrg.restriction_context || currentOrg.tou_notes || 'Restrictions found on website terms';
+                const sourceUrl = currentOrg.restriction_source_urls ? currentOrg.restriction_source_urls.split('\n')[0] : '';
+                alertsHtml += `
+                    <div class="scan-alert alert-tou">
+                        <div class="scan-alert-icon">⚠️</div>
+                        <div class="scan-alert-content">
+                            <div class="scan-alert-title">TOU Restriction Found</div>
+                            <div class="scan-alert-detail">
+                                ${escapeHtml(restrictionDetails)}
+                                ${sourceUrl ? `<br><a href="${escapeHtml(sourceUrl)}" target="_blank" style="color: #856404;">${escapeHtml(sourceUrl)}</a>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            
+            // Tech Block - RED
+            if (currentOrg.tech_block_flag) {
+                alertsHtml += `
+                    <div class="scan-alert alert-block">
+                        <div class="scan-alert-icon">⛔</div>
+                        <div class="scan-alert-content">
+                            <div class="scan-alert-title">Technical Block (403)</div>
+                            <div class="scan-alert-detail">This organization actively blocks automated requests.</div>
+                        </div>
+                    </div>`;
+            }
+            
+            // JS Rendering - BLUE
+            if (currentOrg.tech_rendering_flag) {
+                alertsHtml += `
+                    <div class="scan-alert alert-js">
+                        <div class="scan-alert-icon">⚙️</div>
+                        <div class="scan-alert-content">
+                            <div class="scan-alert-title">JavaScript Rendering Required</div>
+                            <div class="scan-alert-detail">Events page requires a headless browser (Puppeteer) to scrape.</div>
+                        </div>
+                    </div>`;
+            }
+            
+            // Permission Denied - RED
+            if (currentOrg.permission_type === 'Denied') {
+                alertsHtml += `
+                    <div class="scan-alert alert-denied">
+                        <div class="scan-alert-icon">🚫</div>
+                        <div class="scan-alert-content">
+                            <div class="scan-alert-title">Permission Denied</div>
+                            <div class="scan-alert-detail">Organization explicitly declined permission to scrape their events.</div>
+                        </div>
+                    </div>`;
+            }
+            
+            // If no issues, show success
+            if (!currentOrg.tou_flag && !currentOrg.tech_block_flag && !currentOrg.tech_rendering_flag && !currentOrg.permission_type === 'Denied') {
+                if (currentOrg.tou_scanned_date) {
+                    alertsHtml += `
+                        <div class="scan-alert alert-success">
+                            <div class="scan-alert-icon">✅</div>
+                            <div class="scan-alert-content">
+                                <div class="scan-alert-title">No Restrictions Found</div>
+                                <div class="scan-alert-detail">Last scanned ${new Date(currentOrg.tou_scanned_date).toLocaleDateString()} - no issues detected.</div>
+                            </div>
+                        </div>`;
+                }
+            }
+            
+            container.innerHTML = alertsHtml;
+        }
+
+        /**
+         * v24: Toggle scan history accordion
+         */
+        function toggleScanHistory() {
+            const toggle = document.querySelector('.scan-history-toggle');
+            const content = document.getElementById('scanHistoryContent');
+            
+            toggle.classList.toggle('expanded');
+            content.classList.toggle('show');
+        }
+
+        /**
+         * v24: Load scan history from scan_logs collection
+         */
+        async function loadScanHistory() {
+            const container = document.getElementById('scanHistoryList');
+            if (!container) return;
+            
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/scan_logs/records?filter=(organization='${currentOrgId}')&sort=-scan_date&perPage=20`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                
+                if (!response.ok) {
+                    // Collection might not exist yet or no records
+                    container.innerHTML = `
+                        <div class="scan-history-empty">
+                            <p>📋 No scan history available yet.</p>
+                            <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
+                        </div>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                const logs = data.items || [];
+                
+                if (logs.length === 0) {
+                    container.innerHTML = `
+                        <div class="scan-history-empty">
+                            <p>📋 No scan history available yet.</p>
+                            <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
+                        </div>`;
+                    return;
+                }
+                
+                container.innerHTML = logs.map(log => {
+                    const scanDate = new Date(log.scan_date).toLocaleDateString('en-US', { 
+                        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+                    });
+                    
+                    // Determine result badge
+                    let resultClass = 'result-clean';
+                    let resultText = '✅ Clean';
+                    if (log.tou_flag) { resultClass = 'result-tou'; resultText = '⚠️ TOU'; }
+                    else if (log.tech_block_flag) { resultClass = 'result-block'; resultText = '⛔ Blocked'; }
+                    else if (log.tech_rendering_flag) { resultClass = 'result-js'; resultText = '⚙️ JS'; }
+                    
+                    // Show status change if any
+                    let changeHtml = '';
+                    if (log.status_before && log.status_after && log.status_before !== log.status_after) {
+                        changeHtml = `<div class="scan-log-change">🔄 Status: "${log.status_before}" → "${log.status_after}"</div>`;
+                    }
+                    
+                    return `
+                        <div class="scan-log-entry">
+                            <div class="scan-log-header">
+                                <span class="scan-log-type">🔍 ${log.scan_type || 'Scan'}</span>
+                                <span class="scan-log-date">${scanDate}</span>
+                            </div>
+                            <span class="scan-log-result ${resultClass}">${resultText}</span>
+                            <div class="scan-log-details">
+                                ${log.pages_checked ? `<p>Pages checked: ${log.pages_checked}</p>` : ''}
+                                ${log.restriction_context ? `<p>Context: "${escapeHtml(log.restriction_context.substring(0, 100))}..."</p>` : ''}
+                                ${log.notes ? `<p>Notes: ${escapeHtml(log.notes)}</p>` : ''}
+                            </div>
+                            ${changeHtml}
+                        </div>`;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading scan history:', error);
+                container.innerHTML = `
+                    <div class="scan-history-empty">
+                        <p>📋 No scan history available yet.</p>
+                        <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
+                    </div>`;
+            }
+        }
+
+        /**
+         * Display restriction context if org has TOU restrictions
+         * (Legacy function - now handled by populateScanAlerts)
+         */
+        function loadRestrictionContext() {
+            populateScanAlerts();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // v23: CORRESPONDENCE ACCORDION FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        let currentCorrType = null;
+        let orgContacts = []; // Cache contacts for this org
+        
+        /**
+         * Toggle the Add Correspondence accordion section
+         */
+        function toggleAddCorrespondence() {
+            const section = document.getElementById('addCorrespondenceSection');
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                // Reset - no type selected
+                currentCorrType = null;
+                document.querySelectorAll('.corr-type-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.corr-panel').forEach(panel => panel.classList.remove('active'));
+                // Set default dates to today
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('phoneCallDate').value = today;
+                document.getElementById('emailOutDate').value = today;
+                document.getElementById('emailInDate').value = today;
+            } else {
+                section.classList.add('hidden');
+            }
+        }
+        
+        /**
+         * Select a correspondence type and show its panel
+         */
+        function selectCorrType(type) {
+            currentCorrType = type;
+            
+            // Update button states
+            document.querySelectorAll('.corr-type-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
+            });
+            
+            // Show appropriate panel
+            document.getElementById('corrPanelPhone').classList.toggle('active', type === 'phone');
+            document.getElementById('corrPanelEmailOut').classList.toggle('active', type === 'email-out');
+            document.getElementById('corrPanelEmailIn').classList.toggle('active', type === 'email-in');
+            
+            // Load contacts into the appropriate selects
+            loadCorrespondenceContacts();
+        }
+        
+        /**
+         * Cancel adding correspondence - hide the accordion
+         */
+        function cancelAddCorrespondence() {
+            document.getElementById('addCorrespondenceSection').classList.add('hidden');
+            currentCorrType = null;
+        }
+        
+        /**
+         * Load contacts for all correspondence panels
+         */
+        async function loadCorrespondenceContacts() {
             try {
                 const response = await fetch(
                     `${POCKETBASE_URL}/api/collections/contacts/records?filter=(organization='${currentOrgId}')`,
                     { headers: { 'Authorization': authToken } }
                 );
                 const data = await response.json();
-                const contacts = data.items || [];
+                orgContacts = data.items || [];
                 
                 // Priority order for contact types
                 const priority = {
@@ -1396,88 +2156,413 @@
                 };
                 
                 // Sort by priority, then by name
-                contacts.sort((a, b) => {
+                orgContacts.sort((a, b) => {
                     const priorityA = priority[a.contact_type] || 99;
                     const priorityB = priority[b.contact_type] || 99;
                     if (priorityA !== priorityB) return priorityA - priorityB;
                     return (a.name || '').localeCompare(b.name || '');
                 });
                 
-                if (contacts.length === 0) {
-                    select.innerHTML = `<option value="">⚠️ No contacts found - add one first</option>`;
-                    corrLogSelect.innerHTML = `<option value="">No contacts</option>`;
-                    return;
-                }
+                // Type icons
+                const typeIcon = {
+                    'Legal/Permissions': '⚖️',
+                    'Events': '📅',
+                    'Main Contact': '👤',
+                    'Media/PR': '📰',
+                    'Leadership': '👔',
+                    'Other': '📧'
+                };
                 
-                // Build options with email and type info
+                // Build options HTML
                 let optionsHtml = '<option value="">-- Select contact --</option>';
-                contacts.forEach(c => {
-                    const typeIcon = {
-                        'Legal/Permissions': '⚖️',
-                        'Events': '📅',
-                        'Main Contact': '👤',
-                        'Media/PR': '📰',
-                        'Leadership': '👔',
-                        'Other': '📧'
-                    }[c.contact_type] || '📧';
-                    
+                orgContacts.forEach(c => {
+                    const icon = typeIcon[c.contact_type] || '📧';
                     const emailDisplay = c.email || 'no email';
-                    const label = `${typeIcon} ${c.name || 'Unknown'} (${c.contact_type}) - ${emailDisplay}`;
-                    optionsHtml += `<option value="${escapeHtml(c.email || '')}" data-name="${escapeHtml(c.name || '')}" data-id="${c.id}">${escapeHtml(label)}</option>`;
+                    const label = `${icon} ${c.name || 'Unknown'} (${c.contact_type}) - ${emailDisplay}`;
+                    optionsHtml += `<option value="${c.id}" data-name="${escapeHtml(c.name || '')}" data-email="${escapeHtml(c.email || '')}" data-phone="${escapeHtml(c.phone || '')}" data-type="${escapeHtml(c.contact_type || '')}">${escapeHtml(label)}</option>`;
                 });
                 
-                select.innerHTML = optionsHtml;
-                corrLogSelect.innerHTML = optionsHtml;
+                // Options with "Other" for email response
+                let optionsWithOther = optionsHtml + '<option value="__other__">➕ Other (enter below)</option>';
                 
-                // Auto-select first contact with email if available
-                const firstWithEmail = contacts.find(c => c.email);
-                if (firstWithEmail) {
-                    select.value = firstWithEmail.email;
-                }
+                // Populate all select elements
+                document.getElementById('phoneContactSelect').innerHTML = optionsHtml;
+                document.getElementById('emailOutContactSelect').innerHTML = optionsHtml;
+                document.getElementById('emailInContactSelect').innerHTML = optionsWithOther;
+                
+                // Update recommended contact displays
+                updateRecommendedContacts();
                 
             } catch (error) {
-                select.innerHTML = `<option value="">❌ Error loading contacts</option>`;
                 console.error('Error loading contacts:', error);
             }
         }
-
+        
         /**
-         * Display restriction context if org has TOU restrictions
+         * Update the recommended contact displays in each panel
          */
-        function loadRestrictionContext() {
-            const contextBox = document.getElementById('restrictionContextBox');
-            const sourceUrlEl = document.getElementById('restrictionSourceUrl');
-            const contextTextEl = document.getElementById('restrictionContextText');
+        function updateRecommendedContacts() {
+            const typeIcon = {
+                'Legal/Permissions': '⚖️',
+                'Events': '📅',
+                'Main Contact': '👤',
+                'Media/PR': '📰',
+                'Leadership': '👔',
+                'Other': '📧'
+            };
             
-            if (currentOrg.tou_flag && currentOrg.restriction_context) {
-                const sourceUrl = currentOrg.restriction_source_urls || 'Source URL not recorded';
-                sourceUrlEl.innerHTML = `<strong>Source:</strong> <a href="${escapeHtml(sourceUrl)}" target="_blank">${escapeHtml(sourceUrl)}</a>`;
-                contextTextEl.textContent = `"${currentOrg.restriction_context}"`;
-                contextBox.classList.remove('hidden');
+            // Phone: Show first contact with phone number
+            const phoneContactDiv = document.getElementById('phoneRecommendedContact');
+            const phoneNumberInput = document.getElementById('phoneRecommendedNumber');
+            const contactWithPhone = orgContacts.find(c => c.phone);
+            if (contactWithPhone) {
+                phoneContactDiv.innerHTML = `${typeIcon[contactWithPhone.contact_type] || '📧'} <strong>${escapeHtml(contactWithPhone.name)}</strong> (${contactWithPhone.contact_type})`;
+                phoneNumberInput.value = contactWithPhone.phone || '';
             } else {
-                contextBox.classList.add('hidden');
+                phoneContactDiv.innerHTML = '<span style="color: #999;">No contacts with phone numbers found</span>';
+                phoneNumberInput.value = '';
+            }
+            
+            // Email Out: Show all contacts with emails (priority sorted)
+            const emailOutDiv = document.getElementById('emailOutRecommendedContacts');
+            const contactsWithEmail = orgContacts.filter(c => c.email);
+            if (contactsWithEmail.length > 0) {
+                emailOutDiv.innerHTML = contactsWithEmail.map(c => 
+                    `<div style="margin: 4px 0;">${typeIcon[c.contact_type] || '📧'} <strong>${escapeHtml(c.name)}</strong> - ${escapeHtml(c.email)}</div>`
+                ).join('');
+            } else {
+                emailOutDiv.innerHTML = '<span style="color: #999;">No contacts with email addresses found</span>';
+            }
+            
+            // Email In: Show all known contacts
+            const emailInDiv = document.getElementById('emailInKnownContacts');
+            if (orgContacts.length > 0) {
+                emailInDiv.innerHTML = orgContacts.map(c => 
+                    `<div style="margin: 4px 0;">${typeIcon[c.contact_type] || '📧'} <strong>${escapeHtml(c.name)}</strong> ${c.email ? '- ' + escapeHtml(c.email) : ''}</div>`
+                ).join('');
+            } else {
+                emailInDiv.innerHTML = '<span style="color: #999;">No contacts on file for this organization</span>';
             }
         }
-
+        
         /**
-         * Add a new correspondence log entry
-         * Stores in permission_correspondence field as JSON array
+         * Update phone number when a contact is selected
          */
-        async function addCorrespondenceEntry() {
-            const date = document.getElementById('corrLogDate').value;
-            const direction = document.getElementById('corrLogDirection').value;
-            const contactSelect = document.getElementById('corrLogContact');
-            const contactEmail = contactSelect.value;
-            const contactName = contactSelect.options[contactSelect.selectedIndex]?.dataset?.name || '';
-            const subject = document.getElementById('corrLogSubject').value;
-            const text = document.getElementById('corrLogText').value;
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'phoneContactSelect') {
+                const selected = e.target.options[e.target.selectedIndex];
+                const phone = selected?.dataset?.phone || '';
+                document.getElementById('phoneRecommendedNumber').value = phone;
+            }
+        });
+        
+        /**
+         * Populate the flag dashboard with visual indicators
+         */
+        function populateFlagDashboard() {
+            const dashboard = document.getElementById('flagDashboard');
+            if (!dashboard) return;
             
-            if (!date || !text) {
-                showMessage('profileMessage', '⚠️ Please enter at least a date and text content.', 'warning');
-                return;
+            const flags = [
+                { id: 'tou', label: 'TOU Restriction', icon: '⚠️', value: currentOrg.tou_flag, class: 'flag-on-tou' },
+                { id: 'block', label: 'Tech Block (403)', icon: '⛔', value: currentOrg.tech_block_flag, class: 'flag-on-block' },
+                { id: 'js', label: 'JS Rendering', icon: '⚙️', value: currentOrg.tech_rendering_flag, class: 'flag-on-js' },
+                { id: 'denied', label: 'Permission Denied', icon: '🚫', value: currentOrg.permission_type === 'Denied', class: 'flag-on-denied' }
+            ];
+            
+            dashboard.innerHTML = flags.map(flag => {
+                const isOn = flag.value === true;
+                return `<div class="flag-item ${isOn ? flag.class : 'flag-off'}">
+                    ${flag.icon} ${flag.label}: <strong>${isOn ? 'YES' : 'No'}</strong>
+                </div>`;
+            }).join('');
+        }
+        
+        /**
+         * Load and display restriction details if TOU flag is set
+         */
+        function loadRestrictionDetails() {
+            const detailsBox = document.getElementById('restrictionDetailsBox');
+            const detailsList = document.getElementById('restrictionDetailsList');
+            
+            if (!detailsBox || !detailsList) return;
+            
+            if (currentOrg.tou_flag && (currentOrg.restriction_source_urls || currentOrg.restriction_context)) {
+                const sourceLines = (currentOrg.restriction_source_urls || '').split('\n').filter(line => line.trim());
+                const contextLines = (currentOrg.restriction_context || '').split('\n').filter(line => line.trim());
+                
+                let detailsHtml = '';
+                sourceLines.forEach((url, index) => {
+                    const context = contextLines[index] || contextLines[0] || 'Restriction found';
+                    // Detect source type from URL
+                    let sourceType = 'Legal Page';
+                    const urlLower = url.toLowerCase();
+                    if (urlLower.includes('privacy')) sourceType = 'Privacy Policy';
+                    else if (urlLower.includes('terms') || urlLower.includes('tos')) sourceType = 'Terms of Use';
+                    else if (urlLower.includes('copyright')) sourceType = 'Copyright Page';
+                    
+                    detailsHtml += `<div class="restriction-item">
+                        <p><strong>${sourceType}:</strong> <a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></p>
+                        <p style="color: #666; font-style: italic; margin-top: 5px;">"${escapeHtml(context)}"</p>
+                    </div>`;
+                });
+                
+                if (detailsHtml) {
+                    detailsList.innerHTML = detailsHtml;
+                    detailsBox.classList.remove('hidden');
+                } else {
+                    detailsBox.classList.add('hidden');
+                }
+            } else {
+                detailsBox.classList.add('hidden');
+            }
+        }
+        
+        /**
+         * Generate call notes/talking points for phone outreach
+         */
+        function generateCallNotes() {
+            const orgName = currentOrg.name;
+            const hasTouRestriction = currentOrg.tou_flag;
+            const hasTechBlock = currentOrg.tech_block_flag;
+            
+            let notes = `CALL NOTES - ${orgName}\n`;
+            notes += `${'═'.repeat(40)}\n\n`;
+            
+            notes += `INTRODUCTION:\n`;
+            notes += `• "Hi, my name is [YOUR NAME] from BalanceFWD."\n`;
+            notes += `• "We're building a service to help people find events related to national security and defense."\n`;
+            notes += `• "I'm reaching out about including ${orgName}'s public events in our directory."\n\n`;
+            
+            if (hasTouRestriction || hasTechBlock) {
+                notes += `REASON FOR CALL:\n`;
+                if (hasTouRestriction) {
+                    notes += `• "We noticed your website terms mention restrictions on automated access."\n`;
+                    notes += `• "We wanted to request permission directly rather than assume it's okay."\n`;
+                }
+                if (hasTechBlock) {
+                    notes += `• "We encountered technical blocks when trying to access your events page."\n`;
+                    notes += `• "We're hoping to find a way to work together."\n`;
+                }
+                notes += `\n`;
             }
             
-            // Parse existing correspondence log (stored as JSON in notes field or dedicated field)
+            notes += `OUR COMMITMENT:\n`;
+            notes += `• All event listings will link directly to your pages\n`;
+            notes += `• ${orgName} will be clearly credited as the source\n`;
+            notes += `• We'll respect your servers (rate-limited, off-peak access)\n`;
+            notes += `• We'll stop immediately if you ever request it\n\n`;
+            
+            notes += `ASK:\n`;
+            notes += `• "Would you be able to grant us permission to include your events?"\n`;
+            notes += `• "Is there someone specific I should follow up with?"\n`;
+            notes += `• "Would you prefer I send this request via email?"\n\n`;
+            
+            notes += `FOLLOW-UP:\n`;
+            notes += `• Get contact name and email for follow-up\n`;
+            notes += `• Offer to send written confirmation of our commitments\n`;
+            
+            document.getElementById('phoneCallNotesDraft').value = notes;
+            showMessage('profileMessage', '📝 Call talking points generated!', 'success');
+        }
+        
+        /**
+         * Generate email draft (moved from old generatePermissionDraft)
+         */
+        function generateEmailDraft() {
+            const orgName = currentOrg.name;
+            const hasTouRestriction = currentOrg.tou_flag && currentOrg.restriction_context;
+            const hasTechBlock = currentOrg.tech_block_flag;
+            const hasTechRendering = currentOrg.tech_rendering_flag;
+            const hasAnyRestriction = currentOrg.tou_flag || hasTechBlock || hasTechRendering;
+            
+            const restrictionContext = currentOrg.restriction_context || '';
+            const restrictionSourceUrls = currentOrg.restriction_source_urls || '';
+            
+            // Calculate proceed date (1 week from now)
+            const proceedDate = new Date();
+            proceedDate.setDate(proceedDate.getDate() + 7);
+            const proceedDateStr = proceedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            let draft;
+            let subject;
+            
+            if (hasAnyRestriction) {
+                // Build restriction bullets
+                let restrictionBullets = '';
+                
+                if (hasTouRestriction) {
+                    const sourceLines = restrictionSourceUrls.split('\n').filter(line => line.trim());
+                    const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                    
+                    sourceLines.forEach((sourceUrl, index) => {
+                        const context = contextLines[index] || contextLines[0] || 'restricts automated access';
+                        let sourceType = 'Terms page';
+                        const urlLower = sourceUrl.toLowerCase();
+                        if (urlLower.includes('privacy')) sourceType = 'Privacy Policy';
+                        else if (urlLower.includes('terms') || urlLower.includes('tos')) sourceType = 'Terms of Use';
+                        else if (urlLower.includes('legal')) sourceType = 'Legal page';
+                        else if (urlLower.includes('copyright')) sourceType = 'Copyright page';
+                        
+                        restrictionBullets += `• The ${sourceType} states: "${context.trim()}"\n  ${sourceUrl.trim()}\n`;
+                    });
+                    
+                    if (!restrictionBullets && currentOrg.tou_flag) {
+                        restrictionBullets += `• Your website's terms restrict automated gathering of information.\n`;
+                    }
+                }
+                
+                if (hasTechBlock) {
+                    restrictionBullets += `• Your website blocks automated access (returns 403 Forbidden).\n`;
+                }
+                
+                if (hasTechRendering) {
+                    restrictionBullets += `• Your events page requires JavaScript to display content.\n`;
+                }
+                
+                subject = `Permission Request: Event Listing from ${orgName}`;
+                draft = `Subject: ${subject}
+
+Hello,
+
+We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to request permission to include ${orgName}'s publicly-listed events in this service.
+
+Looking at your website, we noticed the following:
+
+${restrictionBullets.trim()}
+
+Given these factors, we wanted to reach out directly to request permission rather than proceed without authorization.
+
+If granted permission, we will ensure that:
+• All event listings link directly to your original event pages
+• ${orgName} is clearly credited as the source
+• Our access respects your server (rate-limited, off-peak hours)
+• We immediately stop if you request it at any time
+
+Would you please reply with a quick note giving us permission to proceed?
+
+Thank you for your time and consideration.
+
+Regards,`;
+            } else {
+                subject = `Notice: Automated Event Collection from ${orgName}`;
+                draft = `Subject: ${subject}
+
+Hello,
+
+We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to include ${orgName}'s publicly-listed events in this service.
+
+${orgName}'s website terms did not appear to restrict gathering this information. We believe this work will drive additional visitors to your site and events. Additionally, we will ensure that:
+• All listings will link directly to your original event pages
+• ${orgName} is clearly credited as the source
+• Our access respects your server (rate-limited, off-peak hours)
+• We immediately stop if you request it at any time
+
+We wanted to notify you before we begin, so you have the opportunity to decline or set specific terms. We plan to proceed on ${proceedDateStr} unless we hear otherwise. A quick "okay" or "no thanks" would be appreciated, but no response is needed if you are fine with this.
+
+Thank you for your time.
+
+Regards,`;
+            }
+            
+            document.getElementById('emailOutDraft').value = draft;
+            document.getElementById('emailOutSubject').value = subject;
+            
+            // Show message
+            let detectedFlags = [];
+            if (currentOrg.tou_flag) detectedFlags.push('TOU');
+            if (hasTechBlock) detectedFlags.push('Tech Block');
+            if (hasTechRendering) detectedFlags.push('JS Rendering');
+            
+            const draftType = hasAnyRestriction 
+                ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})` 
+                : '📝 Standard notice draft';
+            showMessage('profileMessage', `${draftType} generated!`, 'success');
+        }
+        
+        /**
+         * Save correspondence entry based on type
+         */
+        async function saveCorrespondence(type) {
+            let entry = {
+                id: Date.now(),
+                type: type,
+                addedAt: new Date().toISOString()
+            };
+            
+            // Gather data based on type
+            if (type === 'phone') {
+                const date = document.getElementById('phoneCallDate').value;
+                const followup = document.getElementById('phoneFollowupDate').value;
+                const contactSelect = document.getElementById('phoneContactSelect');
+                const contactOther = document.getElementById('phoneContactOther').value;
+                const draftNotes = document.getElementById('phoneCallNotesDraft').value;
+                const callNotes = document.getElementById('phoneCallNotes').value;
+                
+                if (!date || !callNotes) {
+                    showMessage('profileMessage', '⚠️ Please enter the date and call notes.', 'warning');
+                    return;
+                }
+                
+                const selectedOption = contactSelect.options[contactSelect.selectedIndex];
+                entry.date = date;
+                entry.followupDate = followup || null;
+                entry.contactId = contactSelect.value || null;
+                entry.contactName = selectedOption?.dataset?.name || contactOther || 'Unknown';
+                entry.contactEmail = selectedOption?.dataset?.email || '';
+                entry.subject = 'Phone Call';
+                entry.draftNotes = draftNotes;
+                entry.text = callNotes;
+                
+            } else if (type === 'email-out') {
+                const date = document.getElementById('emailOutDate').value;
+                const followup = document.getElementById('emailOutFollowupDate').value;
+                const contactSelect = document.getElementById('emailOutContactSelect');
+                const contactOther = document.getElementById('emailOutContactOther').value;
+                const subject = document.getElementById('emailOutSubject').value;
+                const draft = document.getElementById('emailOutDraft').value;
+                const finalText = document.getElementById('emailOutFinal').value;
+                
+                if (!date || !finalText) {
+                    showMessage('profileMessage', '⚠️ Please enter the date and final email text.', 'warning');
+                    return;
+                }
+                
+                const selectedOption = contactSelect.options[contactSelect.selectedIndex];
+                entry.date = date;
+                entry.followupDate = followup || null;
+                entry.contactId = contactSelect.value || null;
+                entry.contactName = selectedOption?.dataset?.name || '';
+                entry.contactEmail = selectedOption?.dataset?.email || contactOther || '';
+                entry.subject = subject || 'Email Outreach';
+                entry.draftText = draft;
+                entry.text = finalText;
+                
+            } else if (type === 'email-in') {
+                const date = document.getElementById('emailInDate').value;
+                const followup = document.getElementById('emailInFollowupDate').value;
+                const contactSelect = document.getElementById('emailInContactSelect');
+                const contactOther = document.getElementById('emailInContactOther').value;
+                const subject = document.getElementById('emailInSubject').value;
+                const responseText = document.getElementById('emailInText').value;
+                
+                if (!date || !responseText) {
+                    showMessage('profileMessage', '⚠️ Please enter the date and response text.', 'warning');
+                    return;
+                }
+                
+                const selectedOption = contactSelect.options[contactSelect.selectedIndex];
+                const isOther = contactSelect.value === '__other__';
+                entry.date = date;
+                entry.followupDate = followup || null;
+                entry.contactId = isOther ? null : (contactSelect.value || null);
+                entry.contactName = isOther ? contactOther : (selectedOption?.dataset?.name || contactOther || 'Unknown');
+                entry.contactEmail = isOther ? '' : (selectedOption?.dataset?.email || '');
+                entry.subject = subject || 'Email Response';
+                entry.text = responseText;
+            }
+            
+            // Load existing log
             let log = [];
             try {
                 if (currentOrg.correspondence_log) {
@@ -1487,18 +2572,8 @@
                 log = [];
             }
             
-            // Add new entry
-            const newEntry = {
-                id: Date.now(),
-                date: date,
-                direction: direction,
-                contactEmail: contactEmail,
-                contactName: contactName,
-                subject: subject,
-                text: text,
-                addedAt: new Date().toISOString()
-            };
-            log.unshift(newEntry); // Add to beginning (newest first)
+            // Add new entry at beginning
+            log.unshift(entry);
             
             // Save to PocketBase
             try {
@@ -1517,14 +2592,14 @@
                 if (response.ok) {
                     currentOrg.correspondence_log = JSON.stringify(log);
                     
-                    // Clear form
-                    document.getElementById('corrLogDate').value = '';
-                    document.getElementById('corrLogSubject').value = '';
-                    document.getElementById('corrLogText').value = '';
+                    // Clear form and hide accordion
+                    cancelAddCorrespondence();
                     
                     // Reload timeline
                     loadCorrespondenceTimeline();
-                    showMessage('profileMessage', '✅ Correspondence entry added!', 'success');
+                    
+                    const typeLabels = { 'phone': 'Phone Call', 'email-out': 'Email Outreach', 'email-in': 'Email Response' };
+                    showMessage('profileMessage', `✅ ${typeLabels[type]} logged successfully!`, 'success');
                 } else {
                     const err = await response.json();
                     showMessage('profileMessage', `❌ Error saving: ${JSON.stringify(err)}`, 'error');
@@ -1535,7 +2610,7 @@
         }
 
         /**
-         * Load and display the correspondence timeline
+         * Load and display the correspondence timeline (v23 - updated for new entry types)
          */
         function loadCorrespondenceTimeline() {
             const container = document.getElementById('correspondenceTimeline');
@@ -1557,38 +2632,51 @@
             // Sort by date (newest first)
             log.sort((a, b) => new Date(b.date) - new Date(a.date));
             
-            const directionIcons = {
-                'sent': '📤',
-                'received': '📥',
-                'note': '📝'
+            // Type configurations
+            const typeConfig = {
+                'phone': { icon: '📞', label: 'Phone Call', class: 'type-phone' },
+                'email-out': { icon: '📤', label: 'Email Outreach', class: 'type-email-out' },
+                'email-in': { icon: '📥', label: 'Email Response', class: 'type-email-in' },
+                // Legacy support
+                'sent': { icon: '📤', label: 'Email Sent', class: 'type-email-out' },
+                'received': { icon: '📥', label: 'Email Received', class: 'type-email-in' },
+                'note': { icon: '📝', label: 'Note', class: 'type-phone' }
             };
             
-            const directionLabels = {
-                'sent': 'Sent to Org',
-                'received': 'Received from Org',
-                'note': 'Internal Note'
-            };
-            
-            const directionColors = {
-                'sent': '#e3f2fd',
-                'received': '#e8f5e9',
-                'note': '#fff3e0'
-            };
-            
-            container.innerHTML = log.map(entry => `
-                <div class="correspondence-entry" style="background: ${directionColors[entry.direction] || '#f5f5f5'}; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            container.innerHTML = log.map(entry => {
+                const entryType = entry.type || entry.direction || 'note';
+                const config = typeConfig[entryType] || typeConfig['note'];
+                const dateStr = new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                
+                // Check for follow-up date
+                let followupBadge = '';
+                if (entry.followupDate) {
+                    const followupDate = new Date(entry.followupDate);
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const isOverdue = followupDate < today;
+                    followupBadge = `<span class="corr-followup-badge" style="${isOverdue ? 'background: #f8d7da; color: #721c24;' : ''}">
+                        ${isOverdue ? '⚠️ Overdue' : '🔔 Follow-up'}: ${followupDate.toLocaleDateString()}
+                    </span>`;
+                }
+                
+                return `
+                <div class="corr-entry ${config.class}">
+                    <div class="corr-entry-header">
                         <div>
-                            <strong>${directionIcons[entry.direction] || '📧'} ${directionLabels[entry.direction] || entry.direction}</strong>
-                            <span style="color: #666; margin-left: 10px;">${new Date(entry.date).toLocaleDateString()}</span>
+                            <span class="corr-entry-type">${config.icon} ${config.label}</span>
+                            ${followupBadge}
                         </div>
+                        <span class="corr-entry-date">${dateStr}</span>
+                    </div>
+                    <div class="corr-entry-actions">
                         <button class="btn btn-small btn-danger" onclick="deleteCorrespondenceEntry(${entry.id})" style="padding: 4px 8px; font-size: 11px;">🗑️</button>
                     </div>
-                    ${entry.contactName ? `<p style="font-size: 12px; color: #666; margin: 4px 0;">Contact: ${escapeHtml(entry.contactName)} ${entry.contactEmail ? '(' + escapeHtml(entry.contactEmail) + ')' : ''}</p>` : ''}
-                    ${entry.subject ? `<p style="font-weight: 600; margin: 8px 0;">${escapeHtml(entry.subject)}</p>` : ''}
-                    <p style="font-size: 13px; white-space: pre-wrap; background: white; padding: 10px; border-radius: 4px; max-height: 150px; overflow-y: auto;">${escapeHtml(entry.text)}</p>
-                </div>
-            `).join('');
+                    ${entry.contactName ? `<p class="corr-entry-contact">👤 ${escapeHtml(entry.contactName)} ${entry.contactEmail ? '(' + escapeHtml(entry.contactEmail) + ')' : ''}</p>` : ''}
+                    ${entry.subject ? `<p class="corr-entry-subject">${escapeHtml(entry.subject)}</p>` : ''}
+                    <div class="corr-entry-text">${escapeHtml(entry.text)}</div>
+                </div>`;
+            }).join('');
         }
 
         /**
@@ -1661,13 +2749,13 @@
             
             // Safety check: warn if trying to go Live with restriction flags
             if (newStatus === 'Live (Scraping Active)') {
-                const hasRestrictions = currentOrg.tou_flag || currentOrg.tech_block_flag || currentOrg.tech_rendering_flag || currentOrg.permission_denied_flag;
+                const hasRestrictions = currentOrg.tou_flag || currentOrg.tech_block_flag || currentOrg.tech_rendering_flag || currentOrg.permission_type === 'Denied';
                 if (hasRestrictions) {
                     const flags = [];
                     if (currentOrg.tou_flag) flags.push('TOU Restriction');
                     if (currentOrg.tech_block_flag) flags.push('Tech Block');
                     if (currentOrg.tech_rendering_flag) flags.push('JS Rendering Required');
-                    if (currentOrg.permission_denied_flag) flags.push('Permission Denied');
+                    if (currentOrg.permission_type === 'Denied') flags.push('Permission Denied');
                     
                     const proceed = confirm(
                         `⚠️ WARNING: This organization has active restriction flags:\n\n` +
@@ -1811,65 +2899,8 @@
          * Handle Permission Denied checkbox change
          * When checked: auto-set date, uncheck scraping, set status to Rejected
          */
-        function handlePermissionDeniedChange() {
-            console.log('Permission Denied changed');
-            const permissionDeniedFlag = document.getElementById('permissionDeniedFlag').checked;
-            
-            if (permissionDeniedFlag) {
-                // Auto-set Permission Response Date to today if not already set
-                const responseDateField = document.getElementById('permissionResponseDate');
-                if (!responseDateField.value) {
-                    const today = new Date().toISOString().split('T')[0];
-                    responseDateField.value = today;
-                    console.log('Set Permission Response Date to:', today);
-                }
-                
-                // Uncheck Scraping Enabled
-                document.getElementById('scrapingEnabled').checked = false;
-                console.log('Unchecked Scraping Enabled');
-                
-                // Change status to Rejected by Org
-                document.getElementById('statusDropdown').value = 'Rejected by Org';
-                console.log('Set status to Rejected by Org');
-                
-                // Auto-save changes
-                savePermissionDeniedChanges();
-            }
-        }
-        
-        /**
-         * Save Permission Denied changes to PocketBase
-         */
-        async function savePermissionDeniedChanges() {
-            if (!currentOrg || !currentOrg.id) return;
-            
-            const updates = {
-                permission_denied_flag: document.getElementById('permissionDeniedFlag').checked,
-                permission_response_date: document.getElementById('permissionResponseDate').value || null,
-                scraping_enabled: document.getElementById('scrapingEnabled').checked,
-                status: document.getElementById('statusDropdown').value
-            };
-            
-            try {
-                const response = await fetch(
-                    `${POCKETBASE_URL}/api/collections/organizations/records/${currentOrg.id}`,
-                    {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
-                        body: JSON.stringify(updates)
-                    }
-                );
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    currentOrg.permission_denied_flag = data.permission_denied_flag;
-                    currentOrg.status = data.status;
-                    console.log('✅ Permission Denied changes saved');
-                }
-            } catch (error) {
-                console.error('Error saving permission denied changes:', error);
-            }
-        }
+        // NOTE: Permission Denied is now handled via permission_type field in Edit Org tab
+        // The handlePermissionDeniedChange and savePermissionDeniedChanges functions have been removed
         
         /**
          * Handle Tech Rendering Flag checkbox change
@@ -1905,23 +2936,15 @@
             const touFlag = document.getElementById('touFlag').checked;
             const techBlockFlag = document.getElementById('techBlockFlag').checked;
             const techRenderingFlag = document.getElementById('techRenderingFlag').checked;
-            const permissionDeniedFlag = document.getElementById('permissionDeniedFlag').checked;
             
-            // If any flag is checked, set status to Rejected and disable scraping
-            const anyFlagChecked = touFlag || techBlockFlag || techRenderingFlag || permissionDeniedFlag;
-            
-            if (anyFlagChecked) {
-                document.getElementById('statusDropdown').value = 'Rejected by Org';
-                document.getElementById('scrapingEnabled').checked = false;
-            }
+            // Note: Flags no longer auto-change status (v24 workflow)
+            // Status changes are manual PES decisions
             
             const updates = {
                 tou_flag: touFlag,
                 tech_block_flag: techBlockFlag,
                 tech_rendering_flag: techRenderingFlag,
-                permission_denied_flag: permissionDeniedFlag,
-                scraping_enabled: document.getElementById('scrapingEnabled').checked,
-                status: document.getElementById('statusDropdown').value
+                scraping_enabled: document.getElementById('scrapingEnabled').checked
             };
             
             // Set TOU scanned date if TOU or tech block flag is checked
@@ -1949,9 +2972,9 @@
                     currentOrg.tou_flag = data.tou_flag;
                     currentOrg.tech_block_flag = data.tech_block_flag;
                     currentOrg.tech_rendering_flag = data.tech_rendering_flag;
-                    currentOrg.permission_denied_flag = data.permission_denied_flag;
-                    currentOrg.status = data.status;
+                    currentOrg.scraping_enabled = data.scraping_enabled;
                     console.log('✅ All flags saved');
+                    loadStatusHistory(); // Refresh alerts
                     alert('✅ Flags saved successfully');
                 } else {
                     alert('❌ Error saving flags');
@@ -2112,137 +3135,19 @@
             } catch (error) { alert('Error: ' + error.message); }
         });
 
-        document.getElementById('scrapingForm').addEventListener('submit', async (e) => {
+        document.getElementById('notesForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const data = { 
-                scraping_enabled: document.getElementById('scrapingEnabled').checked, 
-                tech_rendering_flag: document.getElementById('techRenderingFlag').checked,
-                scrape_notes: document.getElementById('scrapeNotes').value,
-                notes: document.getElementById('scrapingNotes').value 
+                notes: document.getElementById('orgNotes').value 
             };
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
                     method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
                 });
                 Object.assign(currentOrg, data);
-                // Update alerts if tech_rendering_flag changed
-                loadStatusHistory();
-                showMessage('profileMessage', '✅ Scraping info saved!', 'success');
+                showMessage('profileMessage', '✅ Notes saved!', 'success');
             } catch (error) { alert('Error: ' + error.message); }
         });
-
-        function generatePermissionDraft() {
-            const orgName = currentOrg.name;
-            const hasTouRestriction = currentOrg.tou_flag && currentOrg.restriction_context;
-            const hasTechBlock = currentOrg.tech_block_flag;
-            const hasTechRendering = currentOrg.tech_rendering_flag;
-            const hasAnyRestriction = currentOrg.tou_flag || hasTechBlock || hasTechRendering;
-            
-            const restrictionContext = currentOrg.restriction_context || '';
-            const restrictionSourceUrls = currentOrg.restriction_source_urls || '';
-            
-            // Calculate a date 1 week from now (updated from 2 weeks - 2026-01-17)
-            const proceedDate = new Date();
-            proceedDate.setDate(proceedDate.getDate() + 7);
-            const proceedDateStr = proceedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            
-            let draft;
-            
-            if (hasAnyRestriction) {
-                // Build restriction bullets for each type of issue
-                let restrictionBullets = '';
-                
-                // TOU/Policy restrictions
-                if (hasTouRestriction) {
-                    const sourceLines = restrictionSourceUrls.split('\n').filter(line => line.trim());
-                    const contextLines = restrictionContext.split('\n').filter(line => line.trim());
-                    
-                    sourceLines.forEach((sourceUrl, index) => {
-                        const context = contextLines[index] || contextLines[0] || 'restricts automated access';
-                        // Try to detect source type from URL
-                        let sourceType = 'Terms page';
-                        const urlLower = sourceUrl.toLowerCase();
-                        if (urlLower.includes('privacy')) sourceType = 'Privacy Policy';
-                        else if (urlLower.includes('terms') || urlLower.includes('tos')) sourceType = 'Terms of Use';
-                        else if (urlLower.includes('legal')) sourceType = 'Legal page';
-                        else if (urlLower.includes('copyright')) sourceType = 'Copyright page';
-                        
-                        restrictionBullets += `• The ${sourceType} states: "${context.trim()}"\n  ${sourceUrl.trim()}\n`;
-                    });
-                    
-                    // Fallback if no structured sources but tou_flag is true
-                    if (!restrictionBullets && currentOrg.tou_flag) {
-                        restrictionBullets += `• Your website's terms restrict automated gathering of information.\n`;
-                    }
-                }
-                
-                // Technical block (403/401)
-                if (hasTechBlock) {
-                    restrictionBullets += `• Your website blocks automated access (returns 403 Forbidden).\n`;
-                }
-                
-                // JavaScript rendering requirement
-                if (hasTechRendering) {
-                    restrictionBullets += `• Your events page requires JavaScript to display content, which standard web crawlers cannot process.\n`;
-                }
-                
-                draft = `Subject: Permission Request: Event Listing from ${orgName}
-
-Hello,
-
-We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to request permission to include ${orgName}'s publicly-listed events in this service.
-
-Looking at your website, we noticed the following:
-
-${restrictionBullets.trim()}
-
-Given these factors, we wanted to reach out directly to request permission rather than proceed without authorization.
-
-If granted permission, we will ensure that:
-• All event listings link directly to your original event pages
-• ${orgName} is clearly credited as the source
-• Our access respects your server (rate-limited, off-peak hours)
-• We immediately stop if you request it at any time
-
-Would you please reply with a quick note giving us permission to proceed?
-
-Thank you for your time and consideration.
-
-Regards,`;
-            } else {
-                // Standard notice-style draft for orgs without restrictions
-                draft = `Subject: Notice: Automated Event Collection from ${orgName}
-
-Hello,
-
-We are developing a site to help users quickly find events related to national security, defense, and intelligence. We would like to include ${orgName}'s publicly-listed events in this service.
-
-${orgName}'s website terms did not appear to restrict gathering this information. We believe this work will drive additional visitors to your site and events. Additionally, we will ensure that:
-• All listings will link directly to your original event pages
-• ${orgName} is clearly credited as the source
-• Our access respects your server (rate-limited, off-peak hours)
-• We immediately stop if you request it at any time
-
-We wanted to notify you before we begin, so you have the opportunity to decline or set specific terms. We plan to proceed on ${proceedDateStr} unless we hear otherwise. A quick "okay" or "no thanks" would be appreciated, but no response is needed if you are fine with this.
-
-Thank you for your time.
-
-Regards,`;
-            }
-            
-            document.getElementById('permissionDraft').value = draft;
-            
-            // Build message showing what was detected
-            let detectedFlags = [];
-            if (currentOrg.tou_flag) detectedFlags.push('TOU');
-            if (hasTechBlock) detectedFlags.push('Tech Block');
-            if (hasTechRendering) detectedFlags.push('JS Rendering');
-            
-            const draftType = hasAnyRestriction 
-                ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})` 
-                : '📝 Standard notice draft';
-            showMessage('profileMessage', `${draftType} generated! Add your signature in your email app.`, 'success');
-        }
 
         function copyDraft(fieldId) {
             const text = document.getElementById(fieldId).value;
@@ -2404,7 +3309,7 @@ Regards,`;
                 document.getElementById('statRestrictions').textContent = orgs.filter(o => o.tou_flag === true || o.tech_block_flag === true).length;
                 document.getElementById('statLive').textContent = orgs.filter(o => o.status === 'Live (Scraping Active)').length;
                 document.getElementById('statTechBlocked').textContent = orgs.filter(o => o.tech_block_flag === true).length;
-                document.getElementById('statPermissionDenied').textContent = orgs.filter(o => o.permission_denied_flag === true).length;
+                document.getElementById('statPermissionDenied').textContent = orgs.filter(o => o.permission_type === 'Denied').length;
                 document.getElementById('statDuplicates').textContent = orgs.filter(o => o.duplicate_flag === true).length;
 
                 const statusCounts = {};
@@ -2424,7 +3329,7 @@ Regards,`;
                 }
                 
                 // Add permission denied count
-                const permissionDeniedCount = orgs.filter(o => o.permission_denied_flag === true).length;
+                const permissionDeniedCount = orgs.filter(o => o.permission_type === 'Denied').length;
                 if (permissionDeniedCount > 0) {
                     if (techBlockedCount === 0) {
                         summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
@@ -2615,7 +3520,7 @@ Regards,`;
             const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
             const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
             const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
-            const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
+            const permissionDeniedBadge = org.permission_type === 'Denied' ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
             const duplicateBadge = org.duplicate_flag ? '<span class="badge badge-duplicate">🔁 DUPLICATE</span>' : '';
             
             // Status helper variables
@@ -2637,7 +3542,7 @@ Regards,`;
             }
             
             // Permission denied alert
-            if (org.permission_denied_flag) {
+            if (org.permission_type === 'Denied') {
                 html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
             }
             
@@ -2916,7 +3821,7 @@ Regards,`;
                 const touBadge = org.tou_flag && !org.tech_block_flag ? '<span class="badge badge-tou-flag">⚠️ TOU</span>' : '';
                 const techBlockBadge = org.tech_block_flag ? '<span class="badge badge-tech-block">⛔ BLOCKED</span>' : '';
                 const techRenderingBadge = org.tech_rendering_flag ? '<span class="badge badge-js-render">⚙️ JS-RENDER</span>' : '';
-                const permissionDeniedBadge = org.permission_denied_flag ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
+                const permissionDeniedBadge = org.permission_type === 'Denied' ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
                 const duplicateBadge = org.duplicate_flag ? '<span class="badge badge-duplicate">🔁 DUPLICATE</span>' : '';
 
                 // Find phone number
@@ -2939,7 +3844,7 @@ Regards,`;
                 } else if (org.tou_flag) {
                     html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
                 }
-                if (org.permission_denied_flag) {
+                if (org.permission_type === 'Denied') {
                     html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
                 }
                 if (org.tech_rendering_flag) {
