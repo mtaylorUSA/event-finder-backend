@@ -15,13 +15,26 @@
  * - Events URL discovery
  * - POC info gathering
  * - AI-powered org analysis
+ * - Scan history logging to scan_logs collection - NEW 2026-01-25
+ * - Per-page scan results tracking - NEW 2026-01-26
  * 
  * Usage:
  *   const scanner = require('./org-scanner');
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-21
+ * Last Updated: 2026-01-26
+ * - NEW: legalPagesResults array tracks per-page scan results (url, type, result, keywords)
+ * - NEW: legal_pages_results field saved to scan_logs collection
+ * - Enables admin interface to show which specific pages were scanned and their results
+ * 
+ * 2026-01-25
+ * - NEW: createScanLog() function writes to scan_logs collection
+ * - NEW: Tracks before/after state for flag changes
+ * - NEW: Auto-generates scan summary notes
+ * - Scan logs appear in Admin Interface v24 Status & History tab
+ * 
+ * 2026-01-21
  * - EXPANDED: EXCLUDED_CONTEXTS with policy subject matter exclusions
  *   Added: Robotics policy terms (robotics policy, robot regulation, robot ethics, etc.)
  *   Added: Autonomous systems terms (autonomous weapons, drone policy, unmanned systems, etc.)
@@ -1839,6 +1852,7 @@ async function scanTOU(website, html = null) {
     
     // Scan EACH legal page
     const scannedPages = [];
+    const legalPagesResults = [];  // NEW: Structured per-page results for scan_logs
     const allFoundKeywords = [];
     const allContext = [];
     let totalFalsePositivesSkipped = 0;
@@ -1856,12 +1870,14 @@ async function scanTOU(website, html = null) {
             result.techBlockFlag = true;
             // Note: touFlag NOT set here - tech blocks are separate from TOU restrictions
             scannedPages.push(`⛔ ${pageType}: BLOCKED (403)`);
+            legalPagesResults.push({ url, type: pageType, result: 'blocked' });
             continue;
         }
         
         if (!pageResult.success) {
             console.log(`         ⚠️ Could not fetch`);
             scannedPages.push(`⚠️ ${pageType}: Could not fetch`);
+            legalPagesResults.push({ url, type: pageType, result: 'error' });
             continue;
         }
         
@@ -1895,6 +1911,12 @@ async function scanTOU(website, html = null) {
             allFoundKeywords.push(...restrictions.foundKeywords);
             allContext.push(...restrictions.context.map(c => `[${pageType}] ${c}`));
             scannedPages.push(`⚠️ ${pageType}: RESTRICTIONS (${restrictions.foundKeywords.length} terms)`);
+            legalPagesResults.push({ 
+                url, 
+                type: pageType, 
+                result: 'restrictions', 
+                keywords: restrictions.foundKeywords.slice(0, 10)  // Limit to 10 keywords
+            });
         } else {
             const skipped = restrictions.stats.falsePositivesSkipped;
             if (skipped > 0) {
@@ -1903,6 +1925,7 @@ async function scanTOU(website, html = null) {
                 console.log(`         ✅ No restrictions`);
             }
             scannedPages.push(`✅ ${pageType}: Clear`);
+            legalPagesResults.push({ url, type: pageType, result: 'clear' });
         }
         
         await sleep(1000); // Respectful delay between pages
@@ -1917,6 +1940,7 @@ async function scanTOU(website, html = null) {
     result.foundKeywords = [...new Set(allFoundKeywords)];
     result.context = allContext.slice(0, 15);
     result.falsePositivesSkipped = totalFalsePositivesSkipped;
+    result.legalPagesResults = legalPagesResults;  // NEW: Structured per-page results
     
     // Build detailed notes
     if (result.touFlag) {
@@ -2510,6 +2534,127 @@ async function updateOrganization(orgId, updates) {
     }
 }
 
+/**
+ * Create a scan log entry in the scan_logs collection
+ * NEW - 2026-01-25: Tracks scan history for audit trail and change detection
+ * 
+ * @param {Object} org - Original organization record (before updates)
+ * @param {Object} result - Scan result object
+ * @param {Object} options - Scan options (scanType, etc.)
+ * @returns {Object|null} Created scan log record or null on error
+ */
+async function createScanLog(org, result, options = {}) {
+    await authenticate();
+    
+    const scanType = options.scanType || 'manual';
+    
+    // Determine if any flags changed
+    const flagsChanged = [];
+    if (result.touFlag !== org.tou_flag) {
+        flagsChanged.push(result.touFlag ? 'tou_flag: OFF→ON' : 'tou_flag: ON→OFF');
+    }
+    if (result.techBlockFlag !== org.tech_block_flag) {
+        flagsChanged.push(result.techBlockFlag ? 'tech_block_flag: OFF→ON' : 'tech_block_flag: ON→OFF');
+    }
+    if (result.techRenderingFlag !== org.tech_rendering_flag) {
+        flagsChanged.push(result.techRenderingFlag ? 'tech_rendering_flag: OFF→ON' : 'tech_rendering_flag: ON→OFF');
+    }
+    
+    // Build scan log entry
+    const logEntry = {
+        organization: org.id,
+        scan_date: new Date().toISOString(),
+        scan_type: scanType,
+        
+        // Results
+        tou_flag: result.touFlag || false,
+        tech_block_flag: result.techBlockFlag || false,
+        tech_rendering_flag: result.techRenderingFlag || false,
+        
+        // Details
+        tou_url: result.touUrl || '',
+        restriction_source_urls: result.restrictionSourceUrls || '',
+        restriction_context: result.restrictionContext || '',
+        events_url_found: result.eventsUrl || '',
+        pages_checked: result.pagesChecked || 0,
+        false_positives_skipped: result.falsePositivesSkipped || 0,
+        
+        // NEW: Structured per-page scan results (2026-01-26)
+        legal_pages_results: result.legalPagesResults || [],
+        
+        // Status tracking
+        status_before: org.status || '',
+        status_after: result.newStatus || org.status || '',
+        flags_changed: flagsChanged.join(', '),
+        
+        // Scan metadata
+        scan_duration_ms: result.scanDurationMs || 0,
+        scan_success: result.success !== false,
+        scan_error: result.error || '',
+        
+        // Notes (auto-generated summary)
+        notes: generateScanSummary(result, flagsChanged)
+    };
+    
+    try {
+        const response = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/scan_logs/records`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify(logEntry)
+            }
+        );
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('⚠️ Could not create scan log:', errorData);
+            return null;
+        }
+        
+        const created = await response.json();
+        console.log(`   📋 Scan log created: ${created.id}`);
+        return created;
+        
+    } catch (error) {
+        console.error('⚠️ Could not create scan log:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Generate a human-readable summary for the scan log
+ */
+function generateScanSummary(result, flagsChanged) {
+    const parts = [];
+    
+    if (result.touFlag) {
+        parts.push('⚠️ TOU restriction found');
+    }
+    if (result.techBlockFlag) {
+        parts.push('⛔ Technical block (403)');
+    }
+    if (result.techRenderingFlag) {
+        parts.push('⚙️ JS rendering required');
+    }
+    if (!result.touFlag && !result.techBlockFlag && !result.techRenderingFlag) {
+        parts.push('✅ Clean scan - no restrictions');
+    }
+    
+    if (flagsChanged.length > 0) {
+        parts.push(`Changes: ${flagsChanged.join(', ')}`);
+    }
+    
+    if (result.eventsUrl && !result.previousEventsUrl) {
+        parts.push(`Events URL discovered: ${result.eventsUrl}`);
+    }
+    
+    return parts.join('. ');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN SCAN FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2803,6 +2948,7 @@ async function scanOrganization(org, options = {}) {
         result.techBlockFlag = result.techBlockFlag || touResult.techBlockFlag;
         result.foundKeywords = touResult.foundKeywords;
         result.falsePositivesSkipped = touResult.falsePositivesSkipped || 0;
+        result.legalPagesResults = touResult.legalPagesResults || [];  // NEW: Per-page results
         
         // Append microsite notes to TOU notes
         if (result.micrositeNotes) {
@@ -2900,6 +3046,68 @@ async function scanOrganization(org, options = {}) {
         
         const updates = {};
         
+        // ═══════════════════════════════════════════════════════════════════
+        // NEW FLAG DETECTION (v24 workflow - 2026-01-25)
+        // If a flag goes from FALSE → TRUE and no waiver exists, reset status
+        // ═══════════════════════════════════════════════════════════════════
+        
+        const newFlags = [];
+        const clearedFlags = [];
+        const hasWaiver = org.permission_type === 'Waiver';
+        
+        // Check for NEW tou_flag
+        if (!org.tou_flag && result.touFlag) {
+            newFlags.push('tou_flag');
+        } else if (org.tou_flag && !result.touFlag) {
+            clearedFlags.push('tou_flag');
+        }
+        
+        // Check for NEW tech_block_flag
+        if (!org.tech_block_flag && result.techBlockFlag) {
+            newFlags.push('tech_block_flag');
+        } else if (org.tech_block_flag && !result.techBlockFlag) {
+            clearedFlags.push('tech_block_flag');
+        }
+        
+        // Check for NEW tech_rendering_flag
+        if (!org.tech_rendering_flag && result.techRenderingFlag) {
+            newFlags.push('tech_rendering_flag');
+        } else if (org.tech_rendering_flag && !result.techRenderingFlag) {
+            clearedFlags.push('tech_rendering_flag');
+        }
+        
+        // Log cleared flags (good news!)
+        if (clearedFlags.length > 0) {
+            console.log(`      ✅ Flag(s) CLEARED: ${clearedFlags.join(', ')}`);
+            result.flagsCleared = clearedFlags;
+        }
+        
+        // Handle NEW flags
+        if (newFlags.length > 0) {
+            result.newFlagsDetected = newFlags;
+            
+            if (hasWaiver) {
+                // Has waiver - log but don't reset status
+                console.log(`      ⚠️ NEW flag(s) detected: ${newFlags.join(', ')}`);
+                console.log(`      ℹ️ Waiver exists - status unchanged, but please verify waiver still applies`);
+            } else {
+                // No waiver - reset to Nominated for review
+                console.log(`      🚨 NEW RESTRICTION DETECTED: ${newFlags.join(', ')}`);
+                console.log(`      🔄 Resetting status to "Nominated (Pending Mission Review)"`);
+                
+                updates.status = 'Nominated (Pending Mission Review)';
+                result.fieldsUpdated.push('status');
+                result.statusChanged = true;
+                result.previousStatus = org.status;
+                result.newStatus = 'Nominated (Pending Mission Review)';
+                result.resetReason = `New restriction: ${newFlags.join(', ')}`;
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // Standard field updates
+        // ═══════════════════════════════════════════════════════════════════
+        
         // TOU fields
         if (result.touUrl && !org.tou_url) {
             updates.tou_url = result.touUrl;
@@ -2920,38 +3128,10 @@ async function scanOrganization(org, options = {}) {
         updates.tou_scanned_date = new Date().toISOString().split('T')[0];
         result.fieldsUpdated.push('tou_scanned_date');
         
-        // AUTO-UPDATE STATUS: If TOU or tech block detected, set status to "Rejected by Org"
-        // Only change status if not already rejected
-        if ((result.touFlag || result.techBlockFlag) && 
-            org.status !== 'Rejected by Org' && 
-            org.status !== 'Rejected by Mission') {
-            updates.status = 'Rejected by Org';
-            result.fieldsUpdated.push('status');
-            result.statusChanged = true;
-            result.newStatus = 'Rejected by Org';
-            console.log(`      🔄 Auto-updating status to "Rejected by Org" (TOU/tech block detected)`);
-        }
-        
-        // Tech Renderinging flag (NEW - 2026-01-16)
+        // Tech Rendering flag
         if (result.techRenderingFlag !== org.tech_rendering_flag) {
             updates.tech_rendering_flag = result.techRenderingFlag;
             result.fieldsUpdated.push('tech_rendering_flag');
-        }
-        
-        // AUTO-UPDATE STATUS: If Tech rendering detected, set status to "Rejected by Org"
-        // This is an auto-rejection since we can't scrape JS-rendered sites without Puppeteer
-        if (result.techRenderingFlag && 
-            !result.touFlag && 
-            !result.techBlockFlag &&
-            org.status === 'Live (Scraping Active)' &&
-            !org.tech_rendering_flag) {
-            updates.status = 'Rejected by Org';
-            updates.scraping_enabled = false;
-            result.fieldsUpdated.push('status');
-            result.fieldsUpdated.push('scraping_enabled');
-            result.statusChanged = true;
-            result.newStatus = 'Rejected by Org';
-            console.log(`      🔄 Auto-updating status to "Rejected by Org" (Tech rendering detected - cannot scrape)`);
         }
         
         // Microsite detection fields (NEW - 2026-01-18)
@@ -2991,6 +3171,18 @@ async function scanOrganization(org, options = {}) {
         } else {
             console.log('      ℹ️ No updates needed');
         }
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────
+    // Step 7: Create Scan Log Entry (NEW - 2026-01-25)
+    // ───────────────────────────────────────────────────────────────────────
+    
+    if (org.id) {
+        // Store restriction details in result for logging
+        result.restrictionSourceUrls = result.restrictionSourceUrls || '';
+        result.restrictionContext = result.restrictionContext || '';
+        
+        await createScanLog(org, result, { scanType: options.scanType || 'manual' });
     }
     
     // ───────────────────────────────────────────────────────────────────────
@@ -3056,6 +3248,7 @@ module.exports = {
     getOrganization,
     getOrganizationByName,
     updateOrganization,
+    createScanLog,  // NEW - 2026-01-25: Scan history logging
     
     // Utilities
     fetchUrl,

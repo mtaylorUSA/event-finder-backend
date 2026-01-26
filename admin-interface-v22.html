@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v26</title>
+    <title>Event Finder Admin v22</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -809,6 +809,69 @@
             border-radius: 6px;
             margin-top: 10px;
             font-size: 12px;
+        }
+        
+        /* Pages scanned list (NEW 2026-01-26) */
+        .scan-pages-list {
+            margin-top: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .scan-pages-list h5 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #495057;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .scan-page-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        .scan-page-item:last-child {
+            margin-bottom: 0;
+        }
+        .scan-page-item.page-clear {
+            border-left: 3px solid #28a745;
+        }
+        .scan-page-item.page-restrictions {
+            border-left: 3px solid #ffc107;
+            background: #fffef5;
+        }
+        .scan-page-item.page-blocked {
+            border-left: 3px solid #dc3545;
+            background: #fff8f8;
+        }
+        .scan-page-item.page-error {
+            border-left: 3px solid #6c757d;
+            background: #f8f8f8;
+        }
+        .scan-page-icon {
+            font-size: 14px;
+        }
+        .scan-page-type {
+            font-weight: 500;
+            color: #333;
+        }
+        .scan-page-result {
+            color: #666;
+            font-size: 12px;
+        }
+        .scan-page-keywords {
+            font-size: 11px;
+            color: #856404;
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: auto;
         }
         
         /* Empty state for scan history */
@@ -2278,6 +2341,48 @@
                         changeHtml = `<div class="scan-log-change">🔄 Status: "${log.status_before}" → "${log.status_after}"</div>`;
                     }
                     
+                    // Build pages scanned list (NEW 2026-01-26)
+                    let pagesHtml = '';
+                    if (log.legal_pages_results && Array.isArray(log.legal_pages_results) && log.legal_pages_results.length > 0) {
+                        const pagesItems = log.legal_pages_results.map(page => {
+                            let icon = '✅';
+                            let itemClass = 'page-clear';
+                            let resultLabel = 'Clear';
+                            let keywordsHtml = '';
+                            
+                            if (page.result === 'restrictions') {
+                                icon = '⚠️';
+                                itemClass = 'page-restrictions';
+                                resultLabel = 'Restrictions found';
+                                if (page.keywords && page.keywords.length > 0) {
+                                    keywordsHtml = `<span class="scan-page-keywords">${escapeHtml(page.keywords.slice(0, 3).join(', '))}</span>`;
+                                }
+                            } else if (page.result === 'blocked') {
+                                icon = '⛔';
+                                itemClass = 'page-blocked';
+                                resultLabel = 'Blocked (403)';
+                            } else if (page.result === 'error') {
+                                icon = '⚠️';
+                                itemClass = 'page-error';
+                                resultLabel = 'Could not fetch';
+                            }
+                            
+                            return `
+                                <div class="scan-page-item ${itemClass}">
+                                    <span class="scan-page-icon">${icon}</span>
+                                    <span class="scan-page-type">${escapeHtml(page.type || 'Unknown')}</span>
+                                    <span class="scan-page-result">- ${resultLabel}</span>
+                                    ${keywordsHtml}
+                                </div>`;
+                        }).join('');
+                        
+                        pagesHtml = `
+                            <div class="scan-pages-list">
+                                <h5>📄 Pages Scanned</h5>
+                                ${pagesItems}
+                            </div>`;
+                    }
+                    
                     return `
                         <div class="scan-log-entry">
                             <div class="scan-log-header">
@@ -2285,11 +2390,7 @@
                                 <span class="scan-log-date">${scanDate}</span>
                             </div>
                             <span class="scan-log-result ${resultClass}">${resultText}</span>
-                            <div class="scan-log-details">
-                                ${log.pages_checked ? `<p>Pages checked: ${log.pages_checked}</p>` : ''}
-                                ${log.restriction_context ? `<p>Context: "${escapeHtml(log.restriction_context.substring(0, 100))}..."</p>` : ''}
-                                ${log.notes ? `<p>Notes: ${escapeHtml(log.notes)}</p>` : ''}
-                            </div>
+                            ${pagesHtml}
                             ${changeHtml}
                         </div>`;
                 }).join('');
