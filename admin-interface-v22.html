@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v24</title>
+    <title>Event Finder Admin v26</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -428,7 +428,104 @@
         }
 
         /* ═══════════════════════════════════════════════════════════════════════ */
-        /* v24: SCAN & SCRAPE STATUS STYLES                                        */
+        /* v25: STREAMLINED STATUS & HISTORY TAB STYLES                            */
+        /* ═══════════════════════════════════════════════════════════════════════ */
+        
+        /* Two-column grid for Status + Contacts */
+        .status-contacts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 900px) {
+            .status-contacts-grid { grid-template-columns: 1fr; }
+        }
+        
+        /* Read-only flags display */
+        .flags-readonly {
+            margin-top: 15px;
+        }
+        .flag-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            font-size: 14px;
+            color: #495057;
+        }
+        .flag-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            pointer-events: none;
+        }
+        .flag-row.flag-active {
+            color: #856404;
+            font-weight: 600;
+        }
+        .flag-row.flag-active.tou { background: #fff3cd; padding: 8px 12px; border-radius: 6px; margin: 4px 0; }
+        .flag-row.flag-active.tech-block { background: #f8d7da; color: #721c24; padding: 8px 12px; border-radius: 6px; margin: 4px 0; }
+        .flag-row.flag-active.js-render { background: #cce5ff; color: #004085; padding: 8px 12px; border-radius: 6px; margin: 4px 0; }
+        
+        /* Relevant contacts list */
+        .relevant-contact-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .relevant-contact-item:last-child { border-bottom: none; }
+        .relevant-contact-item a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .relevant-contact-item a:hover { text-decoration: underline; }
+        .relevant-contact-type {
+            font-size: 12px;
+            color: #666;
+        }
+        .no-contacts-message {
+            color: #999;
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        /* Section header with button */
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .section-header-row h4 {
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+        
+        /* Scan History Section */
+        .scan-history-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .scan-history-section h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .scan-history-date {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════════════ */
+        /* v24: SCAN & SCRAPE STATUS STYLES (kept for alert cards)                 */
         /* ═══════════════════════════════════════════════════════════════════════ */
         
         /* Status Summary Box */
@@ -498,6 +595,106 @@
             border: 2px solid #ffc107;
         }
         .scan-alert.alert-tou .scan-alert-title { color: #856404; }
+        
+        /* v25: Detailed TOU Alert Card Styles */
+        .scan-alert.alert-tou.tou-detailed {
+            display: block;
+            padding: 0;
+        }
+        .tou-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 18px;
+            border-bottom: 1px solid #f0d78c;
+            background: #fff8e1;
+            border-radius: 8px 8px 0 0;
+        }
+        .tou-title {
+            font-weight: 700;
+            font-size: 16px;
+            color: #856404;
+        }
+        .tou-date {
+            font-size: 13px;
+            color: #997a00;
+            font-weight: 500;
+        }
+        .tou-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #6c5a00;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .tou-pages-section {
+            padding: 15px 18px;
+            border-bottom: 1px solid #f0d78c;
+        }
+        .tou-page-item {
+            padding: 6px 10px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .tou-page-item.clear {
+            background: #d4edda;
+            color: #155724;
+        }
+        .tou-page-item.restriction {
+            background: #fff;
+            color: #856404;
+            border: 1px solid #ffc107;
+            font-weight: 600;
+        }
+        .tou-prohibitions-section {
+            padding: 15px 18px;
+            border-bottom: 1px solid #f0d78c;
+        }
+        .tou-prohibitions {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .tou-prohibitions li {
+            font-size: 13px;
+            color: #664d00;
+            margin: 5px 0;
+        }
+        .tou-quote-section {
+            padding: 15px 18px;
+            border-bottom: 1px solid #f0d78c;
+        }
+        .tou-quote {
+            background: #fff;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin: 8px 0;
+            font-style: italic;
+            font-size: 13px;
+            color: #5a4a00;
+            border-radius: 0 6px 6px 0;
+        }
+        .tou-quote-source {
+            font-size: 12px;
+            color: #997a00;
+            text-align: right;
+        }
+        .tou-source-link {
+            padding: 12px 18px;
+            background: #fff8e1;
+            border-radius: 0 0 8px 8px;
+        }
+        .tou-source-link a {
+            color: #856404;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .tou-source-link a:hover {
+            text-decoration: underline;
+        }
+        
         .scan-alert.alert-block {
             background: #f8d7da;
             border: 2px solid #dc3545;
@@ -893,113 +1090,59 @@
                     <div id="profileContactsList"><div class="loading">Loading contacts...</div></div>
                 </div>
 
-                <!-- Status & History Tab (v23 - Redesigned for Partner Engagement Specialists) -->
+                <!-- Status & History Tab (v25 - Streamlined for Partner Engagement Specialists) -->
                 <div id="statusHistory" class="profile-tab-content">
                     <div id="statusAlerts"></div>
 
                     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-                    <!-- SECTION 1: ORG SUMMARY                                                  -->
+                    <!-- SECTION 1: STATUS + RELEVANT CONTACTS (Two Column)                      -->
                     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-                    <div class="summary-grid">
-                        <div class="summary-card">
-                            <h5>📋 Organization Summary</h5>
-                            <p><strong>Name:</strong> <span id="statusOrgName"></span></p>
-                            <p><strong>Status:</strong> <span id="statusCurrentStatus"></span></p>
-                            <p><strong>Website:</strong> <a id="statusWebsite" href="#" target="_blank"></a></p>
-                            <p><strong>Events URL:</strong> <a id="statusEventsUrl" href="#" target="_blank"></a></p>
-                            <div id="statusAiReasoning" class="hidden" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                                <p style="font-size: 12px; margin: 0;">🤖 <strong>AI Summary:</strong> <span id="statusAiReasoningText" style="color: #555;"></span></p>
+                    <div class="status-contacts-grid">
+                        <!-- Left Column: Status & Flags -->
+                        <div class="section-box">
+                            <h4>📋 Status</h4>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="statusDropdown" class="inline-status-select" style="width: 100%;" onchange="changeOrgStatus()">
+                                    <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
+                                    <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
+                                    <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
+                                    <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
+                                    <option value="Rejected by Mission">🔴 Rejected by Mission</option>
+                                    <option value="Rejected by Org">⛔ Rejected by Org</option>
+                                    <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
+                                </select>
                             </div>
+                            
+                            <!-- Read-only Flags (derived from scans) -->
+                            <div class="flags-readonly">
+                                <div id="flagTouRow" class="flag-row">
+                                    <input type="checkbox" id="flagTouDisplay" disabled>
+                                    <span>⚠️ TOU Restriction</span>
+                                </div>
+                                <div id="flagJsRow" class="flag-row">
+                                    <input type="checkbox" id="flagJsDisplay" disabled>
+                                    <span>⚙️ Tech-Rendered Site</span>
+                                </div>
+                                <div id="flagBlockRow" class="flag-row">
+                                    <input type="checkbox" id="flagBlockDisplay" disabled>
+                                    <span>⛔ Technical Block (403)</span>
+                                </div>
+                            </div>
+                            <p style="font-size: 11px; color: #999; margin-top: 10px;">
+                                💡 Flags are set automatically by the scanner and cannot be edited here.
+                            </p>
                         </div>
                         
-                        <div class="summary-card">
-                            <h5>🔍 Latest Scan Results</h5>
-                            <p><strong>Last Scanned:</strong> <span id="statusLastScanned">Not scanned yet</span></p>
-                            <p><strong>Events Found:</strong> <span id="statusEventsFound">0</span></p>
-                            <p><strong>Scan Result:</strong> <span id="statusScanResult">-</span></p>
-                            <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
-                                <label style="font-size: 12px;">TOU Scanned Date</label>
-                                <input type="date" id="touScannedDate" style="padding: 6px 10px; font-size: 13px;">
+                        <!-- Right Column: Relevant Contacts -->
+                        <div class="section-box">
+                            <h4>📇 Relevant Contacts</h4>
+                            <div id="relevantContactsList">
+                                <div class="no-contacts-message">Loading contacts...</div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-                    <!-- SECTION 2: SCAN & SCRAPE STATUS (v24)                                     -->
-                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-                    <div class="scan-status-box">
-                        <h4>🔍 Scan & Scrape Status</h4>
-                        
-                        <!-- Stats Grid -->
-                        <div class="scan-stats-grid">
-                            <div class="scan-stat">
-                                <div class="scan-stat-value" id="statLastScanned">-</div>
-                                <div class="scan-stat-label">Last Scanned</div>
-                            </div>
-                            <div class="scan-stat">
-                                <div class="scan-stat-value" id="statLastScraped">-</div>
-                                <div class="scan-stat-label">Last Scraped</div>
-                            </div>
-                            <div class="scan-stat">
-                                <div class="scan-stat-value" id="statEventCount">0</div>
-                                <div class="scan-stat-label">Events</div>
-                            </div>
-                            <div class="scan-stat">
-                                <div class="scan-stat-value" id="statScrapeEnabled">-</div>
-                                <div class="scan-stat-label">Scraping</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Alert Boxes (dynamically shown based on flags) -->
-                        <div id="scanAlertContainer">
-                            <!-- Alerts populated by JS -->
-                        </div>
-                        
-                        <!-- Edit Flags (collapsible) -->
-                        <details style="margin-top: 15px;">
-                            <summary style="cursor: pointer; font-weight: 600; color: #667eea;">✏️ Edit Flags & Settings</summary>
-                            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                    <div class="form-group checkbox-group">
-                                        <label><input type="checkbox" id="touFlag" onchange="handleTouFlagChange()"> ⚠️ TOU Restriction</label>
-                                    </div>
-                                    <div class="form-group checkbox-group">
-                                        <label><input type="checkbox" id="techBlockFlag" onchange="handleTechBlockChange()"> ⛔ Technical Block (403)</label>
-                                    </div>
-                                    <div class="form-group checkbox-group">
-                                        <label><input type="checkbox" id="techRenderingFlag" onchange="handleTechRenderingChange()"> ⚙️ Tech-Rendered Site</label>
-                                    </div>
-                                </div>
-                                <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
-                                    💡 Permission denied is now set via <strong>Permission Type = "Denied"</strong> in Edit Org tab.
-                                </p>
-                                <div class="form-group checkbox-group" style="margin-bottom: 15px;">
-                                    <label><input type="checkbox" id="scrapingEnabled"> 🤖 Scraping Enabled</label>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 15px;">
-                                    <label style="font-size: 12px;">TOU Scanned Date</label>
-                                    <input type="date" id="touScannedDate" style="padding: 6px 10px; font-size: 13px;">
-                                </div>
-                                <div class="card-actions">
-                                    <button type="button" class="btn btn-small btn-success" onclick="saveAllFlags()">💾 Save Flags</button>
-                                </div>
-                            </div>
-                        </details>
-                        
-                        <!-- Scan History Accordion -->
-                        <div class="scan-history-accordion">
-                            <button type="button" class="scan-history-toggle" onclick="toggleScanHistory()">
-                                <span>📜 View Scan & Scrape History</span>
-                                <span class="arrow">▼</span>
-                            </button>
-                            <div id="scanHistoryContent" class="scan-history-content">
-                                <div id="scanHistoryList">
-                                    <div class="scan-history-empty">
-                                        <p>📋 No scan history available yet.</p>
-                                        <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <p style="font-size: 11px; color: #999; margin-top: 10px;">
+                                💡 Showing Legal/Permissions, Events, and Main Contact types only.
+                            </p>
                         </div>
                     </div>
 
@@ -1012,11 +1155,11 @@
                     </div>
 
                     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-                    <!-- SECTION 3: CORRESPONDENCE LOG                                           -->
+                    <!-- SECTION 2: CORRESPONDENCE LOG                                           -->
                     <!-- ═══════════════════════════════════════════════════════════════════════ -->
                     <div class="section-box" id="correspondenceLogSection">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #dee2e6;">
-                            <h4 style="margin: 0; border: none; padding: 0;">📬 Correspondence Log</h4>
+                        <div class="section-header-row">
+                            <h4>📬 Correspondence Log</h4>
                             <button type="button" class="btn btn-small btn-info" onclick="toggleAddCorrespondence()">➕ Add Correspondence</button>
                         </div>
                         
@@ -1215,7 +1358,23 @@
                     </div>
 
                     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-                    <!-- SECTION 4: NOTES (v24 - Consolidated)                                     -->
+                    <!-- SECTION 3: SCANNING AND SCRAPING HISTORY                               -->
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <div class="scan-history-section">
+                        <h4>🔍 Scanning and Scraping History</h4>
+                        <div id="scanHistoryAlerts">
+                            <!-- Alert cards populated by JS based on current flags -->
+                        </div>
+                        <div id="scanHistoryList">
+                            <div class="scan-history-empty">
+                                <p>📋 No scan history available yet.</p>
+                                <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+                    <!-- SECTION 4: NOTES                                                        -->
                     <!-- ═══════════════════════════════════════════════════════════════════════ -->
                     <div class="section-box">
                         <h4>📝 Notes</h4>
@@ -1224,36 +1383,10 @@
                                 <textarea id="orgNotes" placeholder="Notes about this organization (contact follow-ups, special instructions, observations, etc.)..." style="min-height: 120px;"></textarea>
                             </div>
                             <p style="font-size: 12px; color: #666; margin-bottom: 15px;">
-                                💡 Use this field for any human commentary. Technical scan results are tracked automatically in the Scan History above.
+                                💡 Use this field for any human commentary. Technical scan results are tracked in the Scan History above.
                             </p>
                             <button type="submit" class="btn btn-small btn-success">💾 Save Notes</button>
                         </form>
-                    </div>
-
-                    <div class="section-box">
-                        <h4>📊 Change Status</h4>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Status</label>
-                                <select id="statusDropdown" class="inline-status-select" style="width: 100%;" onchange="changeOrgStatus()">
-                                    <option value="Nominated (Pending Mission Review)">🟣 Nominated (Pending Mission Review)</option>
-                                    <option value="Mission Approved (Request Not Sent)">🔵 Mission Approved (Request Not Sent)</option>
-                                    <option value="Permission Requested (Pending Org Response)">🟡 Permission Requested (Pending Org Response)</option>
-                                    <option value="Permission Granted (Not Live)">🟢 Permission Granted (Not Live)</option>
-                                    <option value="Rejected by Mission">🔴 Rejected by Mission</option>
-                                    <option value="Rejected by Org">⛔ Rejected by Org</option>
-                                    <option value="Live (Scraping Active)">✅ Live (Scraping Active)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Event Policy</label>
-                                <select id="statusEventPolicy" class="inline-status-select" style="width: 100%;" onchange="changeEventPolicy()">
-                                    <option value="">-- Not Set --</option>
-                                    <option value="accept_all">🔓 Accept All</option>
-                                    <option value="propose_events">📋 Propose Events</option>
-                                </select>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -1796,80 +1929,34 @@
             if (!currentOrg) return;
 
             // ═══════════════════════════════════════════════════════════════════
-            // v24: ORG SUMMARY SECTION
+            // v25: STATUS DROPDOWN
             // ═══════════════════════════════════════════════════════════════════
-            document.getElementById('statusOrgName').textContent = currentOrg.name;
-            const config = STATUS_CONFIG[currentOrg.status] || { icon: '❓', badge: '' };
-            document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} ${currentOrg.status || 'Unknown'}</span>`;
-            document.getElementById('statusWebsite').href = currentOrg.website || '#';
-            document.getElementById('statusWebsite').textContent = currentOrg.website || 'N/A';
-            
-            // Events URL
-            const eventsUrlEl = document.getElementById('statusEventsUrl');
-            if (eventsUrlEl) {
-                eventsUrlEl.href = currentOrg.events_url || '#';
-                eventsUrlEl.textContent = currentOrg.events_url || 'Not set';
-            }
-
-            // AI Reasoning
-            if (currentOrg.ai_reasoning) {
-                document.getElementById('statusAiReasoning').classList.remove('hidden');
-                document.getElementById('statusAiReasoningText').textContent = currentOrg.ai_reasoning;
-            } else {
-                document.getElementById('statusAiReasoning').classList.add('hidden');
-            }
-
-            // ═══════════════════════════════════════════════════════════════════
-            // v24: SCAN & SCRAPE STATUS SECTION
-            // ═══════════════════════════════════════════════════════════════════
-            
-            // Stats
-            const statLastScanned = document.getElementById('statLastScanned');
-            if (statLastScanned) {
-                statLastScanned.textContent = currentOrg.tou_scanned_date 
-                    ? new Date(currentOrg.tou_scanned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    : '-';
-            }
-            
-            const statLastScraped = document.getElementById('statLastScraped');
-            if (statLastScraped) {
-                statLastScraped.textContent = currentOrg.last_scraped 
-                    ? new Date(currentOrg.last_scraped).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    : '-';
-            }
-            
-            const statScrapeEnabled = document.getElementById('statScrapeEnabled');
-            if (statScrapeEnabled) {
-                statScrapeEnabled.textContent = currentOrg.scraping_enabled ? '✅ On' : '❌ Off';
-            }
-
-            // ═══════════════════════════════════════════════════════════════════
-            // v24: ALERT BOXES (bright yellow for TOU!)
-            // ═══════════════════════════════════════════════════════════════════
-            populateScanAlerts();
-
-            // ═══════════════════════════════════════════════════════════════════
-            // FLAG CHECKBOXES
-            // ═══════════════════════════════════════════════════════════════════
-            document.getElementById('touFlag').checked = currentOrg.tou_flag || false;
-            document.getElementById('techBlockFlag').checked = currentOrg.tech_block_flag || false;
-            document.getElementById('techRenderingFlag').checked = currentOrg.tech_rendering_flag || false;
-            document.getElementById('scrapingEnabled').checked = currentOrg.scraping_enabled || false;
-            document.getElementById('touScannedDate').value = currentOrg.tou_scanned_date ? currentOrg.tou_scanned_date.split(' ')[0] : '';
-            
-            // Status dropdowns
             document.getElementById('statusDropdown').value = currentOrg.status || 'Nominated (Pending Mission Review)';
-            document.getElementById('statusEventPolicy').value = currentOrg.event_policy || '';
 
             // ═══════════════════════════════════════════════════════════════════
-            // v24: NOTES SECTION (consolidated)
+            // v25: READ-ONLY FLAGS DISPLAY
             // ═══════════════════════════════════════════════════════════════════
-            // Migrate: combine tou_notes + scrape_notes + notes into one field display
-            let combinedNotes = currentOrg.notes || '';
-            // Note: Migration would be done once via script, not on every load
-            document.getElementById('orgNotes').value = combinedNotes;
+            const flagTouRow = document.getElementById('flagTouRow');
+            const flagJsRow = document.getElementById('flagJsRow');
+            const flagBlockRow = document.getElementById('flagBlockRow');
+            
+            document.getElementById('flagTouDisplay').checked = currentOrg.tou_flag || false;
+            document.getElementById('flagJsDisplay').checked = currentOrg.tech_rendering_flag || false;
+            document.getElementById('flagBlockDisplay').checked = currentOrg.tech_block_flag || false;
+            
+            // Apply active styling
+            flagTouRow.className = currentOrg.tou_flag ? 'flag-row flag-active tou' : 'flag-row';
+            flagJsRow.className = currentOrg.tech_rendering_flag ? 'flag-row flag-active js-render' : 'flag-row';
+            flagBlockRow.className = currentOrg.tech_block_flag ? 'flag-row flag-active tech-block' : 'flag-row';
 
-            // Show/hide duplicate info box
+            // ═══════════════════════════════════════════════════════════════════
+            // v25: NOTES SECTION
+            // ═══════════════════════════════════════════════════════════════════
+            document.getElementById('orgNotes').value = currentOrg.notes || '';
+
+            // ═══════════════════════════════════════════════════════════════════
+            // v25: DUPLICATE INFO BOX
+            // ═══════════════════════════════════════════════════════════════════
             const duplicateInfoBox = document.getElementById('duplicateInfoBox');
             if (currentOrg.duplicate_flag && currentOrg.duplicate_of) {
                 duplicateInfoBox.classList.remove('hidden');
@@ -1877,125 +1964,273 @@
             } else {
                 duplicateInfoBox.classList.add('hidden');
             }
-
-            // Get event count
-            try {
-                const eventsRes = await fetch(`${POCKETBASE_URL}/api/collections/events/records?filter=(organization='${currentOrgId}')&perPage=1`, { headers: { 'Authorization': authToken } });
-                const eventsData = await eventsRes.json();
-                const eventCount = eventsData.totalItems || 0;
-                
-                const statEventCount = document.getElementById('statEventCount');
-                if (statEventCount) {
-                    statEventCount.textContent = eventCount;
-                }
-            } catch (e) {
-                console.error('Error loading event count:', e);
-            }
             
             // ═══════════════════════════════════════════════════════════════════
-            // v24: LOAD CORRESPONDENCE & SCAN HISTORY
+            // v25: LOAD CORRESPONDENCE, RELEVANT CONTACTS & SCAN HISTORY
             // ═══════════════════════════════════════════════════════════════════
             loadCorrespondenceContacts();
+            loadRelevantContacts();
             loadCorrespondenceTimeline();
-            loadScanHistory();
+            loadScanHistoryWithAlerts();
         }
 
         /**
-         * v24: Populate scan alert boxes with bright colors
+         * v25: Load and display relevant contacts (filtered to priority types)
          */
-        function populateScanAlerts() {
-            const container = document.getElementById('scanAlertContainer');
+        async function loadRelevantContacts() {
+            const container = document.getElementById('relevantContactsList');
             if (!container) return;
             
-            let alertsHtml = '';
-            
-            // TOU Restriction - BRIGHT YELLOW
-            if (currentOrg.tou_flag) {
-                const restrictionDetails = currentOrg.restriction_context || currentOrg.tou_notes || 'Restrictions found on website terms';
-                const sourceUrl = currentOrg.restriction_source_urls ? currentOrg.restriction_source_urls.split('\n')[0] : '';
-                alertsHtml += `
-                    <div class="scan-alert alert-tou">
-                        <div class="scan-alert-icon">⚠️</div>
-                        <div class="scan-alert-content">
-                            <div class="scan-alert-title">TOU Restriction Found</div>
-                            <div class="scan-alert-detail">
-                                ${escapeHtml(restrictionDetails)}
-                                ${sourceUrl ? `<br><a href="${escapeHtml(sourceUrl)}" target="_blank" style="color: #856404;">${escapeHtml(sourceUrl)}</a>` : ''}
-                            </div>
+            try {
+                const response = await fetch(
+                    `${POCKETBASE_URL}/api/collections/contacts/records?filter=(organization='${currentOrgId}')`,
+                    { headers: { 'Authorization': authToken } }
+                );
+                const data = await response.json();
+                const allContacts = data.items || [];
+                
+                // Filter to priority types only: Legal/Permissions, Events, Main Contact
+                const priorityTypes = ['Legal/Permissions', 'Events', 'Main Contact'];
+                const filteredContacts = allContacts.filter(c => priorityTypes.includes(c.contact_type));
+                
+                // Type icons
+                const typeIcon = {
+                    'Legal/Permissions': '⚖️',
+                    'Events': '📅',
+                    'Main Contact': '👤'
+                };
+                
+                if (filteredContacts.length === 0) {
+                    container.innerHTML = '<div class="no-contacts-message">No Legal/Permissions, Events, or Main Contact found.<br>Add contacts in the Contacts tab.</div>';
+                    return;
+                }
+                
+                container.innerHTML = filteredContacts.map(c => {
+                    const icon = typeIcon[c.contact_type] || '📧';
+                    return `
+                        <div class="relevant-contact-item">
+                            <div class="relevant-contact-type">${icon} ${c.contact_type}</div>
+                            ${c.email ? `<div><strong>Email:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>` : ''}
+                            ${c.name ? `<div style="font-size: 12px; color: #666;">${escapeHtml(c.name)}${c.title ? ' - ' + escapeHtml(c.title) : ''}</div>` : ''}
                         </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading relevant contacts:', error);
+                container.innerHTML = '<div class="no-contacts-message">Error loading contacts.</div>';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // v25: TOU RESTRICTION PARSER & DISPLAY
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        /**
+         * Parse the raw restriction_context into structured data
+         */
+        function parseTouRestriction(org) {
+            const result = {
+                scanDate: org.tou_scanned_date ? new Date(org.tou_scanned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown',
+                pages: [],
+                keywords: [],
+                keyQuote: '',
+                sourceUrl: '',
+                sourcePage: ''
+            };
+            
+            const context = org.restriction_context || org.tou_notes || '';
+            const sourceUrls = org.restriction_source_urls || '';
+            
+            // Extract source URL
+            if (sourceUrls) {
+                result.sourceUrl = sourceUrls.split('\n')[0].trim();
+            }
+            
+            // Try to parse pages scanned
+            // Format: "✅ Privacy Policy: Clear" or "⚠️ Terms of Use: RESTRICTIONS (4 terms)"
+            const pageMatches = context.matchAll(/([✅⚠️❌])\s*([^:]+):\s*(Clear|RESTRICTIONS[^✅⚠️❌]*)/g);
+            const seenPages = new Set();
+            for (const match of pageMatches) {
+                const pageName = match[2].trim();
+                // Deduplicate pages
+                if (!seenPages.has(pageName)) {
+                    seenPages.add(pageName);
+                    result.pages.push({
+                        icon: match[1],
+                        name: pageName,
+                        status: match[3].trim().startsWith('RESTRICTIONS') ? 'restriction' : 'clear',
+                        detail: match[3].trim()
+                    });
+                }
+            }
+            
+            // Extract keywords
+            const keywordsMatch = context.match(/Keywords found:\s*([^\n]+)/i);
+            if (keywordsMatch) {
+                result.keywords = keywordsMatch[1].split(',').map(k => k.trim()).filter(k => k);
+            }
+            
+            // Extract a clean quote from context
+            // Look for [CONTEXT_CONFIRMED] patterns and extract the actual quote
+            const contextMatches = context.matchAll(/\[([^\]]+)\]\s*\[CONTEXT_CONFIRMED\][^:]*:\s*\.\.\.([^\.]{20,150})\.\.\./g);
+            for (const match of contextMatches) {
+                if (!result.keyQuote) {
+                    result.sourcePage = match[1];
+                    // Clean up the quote - remove HTML entities and extra whitespace
+                    let quote = match[2]
+                        .replace(/&#\d+;/g, '') // Remove HTML entities like &#8220;
+                        .replace(/&[a-z]+;/gi, '') // Remove named entities
+                        .replace(/\s+/g, ' ') // Normalize whitespace
+                        .trim();
+                    result.keyQuote = quote;
+                }
+                break; // Just take the first good quote
+            }
+            
+            // If no structured quote found, try to extract something readable
+            if (!result.keyQuote && context) {
+                // Look for quoted text or meaningful snippets
+                const quoteMatch = context.match(/"([^"]{30,200})"/);
+                if (quoteMatch) {
+                    result.keyQuote = quoteMatch[1];
+                }
+            }
+            
+            return result;
+        }
+        
+        /**
+         * Build the clean TOU alert card HTML
+         */
+        function buildTouAlertCard(parsed, org) {
+            // Build pages list HTML
+            let pagesHtml = '';
+            if (parsed.pages.length > 0) {
+                pagesHtml = parsed.pages.map(p => {
+                    if (p.status === 'restriction') {
+                        return `<div class="tou-page-item restriction">⚠️ ${escapeHtml(p.name)} - Restrictions found</div>`;
+                    } else {
+                        return `<div class="tou-page-item clear">✅ ${escapeHtml(p.name)} - Clear</div>`;
+                    }
+                }).join('');
+            }
+            
+            // Build keywords/prohibitions list
+            let prohibitionsHtml = '';
+            if (parsed.keywords.length > 0) {
+                const prohibitionDescriptions = {
+                    'robots': 'Automated bots/robots',
+                    'spiders': 'Web crawlers/spiders', 
+                    'scraping': 'Data scraping',
+                    'harvest': 'Data harvesting',
+                    'automated': 'Automated access',
+                    'data mining': 'Data mining',
+                    'crawl': 'Web crawling',
+                    'copy': 'Copying content',
+                    'reproduce': 'Content reproduction',
+                    'systematic': 'Systematic collection'
+                };
+                
+                const prohibitions = parsed.keywords.map(k => {
+                    const desc = prohibitionDescriptions[k.toLowerCase()] || k;
+                    return `<li>${escapeHtml(desc)}</li>`;
+                }).join('');
+                prohibitionsHtml = `<ul class="tou-prohibitions">${prohibitions}</ul>`;
+            }
+            
+            // Build key quote HTML
+            let quoteHtml = '';
+            if (parsed.keyQuote) {
+                quoteHtml = `
+                    <div class="tou-quote-section">
+                        <div class="tou-section-label">📜 KEY QUOTE</div>
+                        <blockquote class="tou-quote">"${escapeHtml(parsed.keyQuote)}..."</blockquote>
+                        ${parsed.sourcePage ? `<div class="tou-quote-source">— ${escapeHtml(parsed.sourcePage)}</div>` : ''}
                     </div>`;
             }
             
-            // Tech Block - RED
-            if (currentOrg.tech_block_flag) {
-                alertsHtml += `
-                    <div class="scan-alert alert-block">
-                        <div class="scan-alert-icon">⛔</div>
-                        <div class="scan-alert-content">
-                            <div class="scan-alert-title">Technical Block (403)</div>
-                            <div class="scan-alert-detail">This organization actively blocks automated requests.</div>
-                        </div>
-                    </div>`;
+            // Build source link
+            let sourceHtml = '';
+            if (parsed.sourceUrl) {
+                sourceHtml = `<div class="tou-source-link"><a href="${escapeHtml(parsed.sourceUrl)}" target="_blank">🔗 View Source</a></div>`;
             }
             
-            // JS Rendering - BLUE
-            if (currentOrg.tech_rendering_flag) {
-                alertsHtml += `
-                    <div class="scan-alert alert-js">
-                        <div class="scan-alert-icon">⚙️</div>
-                        <div class="scan-alert-content">
-                            <div class="scan-alert-title">JavaScript Rendering Required</div>
-                            <div class="scan-alert-detail">Events page requires a headless browser (Puppeteer) to scrape.</div>
-                        </div>
-                    </div>`;
-            }
+            return `
+                <div class="scan-alert alert-tou tou-detailed">
+                    <div class="tou-header">
+                        <div class="tou-title">⚠️ TOU Restriction Found</div>
+                        <div class="tou-date">${escapeHtml(parsed.scanDate)}</div>
+                    </div>
+                    
+                    ${pagesHtml ? `
+                    <div class="tou-pages-section">
+                        <div class="tou-section-label">📄 PAGES SCANNED</div>
+                        ${pagesHtml}
+                    </div>` : ''}
+                    
+                    ${prohibitionsHtml ? `
+                    <div class="tou-prohibitions-section">
+                        <div class="tou-section-label">🚫 WHAT'S PROHIBITED</div>
+                        ${prohibitionsHtml}
+                    </div>` : ''}
+                    
+                    ${quoteHtml}
+                    
+                    ${sourceHtml}
+                </div>`;
+        }
+
+        /**
+         * v25: Populate scan history with alert cards at top
+         */
+        async function loadScanHistoryWithAlerts() {
+            const alertContainer = document.getElementById('scanHistoryAlerts');
+            const historyContainer = document.getElementById('scanHistoryList');
             
-            // Permission Denied - RED
-            if (currentOrg.permission_type === 'Denied') {
-                alertsHtml += `
-                    <div class="scan-alert alert-denied">
-                        <div class="scan-alert-icon">🚫</div>
-                        <div class="scan-alert-content">
-                            <div class="scan-alert-title">Permission Denied</div>
-                            <div class="scan-alert-detail">Organization explicitly declined permission to scrape their events.</div>
-                        </div>
-                    </div>`;
-            }
-            
-            // If no issues, show success
-            if (!currentOrg.tou_flag && !currentOrg.tech_block_flag && !currentOrg.tech_rendering_flag && !currentOrg.permission_type === 'Denied') {
-                if (currentOrg.tou_scanned_date) {
+            // ═══════════════════════════════════════════════════════════════════
+            // CURRENT FLAG ALERTS (shown at top of history section)
+            // ═══════════════════════════════════════════════════════════════════
+            if (alertContainer) {
+                let alertsHtml = '';
+                
+                // TOU Restriction - BRIGHT YELLOW with parsed details
+                if (currentOrg.tou_flag) {
+                    const parsed = parseTouRestriction(currentOrg);
+                    alertsHtml += buildTouAlertCard(parsed, currentOrg);
+                }
+                
+                // JS Rendering - BLUE
+                if (currentOrg.tech_rendering_flag) {
                     alertsHtml += `
-                        <div class="scan-alert alert-success">
-                            <div class="scan-alert-icon">✅</div>
+                        <div class="scan-alert alert-js">
+                            <div class="scan-alert-icon">⚙️</div>
                             <div class="scan-alert-content">
-                                <div class="scan-alert-title">No Restrictions Found</div>
-                                <div class="scan-alert-detail">Last scanned ${new Date(currentOrg.tou_scanned_date).toLocaleDateString()} - no issues detected.</div>
+                                <div class="scan-alert-title">JavaScript Rendering Required</div>
+                                <div class="scan-alert-detail">Events page requires a headless browser (Puppeteer) to scrape.</div>
                             </div>
                         </div>`;
                 }
+                
+                // Tech Block - RED
+                if (currentOrg.tech_block_flag) {
+                    alertsHtml += `
+                        <div class="scan-alert alert-block">
+                            <div class="scan-alert-icon">⛔</div>
+                            <div class="scan-alert-content">
+                                <div class="scan-alert-title">Technical Block (403)</div>
+                                <div class="scan-alert-detail">This organization actively blocks automated requests.</div>
+                            </div>
+                        </div>`;
+                }
+                
+                alertContainer.innerHTML = alertsHtml;
             }
             
-            container.innerHTML = alertsHtml;
-        }
-
-        /**
-         * v24: Toggle scan history accordion
-         */
-        function toggleScanHistory() {
-            const toggle = document.querySelector('.scan-history-toggle');
-            const content = document.getElementById('scanHistoryContent');
-            
-            toggle.classList.toggle('expanded');
-            content.classList.toggle('show');
-        }
-
-        /**
-         * v24: Load scan history from scan_logs collection
-         */
-        async function loadScanHistory() {
-            const container = document.getElementById('scanHistoryList');
-            if (!container) return;
+            // ═══════════════════════════════════════════════════════════════════
+            // SCAN HISTORY LOGS
+            // ═══════════════════════════════════════════════════════════════════
+            if (!historyContainer) return;
             
             try {
                 const response = await fetch(
@@ -2004,8 +2239,7 @@
                 );
                 
                 if (!response.ok) {
-                    // Collection might not exist yet or no records
-                    container.innerHTML = `
+                    historyContainer.innerHTML = `
                         <div class="scan-history-empty">
                             <p>📋 No scan history available yet.</p>
                             <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
@@ -2017,7 +2251,7 @@
                 const logs = data.items || [];
                 
                 if (logs.length === 0) {
-                    container.innerHTML = `
+                    historyContainer.innerHTML = `
                         <div class="scan-history-empty">
                             <p>📋 No scan history available yet.</p>
                             <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
@@ -2025,12 +2259,13 @@
                     return;
                 }
                 
-                container.innerHTML = logs.map(log => {
+                historyContainer.innerHTML = logs.map(log => {
                     const scanDate = new Date(log.scan_date).toLocaleDateString('en-US', { 
                         weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
                     });
                     
                     // Determine result badge
+                    // Field names aligned with organizations collection (2026-01-26)
                     let resultClass = 'result-clean';
                     let resultText = '✅ Clean';
                     if (log.tou_flag) { resultClass = 'result-tou'; resultText = '⚠️ TOU'; }
@@ -2061,7 +2296,7 @@
                 
             } catch (error) {
                 console.error('Error loading scan history:', error);
-                container.innerHTML = `
+                historyContainer.innerHTML = `
                     <div class="scan-history-empty">
                         <p>📋 No scan history available yet.</p>
                         <p style="font-size: 12px; margin-top: 5px;">Scan logs will appear here after running the scanner.</p>
@@ -2071,10 +2306,10 @@
 
         /**
          * Display restriction context if org has TOU restrictions
-         * (Legacy function - now handled by populateScanAlerts)
+         * (Legacy function - now handled by loadScanHistoryWithAlerts)
          */
         function loadRestrictionContext() {
-            populateScanAlerts();
+            loadScanHistoryWithAlerts();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -2784,7 +3019,9 @@ Regards,`;
         }
 
         async function changeEventPolicy() {
-            const newPolicy = document.getElementById('statusEventPolicy').value;
+            const policyEl = document.getElementById('statusEventPolicy');
+            if (!policyEl) return; // Element may not exist in streamlined v25 layout
+            const newPolicy = policyEl.value;
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
                     method: 'PATCH',
@@ -2800,28 +3037,11 @@ Regards,`;
             }
         }
 
-        document.getElementById('touForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = { 
-                tou_flag: document.getElementById('touFlag').checked, 
-                tech_block_flag: document.getElementById('techBlockFlag').checked,
-                tou_notes: document.getElementById('touNotes').value,
-                tou_scanned_date: document.getElementById('touScannedDate').value || null
-            };
-            try {
-                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
-                });
-                currentOrg.tou_flag = data.tou_flag;
-                currentOrg.tech_block_flag = data.tech_block_flag;
-                currentOrg.tou_notes = data.tou_notes;
-                currentOrg.tou_scanned_date = data.tou_scanned_date;
-                showMessage('profileMessage', '✅ TOU info saved!', 'success');
-            } catch (error) { alert('Error: ' + error.message); }
-        });
+        // NOTE: Legacy touForm event listener removed - flags are now read-only (set by scanner)
 
         // ═══════════════════════════════════════════════════════════════════════
-        // TOU FLAG & TECHNICAL BLOCK AUTOMATION
+        // TOU FLAG & TECHNICAL BLOCK AUTOMATION (LEGACY - kept for reference)
+        // NOTE: These functions are no longer called from UI since flags are read-only
         // ═══════════════════════════════════════════════════════════════════════
         
         /**
