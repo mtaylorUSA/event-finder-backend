@@ -16,7 +16,7 @@
  * - POC info gathering
  * - AI-powered org analysis
  * - Scan history logging to scan_logs collection - NEW 2026-01-25
- * - Per-page scan results tracking - NEW 2026-01-26
+ * - Per-page restriction quotes with 20 words context - NEW 2026-01-26
  * 
  * Usage:
  *   const scanner = require('./org-scanner');
@@ -24,9 +24,13 @@
  *   const result = await scanner.scanOrganization(org);
  * 
  * Last Updated: 2026-01-26
- * - NEW: legalPagesResults array tracks per-page scan results (url, type, result, keywords)
- * - NEW: legal_pages_results field saved to scan_logs collection
- * - Enables admin interface to show which specific pages were scanned and their results
+ * - CHANGED: getContextSnippet() now captures 20 WORDS before/after (was 80 chars)
+ * - NEW: pagesWithRestrictions includes quote text for each page
+ * - NEW: allPagesScanned tracks all pages with their results (clear/restrictions/blocked)
+ * - NEW: restriction_source_urls and restriction_context written to organizations collection
+ * - NEW: legal_pages_results saved to scan_logs with full page data
+ * - NEW: restriction_context format: "PageType | URL | Quote" for email generation
+ * - FIX: Email generator now has access to page name, quote, and URL
  * 
  * 2026-01-25
  * - NEW: createScanLog() function writes to scan_logs collection
@@ -1344,12 +1348,30 @@ function checkForProhibitionPhrase(text, keywordIndex, keywordLength) {
 }
 
 /**
- * Extract context snippet around a keyword for logging
+ * Extract context snippet around a keyword - 20 words before and after
+ * Updated 2026-01-26: Changed from character-based (80 chars) to word-based (20 words)
  */
-function getContextSnippet(text, keywordIndex, keywordLength, snippetRadius = 80) {
-    const start = Math.max(0, keywordIndex - snippetRadius);
-    const end = Math.min(text.length, keywordIndex + keywordLength + snippetRadius);
-    return '...' + text.substring(start, end).trim().replace(/\s+/g, ' ') + '...';
+function getContextSnippet(text, keywordIndex, keywordLength) {
+    // Get the text before and after the keyword
+    const textBefore = text.substring(0, keywordIndex);
+    const textAfter = text.substring(keywordIndex + keywordLength);
+    
+    // Split into words
+    const wordsBefore = textBefore.trim().split(/\s+/).filter(w => w.length > 0);
+    const wordsAfter = textAfter.trim().split(/\s+/).filter(w => w.length > 0);
+    
+    // Get last 20 words before and first 20 words after
+    const before20 = wordsBefore.slice(-20).join(' ');
+    const after20 = wordsAfter.slice(0, 20).join(' ');
+    
+    // Get the keyword itself
+    const keyword = text.substring(keywordIndex, keywordIndex + keywordLength);
+    
+    // Build the snippet
+    const prefix = wordsBefore.length > 20 ? '...' : '';
+    const suffix = wordsAfter.length > 20 ? '...' : '';
+    
+    return `${prefix}${before20} **${keyword}** ${after20}${suffix}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1824,6 +1846,7 @@ async function scanTOU(website, html = null) {
         context: [],
         pagesScanned: 0,
         pagesWithRestrictions: [],
+        allPagesScanned: [],    // NEW 2026-01-26: All pages with their results for UI display
         falsePositivesSkipped: 0
     };
     
@@ -1852,7 +1875,6 @@ async function scanTOU(website, html = null) {
     
     // Scan EACH legal page
     const scannedPages = [];
-    const legalPagesResults = [];  // NEW: Structured per-page results for scan_logs
     const allFoundKeywords = [];
     const allContext = [];
     let totalFalsePositivesSkipped = 0;
@@ -1870,14 +1892,14 @@ async function scanTOU(website, html = null) {
             result.techBlockFlag = true;
             // Note: touFlag NOT set here - tech blocks are separate from TOU restrictions
             scannedPages.push(`⛔ ${pageType}: BLOCKED (403)`);
-            legalPagesResults.push({ url, type: pageType, result: 'blocked' });
+            result.allPagesScanned.push({ url, type: pageType, result: 'blocked' });
             continue;
         }
         
         if (!pageResult.success) {
             console.log(`         ⚠️ Could not fetch`);
             scannedPages.push(`⚠️ ${pageType}: Could not fetch`);
-            legalPagesResults.push({ url, type: pageType, result: 'error' });
+            result.allPagesScanned.push({ url, type: pageType, result: 'error' });
             continue;
         }
         
@@ -1896,12 +1918,33 @@ async function scanTOU(website, html = null) {
             console.log(`            (${highCount} high-confidence, ${contextCount} context-confirmed)`);
             
             result.touFlag = true;
-            result.pagesWithRestrictions.push({ 
+            
+            // Extract the first/best quote for this page (cleaned up)
+            // Format from findRestrictions: '[HIGH_CONFIDENCE] "term": ...quote...' or '[CONTEXT_CONFIRMED] "term" + "phrase": ...quote...'
+            let bestQuote = '';
+            if (restrictions.context && restrictions.context.length > 0) {
+                // Get the first context and extract just the quote part
+                const firstContext = restrictions.context[0];
+                const colonIndex = firstContext.indexOf(':');
+                if (colonIndex > -1) {
+                    bestQuote = firstContext.substring(colonIndex + 1).trim();
+                } else {
+                    bestQuote = firstContext;
+                }
+            }
+            
+            const pageData = { 
                 url, 
                 type: pageType, 
+                result: 'restrictions',
                 keywords: restrictions.foundKeywords,
+                quote: bestQuote,  // The actual restriction text (20 words before/after)
+                allQuotes: restrictions.context.slice(0, 3),  // Up to 3 quotes from this page
                 stats: restrictions.stats
-            });
+            };
+            
+            result.pagesWithRestrictions.push(pageData);
+            result.allPagesScanned.push(pageData);
             
             // Set primary TOU URL to first page with restrictions
             if (!result.touUrl) {
@@ -1911,12 +1954,6 @@ async function scanTOU(website, html = null) {
             allFoundKeywords.push(...restrictions.foundKeywords);
             allContext.push(...restrictions.context.map(c => `[${pageType}] ${c}`));
             scannedPages.push(`⚠️ ${pageType}: RESTRICTIONS (${restrictions.foundKeywords.length} terms)`);
-            legalPagesResults.push({ 
-                url, 
-                type: pageType, 
-                result: 'restrictions', 
-                keywords: restrictions.foundKeywords.slice(0, 10)  // Limit to 10 keywords
-            });
         } else {
             const skipped = restrictions.stats.falsePositivesSkipped;
             if (skipped > 0) {
@@ -1925,7 +1962,7 @@ async function scanTOU(website, html = null) {
                 console.log(`         ✅ No restrictions`);
             }
             scannedPages.push(`✅ ${pageType}: Clear`);
-            legalPagesResults.push({ url, type: pageType, result: 'clear' });
+            result.allPagesScanned.push({ url, type: pageType, result: 'clear' });
         }
         
         await sleep(1000); // Respectful delay between pages
@@ -1940,7 +1977,6 @@ async function scanTOU(website, html = null) {
     result.foundKeywords = [...new Set(allFoundKeywords)];
     result.context = allContext.slice(0, 15);
     result.falsePositivesSkipped = totalFalsePositivesSkipped;
-    result.legalPagesResults = legalPagesResults;  // NEW: Structured per-page results
     
     // Build detailed notes
     if (result.touFlag) {
@@ -2579,8 +2615,9 @@ async function createScanLog(org, result, options = {}) {
         pages_checked: result.pagesChecked || 0,
         false_positives_skipped: result.falsePositivesSkipped || 0,
         
-        // NEW: Structured per-page scan results (2026-01-26)
-        legal_pages_results: result.legalPagesResults || [],
+        // NEW 2026-01-26: Structured per-page scan results for UI display
+        // Each item: {url, type, result, quote?, keywords?}
+        legal_pages_results: result.allPagesScanned || [],
         
         // Status tracking
         status_before: org.status || '',
@@ -2948,7 +2985,22 @@ async function scanOrganization(org, options = {}) {
         result.techBlockFlag = result.techBlockFlag || touResult.techBlockFlag;
         result.foundKeywords = touResult.foundKeywords;
         result.falsePositivesSkipped = touResult.falsePositivesSkipped || 0;
-        result.legalPagesResults = touResult.legalPagesResults || [];  // NEW: Per-page results
+        
+        // NEW 2026-01-26: Populate restriction data for organizations collection and scan_logs
+        // pagesWithRestrictions contains: {url, type, keywords, quote, allQuotes, stats}
+        result.pagesWithRestrictions = touResult.pagesWithRestrictions || [];
+        result.allPagesScanned = touResult.allPagesScanned || [];
+        
+        // Build restriction_source_urls (newline-separated URLs where restrictions found)
+        result.restrictionSourceUrls = result.pagesWithRestrictions
+            .map(p => p.url)
+            .join('\n');
+        
+        // Build restriction_context (structured format: TYPE | URL | QUOTE)
+        // This format keeps all three pieces together for email generation
+        result.restrictionContext = result.pagesWithRestrictions
+            .map(p => `${p.type} | ${p.url} | ${p.quote}`)
+            .join('\n');
         
         // Append microsite notes to TOU notes
         if (result.micrositeNotes) {
@@ -3125,6 +3177,18 @@ async function scanOrganization(org, options = {}) {
             updates.tou_notes = result.touNotes;
             result.fieldsUpdated.push('tou_notes');
         }
+        
+        // NEW 2026-01-26: Save restriction evidence to organizations collection
+        // This enables email generator to include page name, quote, and URL
+        if (result.restrictionSourceUrls) {
+            updates.restriction_source_urls = result.restrictionSourceUrls;
+            result.fieldsUpdated.push('restriction_source_urls');
+        }
+        if (result.restrictionContext) {
+            updates.restriction_context = result.restrictionContext;
+            result.fieldsUpdated.push('restriction_context');
+        }
+        
         updates.tou_scanned_date = new Date().toISOString().split('T')[0];
         result.fieldsUpdated.push('tou_scanned_date');
         
