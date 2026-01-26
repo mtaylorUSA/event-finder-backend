@@ -1348,8 +1348,8 @@ function checkForProhibitionPhrase(text, keywordIndex, keywordLength) {
 }
 
 /**
- * Extract context snippet around a keyword - 20 words before and after
- * Updated 2026-01-26: Changed from character-based (80 chars) to word-based (20 words)
+ * Extract context snippet around a keyword - 10 words before and after
+ * Updated 2026-01-26: Changed from character-based (80 chars) to word-based (10 words)
  */
 function getContextSnippet(text, keywordIndex, keywordLength) {
     // Get the text before and after the keyword
@@ -1360,18 +1360,18 @@ function getContextSnippet(text, keywordIndex, keywordLength) {
     const wordsBefore = textBefore.trim().split(/\s+/).filter(w => w.length > 0);
     const wordsAfter = textAfter.trim().split(/\s+/).filter(w => w.length > 0);
     
-    // Get last 20 words before and first 20 words after
-    const before20 = wordsBefore.slice(-20).join(' ');
-    const after20 = wordsAfter.slice(0, 20).join(' ');
+    // Get last 10 words before and first 10 words after
+    const before10 = wordsBefore.slice(-10).join(' ');
+    const after10 = wordsAfter.slice(0, 10).join(' ');
     
     // Get the keyword itself
     const keyword = text.substring(keywordIndex, keywordIndex + keywordLength);
     
     // Build the snippet
-    const prefix = wordsBefore.length > 20 ? '...' : '';
-    const suffix = wordsAfter.length > 20 ? '...' : '';
+    const prefix = wordsBefore.length > 10 ? '...' : '';
+    const suffix = wordsAfter.length > 10 ? '...' : '';
     
-    return `${prefix}${before20} **${keyword}** ${after20}${suffix}`;
+    return `${prefix}${before10} **${keyword}** ${after10}${suffix}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
