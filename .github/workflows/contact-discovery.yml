@@ -1,0 +1,116 @@
+# ════════════════════════════════════════════════════════════════
+# Contact Discovery - Daily Scheduled Workflow
+# ════════════════════════════════════════════════════════════════
+#
+# Runs contact-discovery.js daily to find contact info for orgs
+# Uses Google Search API (100 free queries/day)
+# Auto-batches by priority: Clean → TOU → Tech Block → Tech Rendering
+#
+# Schedule: Daily at 8:00 AM UTC (3:00 AM EST)
+# This runs after Google quota resets at midnight Pacific (3:00 AM EST)
+#
+# ════════════════════════════════════════════════════════════════
+
+name: Contact Discovery (Daily)
+
+on:
+  # Run daily at 8:00 AM UTC (3:00 AM EST)
+  schedule:
+    - cron: '0 8 * * *'
+  
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      batch:
+        description: 'Batch number (1-4) or "auto" for automatic'
+        required: false
+        default: 'auto'
+      limit:
+        description: 'Max orgs to process (optional)'
+        required: false
+        default: ''
+
+jobs:
+  discover-contacts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ─────────────────────────────────────────────────────────────
+      # Setup
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: 📚 Install dependencies
+        run: npm install
+      
+      # ─────────────────────────────────────────────────────────────
+      # Create .env file from GitHub Secrets
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 🔐 Create .env file
+        run: |
+          cat << EOF > .env
+          POCKETBASE_URL=${{ secrets.POCKETBASE_URL }}
+          POCKETBASE_ADMIN_EMAIL=${{ secrets.POCKETBASE_ADMIN_EMAIL }}
+          POCKETBASE_ADMIN_PASSWORD=${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+          GOOGLE_SEARCH_API_KEY=${{ secrets.GOOGLE_SEARCH_API_KEY }}
+          GOOGLE_SEARCH_ENGINE_ID=${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          EOF
+      
+      # ─────────────────────────────────────────────────────────────
+      # Run Contact Discovery
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 📊 Check batch status
+        run: node scrapers/contact-discovery.js --status
+      
+      - name: 📇 Run contact discovery
+        run: |
+          # Determine batch to run
+          BATCH="${{ github.event.inputs.batch }}"
+          LIMIT="${{ github.event.inputs.limit }}"
+          
+          if [ -z "$BATCH" ] || [ "$BATCH" = "auto" ]; then
+            # Auto mode: run batches in priority order
+            # Try batch 1 first, if complete try batch 2, etc.
+            for b in 1 2 3 4; do
+              echo "🔍 Checking batch $b..."
+              OUTPUT=$(node scrapers/contact-discovery.js --batch $b 2>&1)
+              echo "$OUTPUT"
+              
+              # If batch has orgs to process, we're done
+              if echo "$OUTPUT" | grep -q "Orgs processed:"; then
+                break
+              fi
+              
+              # If batch is complete, try next
+              if echo "$OUTPUT" | grep -q "No orgs remaining"; then
+                echo "✅ Batch $b complete, trying next..."
+                continue
+              fi
+            done
+          else
+            # Manual mode: run specific batch
+            if [ -n "$LIMIT" ]; then
+              node scrapers/contact-discovery.js --batch $BATCH --limit $LIMIT
+            else
+              node scrapers/contact-discovery.js --batch $BATCH
+            fi
+          fi
+      
+      # ─────────────────────────────────────────────────────────────
+      # Cleanup
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 🧹 Remove .env file
+        if: always()
+        run: rm -f .env

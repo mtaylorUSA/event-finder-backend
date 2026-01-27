@@ -215,12 +215,22 @@ TOU SCANNING (2026-01-18):
     BOTH domains are scanned for legal pages (e.g., CNAS microsite)
   - Context-aware: Avoids false positives from content pages
 
-SAFETY GATES (must ALL pass):
+SAFETY GATES (v24 workflow):
   ✅ status = "Live (Scraping Active)"
-  ✅ tou_flag = false
-  ✅ tech_block_flag = false
-  ✅ tech_rendering_flag = false
-  ✅ permission_denied_flag = false
+  ✅ permission_type != "Denied"
+  
+  If permission_type = "Waiver":
+    ✅ Skip flag checks (explicit permission overrides)
+  
+  Otherwise:
+    ✅ tou_flag = false
+    ✅ tech_block_flag = false
+    ✅ tech_rendering_flag = false
+
+NEW FLAG DETECTION:
+  If flag goes FALSE → TRUE (new restriction):
+    - If Waiver exists: Log warning, continue
+    - If no Waiver: Reset status to "Nominated", stop scraping
 
 ════════════════════════════════════════════════════════════════
 `);
@@ -1226,20 +1236,38 @@ async function scrapeOrganization(org, scanResult) {
 /**
  * Check if organization is safe to scrape
  * 
- * Safety Gates:
+ * Safety Gates (v24 workflow - 2026-01-25):
  *   1. Status must be "Live (Scraping Active)"
- *   2. tou_flag must be false (no TOU restrictions)
- *   3. tech_block_flag must be false (site accessible)
- *   4. tech_rendering_flag must be false (site uses static HTML)
- *   5. permission_denied_flag must be false (org hasn't declined)
+ *   2. permission_type must not be "Denied"
+ *   3. If permission_type = "Waiver" → skip flag checks (explicit permission overrides)
+ *   4. Otherwise: tou_flag, tech_block_flag, tech_rendering_flag must be false
  */
 function checkSafetyGates(org) {
     const issues = [];
+    const hasWaiver = org.permission_type === 'Waiver';
     
+    // Gate 1: Status must be Live
     if (org.status !== 'Live (Scraping Active)') {
         issues.push(`Status is "${org.status}" (must be "Live (Scraping Active)")`);
     }
     
+    // Gate 2: Check for explicit denial
+    if (org.permission_type === 'Denied') {
+        issues.push('Permission denied (org explicitly declined)');
+        return { safe: false, issues }; // Immediate rejection
+    }
+    
+    // Gate 3: If Waiver exists, skip flag checks
+    if (hasWaiver) {
+        console.log('      ✅ Waiver exists - skipping flag checks');
+        return {
+            safe: issues.length === 0,
+            issues,
+            waiver: true
+        };
+    }
+    
+    // Gate 4: Check flags (only if no waiver)
     if (org.tou_flag === true) {
         issues.push('tou_flag is true (TOU restrictions detected)');
     }
@@ -1252,13 +1280,10 @@ function checkSafetyGates(org) {
         issues.push('tech_rendering_flag is true (site requires Puppeteer)');
     }
     
-    if (org.permission_denied_flag === true) {
-        issues.push('permission_denied_flag is true (org explicitly declined)');
-    }
-    
     return {
         safe: issues.length === 0,
-        issues
+        issues,
+        waiver: false
     };
 }
 
@@ -1399,7 +1424,43 @@ async function processAllOrganizations(options) {
             }
             
             // ─────────────────────────────────────────────────────────────────
-            // STEP 3: Safety gate check
+            // STEP 3: Check for NEW flags detected by scan
+            // ─────────────────────────────────────────────────────────────────
+            if (scanResult.newFlagsDetected && scanResult.newFlagsDetected.length > 0) {
+                const hasWaiver = updatedOrg.permission_type === 'Waiver';
+                if (!hasWaiver) {
+                    console.log('');
+                    console.log('────────────────────────────────────────────────────────────────');
+                    console.log('🚨 NEW RESTRICTION DETECTED');
+                    console.log('────────────────────────────────────────────────────────────────');
+                    console.log(`   New flags: ${scanResult.newFlagsDetected.join(', ')}`);
+                    console.log(`   Status reset to: Nominated (Pending Mission Review)`);
+                    console.log('   ❌ Scraping blocked - manual review required');
+                    
+                    orgResult.blocked = true;
+                    orgResult.blockedReason = `New restriction: ${scanResult.newFlagsDetected.join(', ')}`;
+                    results.blocked++;
+                    results.details.push(orgResult);
+                    
+                    // Delay before next org
+                    if (i < allOrgs.length - 1) {
+                        console.log(`\n   ⏳ Waiting ${DELAY_BETWEEN_ORGS_MS/1000}s before next org...`);
+                        await sleep(DELAY_BETWEEN_ORGS_MS);
+                    }
+                    continue;
+                } else {
+                    console.log('');
+                    console.log('────────────────────────────────────────────────────────────────');
+                    console.log('⚠️ NEW FLAG DETECTED (but waiver exists)');
+                    console.log('────────────────────────────────────────────────────────────────');
+                    console.log(`   New flags: ${scanResult.newFlagsDetected.join(', ')}`);
+                    console.log('   ✅ Waiver allows scraping to continue');
+                    console.log('   ⚠️ Please verify waiver still applies to new restriction');
+                }
+            }
+            
+            // ─────────────────────────────────────────────────────────────────
+            // STEP 4: Safety gate check
             // ─────────────────────────────────────────────────────────────────
             console.log('');
             console.log('────────────────────────────────────────────────────────────────');
@@ -1428,7 +1489,7 @@ async function processAllOrganizations(options) {
             console.log('   ✅ All safety gates passed');
             
             // ─────────────────────────────────────────────────────────────────
-            // STEP 4: Scrape (unless scan-only)
+            // STEP 5: Scrape (unless scan-only)
             // ─────────────────────────────────────────────────────────────────
             if (options.scanOnly) {
                 console.log('');

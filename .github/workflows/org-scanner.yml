@@ -1,0 +1,96 @@
+# ════════════════════════════════════════════════════════════════
+# Organization Scanner - Weekly Scheduled Workflow
+# ════════════════════════════════════════════════════════════════
+#
+# Runs org-scanner.js weekly to re-scan organizations for:
+# - TOU restriction changes
+# - Technical block changes
+# - JavaScript rendering detection
+# - Updated POC info
+#
+# Schedule: Sundays at 4:59 AM UTC (11:59 PM EST Saturday)
+#
+# Scans all orgs EXCEPT "Rejected by Mission"
+# INCLUDES "Rejected by Org" (re-scans in case TOU policies changed)
+#
+# Cost: FREE (no external APIs, just direct site fetching)
+#
+# ════════════════════════════════════════════════════════════════
+
+name: Organization Scanner (Weekly)
+
+on:
+  # Run every Sunday at 4:59 AM UTC (11:59 PM EST Saturday)
+  schedule:
+    - cron: '59 4 * * 0'
+  
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      status_filter:
+        description: 'Status to scan (or "all-active" for default)'
+        required: false
+        default: 'all-active'
+      limit:
+        description: 'Max orgs to process (optional, for testing)'
+        required: false
+        default: ''
+
+jobs:
+  scan-organizations:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ─────────────────────────────────────────────────────────────
+      # Setup
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: 📚 Install dependencies
+        run: npm install
+      
+      # ─────────────────────────────────────────────────────────────
+      # Create .env file from GitHub Secrets
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 🔐 Create .env file
+        run: |
+          cat << EOF > .env
+          POCKETBASE_URL=${{ secrets.POCKETBASE_URL }}
+          POCKETBASE_ADMIN_EMAIL=${{ secrets.POCKETBASE_ADMIN_EMAIL }}
+          POCKETBASE_ADMIN_PASSWORD=${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          EOF
+      
+      # ─────────────────────────────────────────────────────────────
+      # Run Organization Scanner
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 🔍 Run organization scanner
+        run: |
+          LIMIT="${{ github.event.inputs.limit }}"
+          
+          # Run scan-and-scrape with --approved --scan-only flags
+          # This scans all orgs except "Rejected by Mission"
+          # Includes "Rejected by Org" to check if TOU policies changed
+          if [ -n "$LIMIT" ]; then
+            node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only --limit $LIMIT
+          else
+            node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only
+          fi
+      
+      # ─────────────────────────────────────────────────────────────
+      # Cleanup
+      # ─────────────────────────────────────────────────────────────
+      
+      - name: 🧹 Remove .env file
+        if: always()
+        run: rm -f .env
