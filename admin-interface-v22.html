@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v23</title>
+    <title>Event Finder Admin v25</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -427,7 +427,7 @@
             color: #495057;
         }
 
-        /* v23: Multi-Recipient Checkbox Styles */
+        /* Multi-Recipient Checkbox Styles */
         .contact-checkboxes {
             display: flex;
             flex-direction: column;
@@ -2725,7 +2725,7 @@
         }
         
         /**
-         * v23: Update the To: field based on selected checkboxes and other emails
+         * Update the To: field based on selected checkboxes and other emails
          */
         function updateToField() {
             const selectedEmails = [];
@@ -2759,7 +2759,7 @@
         }
         
         /**
-         * v23: Copy the To: field to clipboard
+         * Copy the To: field to clipboard
          */
         function copyToField() {
             const toField = document.getElementById('emailOutToField');
@@ -2776,7 +2776,7 @@
         }
         
         /**
-         * v23: Get all selected recipients (for saving correspondence)
+         * Get all selected recipients (for saving correspondence)
          */
         function getSelectedRecipients() {
             const recipients = [];
@@ -2929,7 +2929,7 @@
         
         /**
          * Generate email draft (moved from old generatePermissionDraft)
-         * v23: Now includes To: field with all selected recipients
+         * Updated: Now includes To: field with all selected recipients
          */
         function generateEmailDraft() {
             const orgName = currentOrg.name;
@@ -2940,7 +2940,7 @@
             
             const restrictionContext = currentOrg.restriction_context || '';
             
-            // v23: Get selected recipients from To: field
+            // Get selected recipients from To: field
             const toField = document.getElementById('emailOutToField').value.trim();
             const toLine = toField ? `To: ${toField}` : 'To: [Select recipients above]';
             
@@ -3097,14 +3097,14 @@ Regards,`;
                     return;
                 }
                 
-                // v23: Get all selected recipients
+                // Get all selected recipients
                 const recipients = getSelectedRecipients();
                 const recipientEmails = recipients.map(r => r.email).filter(e => e);
                 const recipientNames = recipients.map(r => r.name || r.email).filter(n => n);
                 
                 entry.date = date;
                 entry.followupDate = followup || null;
-                // v23: Store all recipient info
+                // Store all recipient info
                 entry.recipients = recipients; // Full recipient objects array
                 entry.recipientCount = recipients.length;
                 entry.contactId = recipients.length === 1 ? recipients[0].id : null; // Legacy support
@@ -3236,7 +3236,7 @@ Regards,`;
                     </span>`;
                 }
                 
-                // v23: Show recipient count for multi-recipient emails
+                // Show recipient count for multi-recipient emails
                 let recipientDisplay = '';
                 if (entry.contactName) {
                     const recipientCount = entry.recipientCount || 1;
