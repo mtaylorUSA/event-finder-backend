@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v25</title>
+    <title>Event Finder Admin v23</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -425,6 +425,55 @@
         .draft-generator-box h6 {
             margin-bottom: 12px;
             color: #495057;
+        }
+
+        /* v23: Multi-Recipient Checkbox Styles */
+        .contact-checkboxes {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .contact-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .contact-checkbox-item:hover {
+            background: #f0f4ff;
+            border-color: #667eea;
+        }
+        .contact-checkbox-item.selected {
+            background: #e7f3ff;
+            border-color: #667eea;
+        }
+        .contact-checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .contact-checkbox-item .contact-info-text {
+            flex: 1;
+            font-size: 13px;
+        }
+        .contact-checkbox-item .contact-type-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #e9ecef;
+            color: #666;
+        }
+        .recipient-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
         }
 
         /* ═══════════════════════════════════════════════════════════════════════ */
@@ -1333,21 +1382,21 @@
                                     </div>
                                 </div>
                                 
-                                <div class="recommended-contact">
-                                    <label>📇 Recommended Recipients (priority order)</label>
-                                    <div id="emailOutRecommendedContacts" class="contact-info">Loading...</div>
-                                </div>
-                                
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Actual Contact Emailed</label>
-                                        <select id="emailOutContactSelect" class="inline-status-select" style="width: 100%;">
-                                            <option value="">-- Select contact --</option>
-                                        </select>
+                                <div class="recipient-section">
+                                    <label>📇 Select Recipients <span style="font-weight: normal; color: #666;">(check all that apply)</span></label>
+                                    <div id="emailOutContactCheckboxes" class="contact-checkboxes" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin: 8px 0; max-height: 200px; overflow-y: auto;">
+                                        Loading contacts...
                                     </div>
-                                    <div class="form-group">
-                                        <label>Or Enter Other Email</label>
-                                        <input type="email" id="emailOutContactOther" placeholder="email@example.com">
+                                    
+                                    <div class="form-group" style="margin-top: 10px;">
+                                        <label>➕ Add Other Recipients <span style="font-weight: normal; color: #666;">(comma-separated)</span></label>
+                                        <input type="text" id="emailOutContactOther" placeholder="email1@example.com, email2@example.com">
+                                    </div>
+                                    
+                                    <div class="form-group" style="margin-top: 10px;">
+                                        <label>📬 To: <span style="font-weight: normal; color: #666;">(auto-populated from selections above)</span></label>
+                                        <input type="text" id="emailOutToField" readonly style="background: #e9ecef; font-family: monospace; font-size: 13px;" placeholder="Select recipients above...">
+                                        <button type="button" class="btn btn-small btn-secondary" onclick="copyToField()" style="margin-top: 5px;">📋 Copy To: Field</button>
                                     </div>
                                 </div>
                                 
@@ -2586,7 +2635,7 @@
                     'Other': '📧'
                 };
                 
-                // Build options HTML
+                // Build options HTML for dropdowns (phone and email-in)
                 let optionsHtml = '<option value="">-- Select contact --</option>';
                 orgContacts.forEach(c => {
                     const icon = typeIcon[c.contact_type] || '📧';
@@ -2598,12 +2647,40 @@
                 // Options with "Other" for email response
                 let optionsWithOther = optionsHtml + '<option value="__other__">➕ Other (enter below)</option>';
                 
-                // Populate all select elements
+                // Populate select elements (phone and email-in still use dropdowns)
                 document.getElementById('phoneContactSelect').innerHTML = optionsHtml;
-                document.getElementById('emailOutContactSelect').innerHTML = optionsHtml;
                 document.getElementById('emailInContactSelect').innerHTML = optionsWithOther;
                 
-                // Update recommended contact displays
+                // Build checkboxes HTML for email-out (multi-select)
+                const checkboxContainer = document.getElementById('emailOutContactCheckboxes');
+                const contactsWithEmail = orgContacts.filter(c => c.email);
+                
+                if (contactsWithEmail.length > 0) {
+                    checkboxContainer.innerHTML = contactsWithEmail.map(c => {
+                        const icon = typeIcon[c.contact_type] || '📧';
+                        return `
+                            <label class="contact-checkbox-item" data-email="${escapeHtml(c.email || '')}" data-name="${escapeHtml(c.name || '')}" data-id="${c.id}">
+                                <input type="checkbox" name="emailRecipients" value="${c.id}" data-email="${escapeHtml(c.email || '')}" data-name="${escapeHtml(c.name || '')}">
+                                <span class="contact-info-text">
+                                    ${icon} <strong>${escapeHtml(c.name || 'Unknown')}</strong> — ${escapeHtml(c.email)}
+                                </span>
+                                <span class="contact-type-badge">${escapeHtml(c.contact_type)}</span>
+                            </label>
+                        `;
+                    }).join('');
+                    
+                    // Add event listeners to checkboxes
+                    checkboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                        cb.addEventListener('change', updateToField);
+                    });
+                    
+                    // Also listen to the "Other" field
+                    document.getElementById('emailOutContactOther').addEventListener('input', updateToField);
+                } else {
+                    checkboxContainer.innerHTML = '<span style="color: #999; padding: 10px;">No contacts with email addresses found. Add contacts first or use "Other Recipients" below.</span>';
+                }
+                
+                // Update recommended contact displays (for phone and email-in)
                 updateRecommendedContacts();
                 
             } catch (error) {
@@ -2636,17 +2713,6 @@
                 phoneNumberInput.value = '';
             }
             
-            // Email Out: Show all contacts with emails (priority sorted)
-            const emailOutDiv = document.getElementById('emailOutRecommendedContacts');
-            const contactsWithEmail = orgContacts.filter(c => c.email);
-            if (contactsWithEmail.length > 0) {
-                emailOutDiv.innerHTML = contactsWithEmail.map(c => 
-                    `<div style="margin: 4px 0;">${typeIcon[c.contact_type] || '📧'} <strong>${escapeHtml(c.name)}</strong> - ${escapeHtml(c.email)}</div>`
-                ).join('');
-            } else {
-                emailOutDiv.innerHTML = '<span style="color: #999;">No contacts with email addresses found</span>';
-            }
-            
             // Email In: Show all known contacts
             const emailInDiv = document.getElementById('emailInKnownContacts');
             if (orgContacts.length > 0) {
@@ -2656,6 +2722,88 @@
             } else {
                 emailInDiv.innerHTML = '<span style="color: #999;">No contacts on file for this organization</span>';
             }
+        }
+        
+        /**
+         * v23: Update the To: field based on selected checkboxes and other emails
+         */
+        function updateToField() {
+            const selectedEmails = [];
+            
+            // Get emails from checked checkboxes
+            document.querySelectorAll('#emailOutContactCheckboxes input[type="checkbox"]:checked').forEach(cb => {
+                const email = cb.dataset.email;
+                if (email) selectedEmails.push(email);
+            });
+            
+            // Get emails from "Other" field (comma-separated)
+            const otherField = document.getElementById('emailOutContactOther').value.trim();
+            if (otherField) {
+                const otherEmails = otherField.split(',').map(e => e.trim()).filter(e => e.includes('@'));
+                selectedEmails.push(...otherEmails);
+            }
+            
+            // Update the To: field
+            const toField = document.getElementById('emailOutToField');
+            if (selectedEmails.length > 0) {
+                toField.value = selectedEmails.join('; ');
+            } else {
+                toField.value = '';
+            }
+            
+            // Update checkbox item styling
+            document.querySelectorAll('#emailOutContactCheckboxes .contact-checkbox-item').forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                item.classList.toggle('selected', checkbox.checked);
+            });
+        }
+        
+        /**
+         * v23: Copy the To: field to clipboard
+         */
+        function copyToField() {
+            const toField = document.getElementById('emailOutToField');
+            if (!toField.value) {
+                showMessage('profileMessage', '⚠️ No recipients selected', 'warning');
+                return;
+            }
+            navigator.clipboard.writeText(toField.value).then(() => {
+                showMessage('profileMessage', '✅ To: field copied to clipboard!', 'success');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                showMessage('profileMessage', '❌ Copy failed', 'error');
+            });
+        }
+        
+        /**
+         * v23: Get all selected recipients (for saving correspondence)
+         */
+        function getSelectedRecipients() {
+            const recipients = [];
+            
+            // Get contacts from checked checkboxes
+            document.querySelectorAll('#emailOutContactCheckboxes input[type="checkbox"]:checked').forEach(cb => {
+                recipients.push({
+                    id: cb.value,
+                    name: cb.dataset.name || '',
+                    email: cb.dataset.email || ''
+                });
+            });
+            
+            // Get emails from "Other" field
+            const otherField = document.getElementById('emailOutContactOther').value.trim();
+            if (otherField) {
+                const otherEmails = otherField.split(',').map(e => e.trim()).filter(e => e.includes('@'));
+                otherEmails.forEach(email => {
+                    recipients.push({
+                        id: null,
+                        name: '',
+                        email: email
+                    });
+                });
+            }
+            
+            return recipients;
         }
         
         /**
@@ -2781,6 +2929,7 @@
         
         /**
          * Generate email draft (moved from old generatePermissionDraft)
+         * v23: Now includes To: field with all selected recipients
          */
         function generateEmailDraft() {
             const orgName = currentOrg.name;
@@ -2790,6 +2939,10 @@
             const hasAnyRestriction = currentOrg.tou_flag || hasTechBlock || hasTechRendering;
             
             const restrictionContext = currentOrg.restriction_context || '';
+            
+            // v23: Get selected recipients from To: field
+            const toField = document.getElementById('emailOutToField').value.trim();
+            const toLine = toField ? `To: ${toField}` : 'To: [Select recipients above]';
             
             // Calculate proceed date (1 week from now)
             const proceedDate = new Date();
@@ -2833,7 +2986,8 @@
                 }
                 
                 subject = `Permission Request: Event Listing from ${orgName}`;
-                draft = `Subject: ${subject}
+                draft = `${toLine}
+Subject: ${subject}
 
 Hello,
 
@@ -2858,7 +3012,8 @@ Thank you for your time and consideration.
 Regards,`;
             } else {
                 subject = `Notice: Automated Event Collection from ${orgName}`;
-                draft = `Subject: ${subject}
+                draft = `${toLine}
+Subject: ${subject}
 
 Hello,
 
@@ -2886,9 +3041,12 @@ Regards,`;
             if (hasTechBlock) detectedFlags.push('Tech Block');
             if (hasTechRendering) detectedFlags.push('JS Rendering');
             
+            const recipientCount = toField ? toField.split(';').length : 0;
+            const recipientText = recipientCount > 0 ? ` (${recipientCount} recipient${recipientCount > 1 ? 's' : ''})` : '';
+            
             const draftType = hasAnyRestriction 
-                ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})` 
-                : '📝 Standard notice draft';
+                ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})${recipientText}` 
+                : `📝 Standard notice draft${recipientText}`;
             showMessage('profileMessage', `${draftType} generated!`, 'success');
         }
         
@@ -2929,8 +3087,7 @@ Regards,`;
             } else if (type === 'email-out') {
                 const date = document.getElementById('emailOutDate').value;
                 const followup = document.getElementById('emailOutFollowupDate').value;
-                const contactSelect = document.getElementById('emailOutContactSelect');
-                const contactOther = document.getElementById('emailOutContactOther').value;
+                const toField = document.getElementById('emailOutToField').value;
                 const subject = document.getElementById('emailOutSubject').value;
                 const draft = document.getElementById('emailOutDraft').value;
                 const finalText = document.getElementById('emailOutFinal').value;
@@ -2940,12 +3097,19 @@ Regards,`;
                     return;
                 }
                 
-                const selectedOption = contactSelect.options[contactSelect.selectedIndex];
+                // v23: Get all selected recipients
+                const recipients = getSelectedRecipients();
+                const recipientEmails = recipients.map(r => r.email).filter(e => e);
+                const recipientNames = recipients.map(r => r.name || r.email).filter(n => n);
+                
                 entry.date = date;
                 entry.followupDate = followup || null;
-                entry.contactId = contactSelect.value || null;
-                entry.contactName = selectedOption?.dataset?.name || '';
-                entry.contactEmail = selectedOption?.dataset?.email || contactOther || '';
+                // v23: Store all recipient info
+                entry.recipients = recipients; // Full recipient objects array
+                entry.recipientCount = recipients.length;
+                entry.contactId = recipients.length === 1 ? recipients[0].id : null; // Legacy support
+                entry.contactName = recipientNames.join('; ') || 'Unknown';
+                entry.contactEmail = recipientEmails.join('; ') || toField || '';
                 entry.subject = subject || 'Email Outreach';
                 entry.draftText = draft;
                 entry.text = finalText;
@@ -3072,6 +3236,14 @@ Regards,`;
                     </span>`;
                 }
                 
+                // v23: Show recipient count for multi-recipient emails
+                let recipientDisplay = '';
+                if (entry.contactName) {
+                    const recipientCount = entry.recipientCount || 1;
+                    const countBadge = recipientCount > 1 ? ` <span style="background: #667eea; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px;">${recipientCount} recipients</span>` : '';
+                    recipientDisplay = `<p class="corr-entry-contact">👤 ${escapeHtml(entry.contactName)}${countBadge}</p>`;
+                }
+                
                 return `
                 <div class="corr-entry ${config.class}">
                     <div class="corr-entry-header">
@@ -3084,7 +3256,7 @@ Regards,`;
                     <div class="corr-entry-actions">
                         <button class="btn btn-small btn-danger" onclick="deleteCorrespondenceEntry(${entry.id})" style="padding: 4px 8px; font-size: 11px;">🗑️</button>
                     </div>
-                    ${entry.contactName ? `<p class="corr-entry-contact">👤 ${escapeHtml(entry.contactName)} ${entry.contactEmail ? '(' + escapeHtml(entry.contactEmail) + ')' : ''}</p>` : ''}
+                    ${recipientDisplay}
                     ${entry.subject ? `<p class="corr-entry-subject">${escapeHtml(entry.subject)}</p>` : ''}
                     <div class="corr-entry-text">${escapeHtml(entry.text)}</div>
                 </div>`;
