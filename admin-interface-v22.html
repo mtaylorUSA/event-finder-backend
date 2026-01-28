@@ -2957,23 +2957,27 @@
                 // NEW FORMAT (2026-01-26): "PageType | URL | Quote" per line
                 let restrictionBullets = '';
                 
-                if (hasTouRestriction) {
-                    const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                // Handle TOU restriction
+                if (currentOrg.tou_flag) {
+                    if (restrictionContext) {
+                        const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                        
+                        contextLines.forEach(line => {
+                            const parts = line.split(' | ');
+                            if (parts.length >= 3) {
+                                // New format: PageType | URL | Quote
+                                const [pageType, url, quote] = parts;
+                                restrictionBullets += `• Your ${pageType} states: "${quote.trim()}"\n  ${url.trim()}\n\n`;
+                            } else if (parts.length === 1 && line.trim()) {
+                                // Old format: just the context text
+                                restrictionBullets += `• Your website states: "${line.trim()}"\n\n`;
+                            }
+                        });
+                    }
                     
-                    contextLines.forEach(line => {
-                        const parts = line.split(' | ');
-                        if (parts.length >= 3) {
-                            // New format: PageType | URL | Quote
-                            const [pageType, url, quote] = parts;
-                            restrictionBullets += `• Your ${pageType} states: "${quote.trim()}"\n  ${url.trim()}\n\n`;
-                        } else if (parts.length === 1) {
-                            // Old format: just the context text
-                            restrictionBullets += `• Your website states: "${line.trim()}"\n\n`;
-                        }
-                    });
-                    
-                    if (!restrictionBullets && currentOrg.tou_flag) {
-                        restrictionBullets += `• Your website's terms restrict automated gathering of information.\n`;
+                    // Fallback if tou_flag is set but no valid restriction bullets were generated
+                    if (!restrictionBullets) {
+                        restrictionBullets += `• Your website's terms restrict automated gathering of information.\n\n`;
                     }
                 }
                 
@@ -3686,37 +3690,45 @@ Regards,`;
             }
         }
 
-        document.getElementById('permissionForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                permission_requested_date: document.getElementById('permissionRequestedDate').value || null,
-                permission_response_date: document.getElementById('permissionResponseDate').value || null,
-                permission_request_draft: document.getElementById('permissionDraft').value,
-                permission_request_final: document.getElementById('permissionFinal').value,
-                permission_correspondence: document.getElementById('permissionCorrespondence').value
-            };
-            try {
-                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
-                });
-                Object.assign(currentOrg, data);
-                showMessage('profileMessage', '✅ Permission info saved!', 'success');
-            } catch (error) { alert('Error: ' + error.message); }
-        });
+        // Legacy permission form handler (only attach if element exists)
+        const permissionForm = document.getElementById('permissionForm');
+        if (permissionForm) {
+            permissionForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = {
+                    permission_requested_date: document.getElementById('permissionRequestedDate').value || null,
+                    permission_response_date: document.getElementById('permissionResponseDate').value || null,
+                    permission_request_draft: document.getElementById('permissionDraft').value,
+                    permission_request_final: document.getElementById('permissionFinal').value,
+                    permission_correspondence: document.getElementById('permissionCorrespondence').value
+                };
+                try {
+                    await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                        method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
+                    });
+                    Object.assign(currentOrg, data);
+                    showMessage('profileMessage', '✅ Permission info saved!', 'success');
+                } catch (error) { alert('Error: ' + error.message); }
+            });
+        }
 
-        document.getElementById('notesForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = { 
-                notes: document.getElementById('orgNotes').value 
-            };
-            try {
-                await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
-                });
-                Object.assign(currentOrg, data);
-                showMessage('profileMessage', '✅ Notes saved!', 'success');
-            } catch (error) { alert('Error: ' + error.message); }
-        });
+        // Legacy notes form handler (only attach if element exists)
+        const notesForm = document.getElementById('notesForm');
+        if (notesForm) {
+            notesForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = { 
+                    notes: document.getElementById('orgNotes').value 
+                };
+                try {
+                    await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
+                        method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': authToken }, body: JSON.stringify(data)
+                    });
+                    Object.assign(currentOrg, data);
+                    showMessage('profileMessage', '✅ Notes saved!', 'success');
+                } catch (error) { alert('Error: ' + error.message); }
+            });
+        }
 
         function copyDraft(fieldId) {
             const text = document.getElementById(fieldId).value;
