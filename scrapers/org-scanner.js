@@ -13,7 +13,7 @@
  * - Event content detection (catches AJAX-loaded events pages) - NEW 2026-01-16
  * - Technical block detection (403/401)
  * - Events URL discovery
- * - POC info gathering
+ * - POC info gathering (5 categories: Legal, Events, Media/PR, Leadership, General)
  * - AI-powered org analysis
  * - Scan history logging to scan_logs collection - NEW 2026-01-25
  * - Per-page restriction quotes with 20 words context - NEW 2026-01-26
@@ -24,12 +24,15 @@
  *   const result = await scanner.scanOrganization(org);
  * 
  * Last Updated: 2026-01-31
- * - NEW: gatherPOCViaGoogleSearch() uses Google snippets for flagged orgs
- * - NEW: Smart POC gathering - respects TOU/tech flags
- * - UPDATED: gatherPOC() now checks flags and uses appropriate method
- * - If TOU flag, tech block, or tech rendering: Use Google Search
- * - If no flags: Direct fetch (faster, saves API quota)
- * - Google Search fallback if direct fetch finds nothing
+ * - MAJOR: Consolidated contact gathering (deprecates contact-discovery.js)
+ * - NEW: CONTACT_CATEGORIES - 5 categories for comprehensive POC discovery
+ * - NEW: getExistingContactTypes() - Check what contacts org already has
+ * - NEW: googleQueryCount tracking with reset/get functions
+ * - UPDATED: gatherPOCViaGoogleSearch() - Now searches ALL 5 categories
+ * - UPDATED: gatherPOC() - Smart skip logic for re-scans
+ *   - First scan (0 contacts): Gather all 5 categories
+ *   - Re-scan (has Legal or Events): Skip gathering
+ *   - forceAggressive option: Always gather all categories
  * 
  * 2026-01-30
  * - NEW: savePocContact() saves contacts to contacts collection with new schema
@@ -109,6 +112,47 @@ const MAX_DELAY_MS = 4000;
 
 // Context window for checking proximity of terms (characters)
 const CONTEXT_WINDOW = 150;
+
+// Google Search quota tracking (NEW 2026-01-31)
+let googleQueryCount = 0;
+
+/**
+ * CONTACT CATEGORIES (NEW 2026-01-31)
+ * Each category gets ONE search. Stop after first email found per category.
+ * This gives up to 5 contacts per org on first scan.
+ */
+const CONTACT_CATEGORIES = [
+    {
+        type: 'Legal/Permissions',
+        contactType: 'Legal/Permissions',
+        searchTerms: ['legal department email', 'legal contact', 'permissions contact', 'licensing contact'],
+        emailPrefixes: ['legal', 'permissions', 'licensing', 'counsel', 'compliance']
+    },
+    {
+        type: 'Events',
+        contactType: 'Events',
+        searchTerms: ['events contact email', 'events coordinator', 'events team', 'programs contact'],
+        emailPrefixes: ['events', 'programs', 'conferences', 'meetings', 'registration', 'rsvp']
+    },
+    {
+        type: 'Media/PR',
+        contactType: 'Media/PR',
+        searchTerms: ['media contact email', 'press contact', 'media relations', 'public relations contact'],
+        emailPrefixes: ['media', 'press', 'pr', 'communications', 'comms', 'publicaffairs', 'news']
+    },
+    {
+        type: 'Leadership',
+        contactType: 'Leadership',
+        searchTerms: ['executive director email', 'CEO contact', 'president contact', 'director contact'],
+        emailPrefixes: ['ceo', 'director', 'president', 'executive', 'chief']
+    },
+    {
+        type: 'General',
+        contactType: 'Main Contact',
+        searchTerms: ['contact email', 'info email', 'general inquiries'],
+        emailPrefixes: ['info', 'contact', 'general', 'hello', 'inquiries', 'admin']
+    }
+];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONTEXT-AWARE RESTRICTION DETECTION (Updated 2026-01-16)
@@ -2384,23 +2428,39 @@ function extractPocFromHtml(html) {
  * @param {string} domain - Organization domain for search
  * @returns {Object|null} POC info with email, name, phone, source or null
  */
-async function gatherPOCViaGoogleSearch(orgName, domain) {
+/**
+ * Gather POC contacts via Google Search - searches ALL 5 categories
+ * UPDATED 2026-01-31: Now searches all categories, returns array of contacts
+ * 
+ * @param {string} orgName - Organization name
+ * @param {string} domain - Organization domain (e.g., "cnas.org")
+ * @param {Object} options - Options
+ * @param {string[]} options.skipCategories - Category types to skip (already have)
+ * @returns {Object[]} Array of POC objects found
+ */
+async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
     if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
         console.log('      ⚠️ Google Search API not configured - skipping');
-        return null;
+        return [];
     }
     
-    console.log('      🔍 Using Google Search for POC (respecting site restrictions)...');
+    const skipCategories = options.skipCategories || [];
+    const foundContacts = [];
+    const seenEmails = new Set();
     
-    // Search queries to try
-    const queries = [
-        `"${orgName}" contact email`,
-        `"${domain}" contact email`,
-        `"${orgName}" legal department email`,
-        `"${orgName}" media contact email`
-    ];
+    console.log('      🔍 Searching Google for contacts (up to 5 categories)...');
     
-    for (const query of queries) {
+    for (const category of CONTACT_CATEGORIES) {
+        // Skip if we already have this category
+        if (skipCategories.includes(category.type)) {
+            console.log(`      ⏭️ Skipping ${category.type} (already have one)`);
+            continue;
+        }
+        
+        // Try first search term for this category
+        const searchTerm = category.searchTerms[0];
+        const query = `"${orgName}" ${searchTerm}`;
+        
         try {
             const url = new URL('https://www.googleapis.com/customsearch/v1');
             url.searchParams.set('key', GOOGLE_SEARCH_API_KEY);
@@ -2408,11 +2468,17 @@ async function gatherPOCViaGoogleSearch(orgName, domain) {
             url.searchParams.set('q', query);
             url.searchParams.set('num', '5');
             
-            console.log(`      📡 Searching: "${query.substring(0, 50)}..."`);
+            googleQueryCount++;
+            console.log(`      📡 Query #${googleQueryCount} [${category.type}]: "${query.substring(0, 50)}..."`);
             
             const response = await fetchModule(url.toString());
             
             if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                if (response.status === 429 || (errorData.error && errorData.error.code === 429)) {
+                    console.log('      ⚠️ Google API quota exceeded - stopping search');
+                    return foundContacts;
+                }
                 continue;
             }
             
@@ -2420,49 +2486,79 @@ async function gatherPOCViaGoogleSearch(orgName, domain) {
             const items = data.items || [];
             
             // Extract contact info from snippets
+            let foundForCategory = false;
+            
             for (const item of items) {
+                if (foundForCategory) break;
+                
                 const snippet = (item.snippet || '') + ' ' + (item.title || '');
                 
-                // Find email
-                const emailMatch = snippet.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-                if (emailMatch) {
-                    const email = emailMatch[0];
+                // Find all emails in snippet
+                const emailMatches = snippet.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+                
+                for (const email of emailMatches) {
+                    const emailLower = email.toLowerCase();
                     
                     // Skip obvious false positives
-                    if (email.includes('example.com') || email.includes('domain.com')) {
+                    if (emailLower.includes('example.com') || 
+                        emailLower.includes('domain.com') ||
+                        emailLower.includes('email.com') ||
+                        emailLower.includes('yourcompany') ||
+                        seenEmails.has(emailLower)) {
                         continue;
                     }
                     
-                    // Try to find name near email
-                    let name = '';
-                    const namePatterns = [
-                        /(?:contact|email|reach)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
-                        /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+at\s+|\s*[,\-]\s*)/
-                    ];
-                    for (const pattern of namePatterns) {
-                        const nameMatch = snippet.match(pattern);
-                        if (nameMatch) {
-                            name = nameMatch[1];
-                            break;
+                    // Prefer emails matching category prefixes
+                    const matchesPrefix = category.emailPrefixes.some(prefix => 
+                        emailLower.startsWith(prefix)
+                    );
+                    
+                    // Accept if matches prefix OR if we haven't found anything for this category
+                    if (matchesPrefix || !foundForCategory) {
+                        seenEmails.add(emailLower);
+                        
+                        // Try to find name near email
+                        let name = '';
+                        const namePatterns = [
+                            /(?:contact|email|reach)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
+                            /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+at\s+|\s*[,\-]\s*)/,
+                            /([A-Z][a-z]+\s+[A-Z][a-z]+),?\s+(?:Director|Manager|Coordinator|Chief|VP|President)/i
+                        ];
+                        for (const pattern of namePatterns) {
+                            const nameMatch = snippet.match(pattern);
+                            if (nameMatch) {
+                                name = nameMatch[1].trim();
+                                break;
+                            }
                         }
+                        
+                        // Try to find phone
+                        let phone = '';
+                        const phoneMatch = snippet.match(/(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+                        if (phoneMatch) {
+                            phone = phoneMatch[0];
+                        }
+                        
+                        const contact = {
+                            email: email,
+                            name: name,
+                            phone: phone,
+                            source: 'google_search',
+                            contactType: category.contactType,
+                            categoryType: category.type
+                        };
+                        
+                        foundContacts.push(contact);
+                        foundForCategory = true;
+                        
+                        console.log(`      ✅ Found ${category.type}: ${email}`);
+                        break;
                     }
-                    
-                    // Try to find phone
-                    let phone = '';
-                    const phoneMatch = snippet.match(/(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-                    if (phoneMatch) {
-                        phone = phoneMatch[0];
-                    }
-                    
-                    console.log(`      ✅ Found POC via Google: ${email}`);
-                    return {
-                        email,
-                        name,
-                        phone,
-                        source: 'google_search',
-                        allEmails: [email]
-                    };
                 }
+            }
+            
+            if (!foundForCategory) {
+                console.log(`      ℹ️ No ${category.type} contact found`);
             }
             
             await sleep(1000);  // Rate limit between queries
@@ -2472,8 +2568,8 @@ async function gatherPOCViaGoogleSearch(orgName, domain) {
         }
     }
     
-    console.log('      ℹ️ No POC found via Google Search');
-    return null;
+    console.log(`      📊 Found ${foundContacts.length} contacts via Google Search`);
+    return foundContacts;
 }
 
 /**
@@ -2529,22 +2625,35 @@ async function gatherPOCDirectFetch(html, baseUrl) {
 }
 
 /**
- * Smart POC gathering - respects TOU/tech flags
- * UPDATED 2026-01-31: Uses Google Search when flags are present
+ * Smart POC gathering with skip logic for re-scans
+ * UPDATED 2026-01-31: 
+ * - First scan (0 contacts): Gather all 5 categories
+ * - Re-scan (has Legal or Events): Skip gathering
+ * - forceAggressive: Always gather all categories
  * 
- * @param {string} html - Homepage HTML (may be empty if tech blocked)
+ * @param {string} html - Homepage HTML (for direct fetch)
  * @param {string} baseUrl - Organization website URL
- * @param {Object} options - Options including flags and org info
+ * @param {Object} options - Options
  * @param {boolean} options.touFlag - TOU restrictions detected
- * @param {boolean} options.techBlockFlag - Technical block detected
+ * @param {boolean} options.techBlockFlag - Technical block (403/401)
  * @param {boolean} options.techRenderingFlag - JS rendering detected
  * @param {string} options.orgName - Organization name for Google search
- * @returns {Object|null} POC info or null
+ * @param {string} options.orgId - Organization ID (for checking existing contacts)
+ * @param {boolean} options.forceAggressive - Force full search regardless of existing contacts
+ * @returns {Object} { contacts: [], skipped: boolean, reason: string }
  */
 async function gatherPOC(html, baseUrl, options = {}) {
     console.log('   👤 Gathering POC info...');
     
-    const { touFlag, techBlockFlag, techRenderingFlag, orgName } = options;
+    const { 
+        touFlag, 
+        techBlockFlag, 
+        techRenderingFlag, 
+        orgName, 
+        orgId,
+        forceAggressive = false 
+    } = options;
+    
     const hasRestrictions = touFlag || techBlockFlag || techRenderingFlag;
     
     // Extract domain from URL
@@ -2555,30 +2664,179 @@ async function gatherPOC(html, baseUrl, options = {}) {
         domain = baseUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
     }
     
+    // ─────────────────────────────────────────────────────────────────────────
+    // Check existing contacts (skip logic for re-scans)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    let existingContacts = { totalCount: 0, hasLegal: false, hasEvents: false };
+    let skipCategories = [];
+    
+    if (orgId && !forceAggressive) {
+        existingContacts = await getExistingContactTypes(orgId);
+        
+        console.log(`      📋 Existing contacts: ${existingContacts.totalCount}`);
+        
+        // Skip gathering if we already have the key contact types
+        if (existingContacts.hasLegal || existingContacts.hasEvents) {
+            console.log(`      ⏭️ Skipping contact gathering - already have ${existingContacts.hasLegal ? 'Legal' : ''}${existingContacts.hasLegal && existingContacts.hasEvents ? ' and ' : ''}${existingContacts.hasEvents ? 'Events' : ''} contact`);
+            return {
+                contacts: [],
+                skipped: true,
+                reason: `Already has ${existingContacts.hasLegal ? 'Legal' : ''}${existingContacts.hasLegal && existingContacts.hasEvents ? '/' : ''}${existingContacts.hasEvents ? 'Events' : ''} contact`,
+                existingCount: existingContacts.totalCount
+            };
+        }
+        
+        // Build list of categories to skip (already have)
+        if (existingContacts.hasLegal) skipCategories.push('Legal/Permissions');
+        if (existingContacts.hasEvents) skipCategories.push('Events');
+        if (existingContacts.hasMediaPR) skipCategories.push('Media/PR');
+        if (existingContacts.hasLeadership) skipCategories.push('Leadership');
+        if (existingContacts.hasGeneral) skipCategories.push('General');
+        
+        if (skipCategories.length > 0) {
+            console.log(`      ℹ️ Will skip categories: ${skipCategories.join(', ')}`);
+        }
+    } else if (forceAggressive) {
+        console.log('      🔥 Force aggressive mode - searching all categories');
+    }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Gather contacts
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    let allContacts = [];
+    
     if (hasRestrictions) {
         // Use Google Search - respect their restrictions
         const reason = techBlockFlag ? 'tech block' : touFlag ? 'TOU restrictions' : 'JS rendering';
         console.log(`      ℹ️ Site has ${reason} - using Google Search instead of scraping`);
         
-        return await gatherPOCViaGoogleSearch(orgName || domain, domain);
+        allContacts = await gatherPOCViaGoogleSearch(orgName || domain, domain, { skipCategories });
+        
     } else {
-        // No restrictions - direct fetch is faster and saves API quota
-        console.log('      ℹ️ No restrictions - fetching contact pages directly');
+        // No restrictions - try direct fetch first, then Google fallback
+        console.log('      ℹ️ No restrictions - trying direct fetch first');
         
-        const poc = await gatherPOCDirectFetch(html, baseUrl);
+        const directPoc = await gatherPOCDirectFetch(html, baseUrl);
         
-        // If direct fetch fails, try Google as fallback
-        if (!poc && GOOGLE_SEARCH_API_KEY) {
-            console.log('      ℹ️ Direct fetch found nothing - trying Google Search fallback');
-            return await gatherPOCViaGoogleSearch(orgName || domain, domain);
+        if (directPoc && directPoc.email) {
+            // Got one via direct fetch, add it
+            allContacts.push({
+                email: directPoc.email,
+                name: directPoc.name || '',
+                phone: directPoc.phone || '',
+                source: directPoc.source || 'website',
+                contactType: mapEmailTypeToContactType(detectEmailType(directPoc.email)),
+                categoryType: detectEmailType(directPoc.email)
+            });
+            console.log(`      ✅ Found via direct fetch: ${directPoc.email}`);
+            
+            // Update skipCategories based on what we found
+            const foundType = detectEmailType(directPoc.email);
+            if (foundType === 'Legal') skipCategories.push('Legal/Permissions');
+            if (foundType === 'Events') skipCategories.push('Events');
+            if (foundType === 'Media/PR') skipCategories.push('Media/PR');
+            if (foundType === 'General') skipCategories.push('General');
         }
         
-        if (!poc) {
-            console.log('      ℹ️ No POC email found');
-        }
+        // If we don't have all key types yet, try Google Search
+        const needsMoreContacts = !skipCategories.includes('Legal/Permissions') || 
+                                   !skipCategories.includes('Events');
         
-        return poc;
+        if (needsMoreContacts && GOOGLE_SEARCH_API_KEY) {
+            console.log('      ℹ️ Searching Google for additional contact types...');
+            const googleContacts = await gatherPOCViaGoogleSearch(orgName || domain, domain, { skipCategories });
+            allContacts.push(...googleContacts);
+        }
     }
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Return results
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    if (allContacts.length === 0) {
+        console.log('      ℹ️ No POC contacts found');
+    } else {
+        console.log(`      📊 Total contacts found: ${allContacts.length}`);
+    }
+    
+    return {
+        contacts: allContacts,
+        skipped: false,
+        reason: null,
+        existingCount: existingContacts.totalCount
+    };
+}
+
+/**
+ * Get existing contact types for an organization
+ * NEW - 2026-01-31: Used to determine if we should skip contact gathering on re-scans
+ * 
+ * @param {string} orgId - Organization ID
+ * @returns {Object} { hasLegal, hasEvents, hasMediaPR, hasLeadership, hasGeneral, totalCount, types[] }
+ */
+async function getExistingContactTypes(orgId) {
+    await authenticate();
+    
+    const result = {
+        hasLegal: false,
+        hasEvents: false,
+        hasMediaPR: false,
+        hasLeadership: false,
+        hasGeneral: false,
+        totalCount: 0,
+        types: []
+    };
+    
+    try {
+        const filter = encodeURIComponent(`organization = "${orgId}"`);
+        const response = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/contacts/records?filter=${filter}&perPage=100`,
+            { headers: { 'Authorization': authToken } }
+        );
+        
+        if (!response.ok) {
+            return result;
+        }
+        
+        const data = await response.json();
+        const contacts = data.items || [];
+        
+        result.totalCount = contacts.length;
+        
+        for (const contact of contacts) {
+            const type = contact.contact_type || '';
+            result.types.push(type);
+            
+            if (type === 'Legal/Permissions') result.hasLegal = true;
+            if (type === 'Events') result.hasEvents = true;
+            if (type === 'Media/PR') result.hasMediaPR = true;
+            if (type === 'Leadership') result.hasLeadership = true;
+            if (type === 'Main Contact' || type === 'Other') result.hasGeneral = true;
+        }
+        
+    } catch (error) {
+        console.log(`      ⚠️ Error checking existing contacts: ${error.message}`);
+    }
+    
+    return result;
+}
+
+/**
+ * Reset Google query count (call at start of scan batch)
+ * NEW - 2026-01-31
+ */
+function resetGoogleQueryCount() {
+    googleQueryCount = 0;
+}
+
+/**
+ * Get current Google query count
+ * NEW - 2026-01-31
+ */
+function getGoogleQueryCount() {
+    return googleQueryCount;
 }
 
 /**
@@ -3639,21 +3897,47 @@ async function scanOrganization(org, options = {}) {
     
     // ───────────────────────────────────────────────────────────────────────
     // Step 4: POC Gathering and Contact Saving
-    // UPDATED 2026-01-31: Now uses Google Search when flags are present
+    // UPDATED 2026-01-31: Now gathers up to 5 contact categories
     // ───────────────────────────────────────────────────────────────────────
     
     // Gather POC even if flags are present - gatherPOC will use Google Search
     if (result.homepageFetched || result.techBlockFlag || result.touFlag || result.techRenderingFlag) {
-        result.pocInfo = await gatherPOC(result.homepageHtml, baseUrl, {
+        const pocResult = await gatherPOC(result.homepageHtml, baseUrl, {
             touFlag: result.touFlag,
             techBlockFlag: result.techBlockFlag,
             techRenderingFlag: result.techRenderingFlag,
-            orgName: org.name || org.source_id
+            orgName: org.name || org.source_id,
+            orgId: org.id,
+            forceAggressive: options.forceAggressive || false
         });
         
-        // Save contact to database if we found one AND have an org ID
-        if (result.pocInfo && result.pocInfo.email && org.id) {
-            result.contactSaved = await savePocContact(org.id, result.pocInfo, 'org-scanner.js');
+        // Store results
+        result.pocInfo = pocResult;
+        result.pocSkipped = pocResult.skipped;
+        result.pocContacts = pocResult.contacts || [];
+        
+        // Save all found contacts to database
+        if (pocResult.contacts && pocResult.contacts.length > 0 && org.id) {
+            console.log(`   💾 Saving ${pocResult.contacts.length} contacts...`);
+            result.contactsSaved = [];
+            
+            for (const contact of pocResult.contacts) {
+                const saved = await savePocContact(org.id, {
+                    email: contact.email,
+                    name: contact.name,
+                    phone: contact.phone,
+                    source: contact.source
+                }, 'org-scanner.js');
+                
+                if (saved) {
+                    result.contactsSaved.push(saved);
+                }
+            }
+            
+            // For backward compatibility, set pocEmail to first contact
+            if (pocResult.contacts.length > 0) {
+                result.pocEmail = pocResult.contacts[0].email;
+            }
         }
         
         await sleep(1500);
@@ -3849,7 +4133,20 @@ async function scanOrganization(org, options = {}) {
     console.log(`   TOU URL: ${result.touUrl || 'Not found'}`);
     console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
     console.log(`   Events URL: ${result.eventsUrl || 'Not found'} ${result.eventsUrlValidated ? '✅' : '⚠️'}`);
-    console.log(`   POC Email: ${result.pocInfo?.email || 'Not found'}`);
+    
+    // Updated POC display for multi-contact support
+    if (result.pocSkipped) {
+        console.log(`   POC Contacts: ⏭️ Skipped (${result.pocInfo?.reason || 'already have contacts'})`);
+    } else if (result.pocContacts && result.pocContacts.length > 0) {
+        console.log(`   POC Contacts: ${result.pocContacts.length} found`);
+        for (const c of result.pocContacts) {
+            console.log(`      • ${c.categoryType || c.contactType}: ${c.email}`);
+        }
+    } else {
+        console.log(`   POC Contacts: None found`);
+    }
+    console.log(`   Google Queries Used: ${googleQueryCount}`);
+    
     console.log(`   AI Org Name: ${result.aiOrgName || 'N/A'}`);
     if (result.statusChanged) {
         console.log(`   🔄 Status Changed: "${result.previousStatus}" → "${result.newStatus}"`);
@@ -3883,15 +4180,22 @@ module.exports = {
     extractEventsUrlFromTriggeringUrl,
     validateEventsUrl,
     gatherPOC,
-    gatherPOCViaGoogleSearch,  // NEW 2026-01-31: Google Search for flagged orgs
-    gatherPOCDirectFetch,       // NEW 2026-01-31: Direct fetch for clean orgs
+    gatherPOCViaGoogleSearch,  // UPDATED 2026-01-31: Now searches all 5 categories
+    gatherPOCDirectFetch,
     analyzeWithAI,
     findRestrictions,
+    
+    // Contact gathering helpers - NEW 2026-01-31
+    getExistingContactTypes,
+    resetGoogleQueryCount,
+    getGoogleQueryCount,
+    CONTACT_CATEGORIES,
     
     // Contact saving functions - NEW 2026-01-30
     savePocContact,
     checkForDuplicateContact,
     detectEmailType,
+    mapEmailTypeToContactType,
     calculateDataCompleteness,
     
     // Domain matching functions - NEW 2026-01-30

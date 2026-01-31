@@ -1,6 +1,6 @@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # DOCUMENT NAME:  
-2026-01-26-1800 ConOp Event_Finder.md
+2026-01-27-1530 ConOp Event_Finder.md
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1074,8 +1074,7 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # SCANNING - UNIFIED APPROACH - ORG-SCANNER 
-
->>>>> SECTION UPDATE / NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
+     * VALIDATED 2026-01-27: org-scanner.js is the core scanning module
 
      * Initial Org Scan (org-scanner.js)
           ** Automated Checks (run during discovery or via scan-and-scrape-all-live-orgs.js --scan-only):
@@ -1134,8 +1133,9 @@ The contents if this chat and everything related to this project is subject to m
           ** Status: Nominated (Pending Mission Review)
 
 -----
->>>>> SECTION UPDATE
+
      * What to Do If Tech Block Flag is Set
+          ** VALIDATED 2026-01-27: Behavior confirmed
           ** Set tech_block_flag = true
           ** Set tou_flag = true (implied restriction)
           ** Organization technically cannot be scraped
@@ -1189,11 +1189,16 @@ The contents if this chat and everything related to this project is subject to m
                *** Google Search API credentials must be configured in .env
           ** See "EVENT-BASED ORGANIZATION DISCOVERY ARCHITECTURE" section for detailed flow
 
-          >>>>> HOW DOES IT WORK?
-          >>>>> WHAT DOES IT USE TO SCAN?
-          >>>>> WHAT INFO DOES IT SCAN
-          >>>>> DOES IT FLAG?  
-          >>>>> WHAT INFO DOES IT BRING BACK?
+          ** VALIDATED 2026-01-27 - How It Works:
+               *** Phase A: Searches Google for events matching ideal profile
+               *** Phase B: Has OWN scanning code (does NOT use org-scanner.js)
+               *** Contains duplicate implementations: extractPocFromHtml(), searchForPocInfo(), savePocContact()
+               *** Uses Google Search as FALLBACK only when site returns 403/401
+          ** What It Uses to Scan: Its own extractPocFromHtml() function (4 hardcoded paths)
+          ** What Info It Scans: Homepage, /contact, /about/contact, /contact-us, /about
+          ** Does It Flag?: YES - guesses at tou_flag, tech_block_flag based on errors
+          ** What Info Does It Bring Back: org name, description, POC info, triggering event
+          ** FUTURE: Should import and use org-scanner.js instead of duplicate code
 
 
 
@@ -1201,40 +1206,53 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # ORGANIZATION WORKFLOW STEP 1A: MANUAL DISCOVERY
->>>>> SECTION UPDATE NEEDED / NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
+     * VALIDATED 2026-01-27: Currently NO automatic scanning for manual adds
 
      * In Admin Interface: Organizations tab → "Add Organization" button
      * Fill in: Name, Website, Description, Type
      * Sets discovery_method = "manual"
      * Status: Nominated (Pending Mission Review)
 
-     >>>>> SECTION UPDATE NEEDED: HOW WE SCAN 
-     >>>>> SECTION UPDATE NEEDED: What do we do if we find a Flag, Tech Block, or Rendering Block?
-     >>>>> SECTION UPDATE NEEDED: Recursive Google search for POCs
-               >>>>> POC (names, email, phones, titles)
-               >>>>> Org Description
-               >>>>> Update database records (status, etc)
+     * Current State (as of 2026-01-27):
+          ** NO automatic scanning when org is manually added
+          ** User must manually run scan-and-scrape-all-live-orgs.js --org "name" to scan
+          ** Flags are NOT automatically set
+
+     * FUTURE IMPROVEMENT: After manual add, automatically run org-scanner.js to:
+          ** Scan for TOU restrictions
+          ** Check for tech blocks
+          ** Detect JavaScript rendering requirements
+          ** Gather POC info
+          ** Update database records with flags
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # ORGANIZATION WORKFLOW STEP 1B: PROFILE-BASED DISCOVERY
->>>>> SECTION UPDATE NEEDED / NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
+     * VALIDATED 2026-01-27: AI GUESSES at flags without actual scanning
+
      * Mechanism: suggest-organizations.js  
      * Run Command: node scrapers/suggest-organizations.js
      * AI suggests organizations similar to existing approved orgs
      * Uses AI training knowledge to find similar organizations
-     >>>>> SECTION UPDATE NEEDED: HOW WE SCAN 
-     >>>>> SECTION UPDATE NEEDED: What do we do if we find a Flag, Tech Block, or Rendering Block?
-     >>>>> SECTION UPDATE NEEDED: Recursive Google search for POCs
-               >>>>> POC (names, email, phones, titles)
-               >>>>> Org Description
-               >>>>> Update database records (status, etc)
+
+     * Current State (as of 2026-01-27):
+          ** AI guesses at tou_flag values (lines 223-227 in code)
+          ** Does NOT call org-scanner.js
+          ** Does NOT actually scan websites for TOU
+          ** Does NOT gather POC info
+
+     * FUTURE IMPROVEMENT: After AI suggests org, automatically run org-scanner.js to:
+          ** Actually scan for TOU restrictions (replace AI guessing)
+          ** Check for tech blocks
+          ** Detect JavaScript rendering requirements
+          ** Gather POC info via Google Search
+          ** Update database records with verified flags
 
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # ORGANIZATION WORKFLOW STEP 1C: EVENT-BASED DISCOVERY 
->>>>> SECTION UPDATE NEEDED / NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
+     * VALIDATED 2026-01-27: Has own scanning code, does NOT use org-scanner.js
      * Finding Events to scrape
 
 -----
@@ -1258,9 +1276,9 @@ The contents if this chat and everything related to this project is subject to m
                     **** If score > 0.40, proceed to Phase B
                *** Step 5: Extract domain from high-scoring result URLs
 
->>>>> SECTION UPDATE
->>>>> NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
           ** Phase B - Initial Org Scan (Page Fetching):
+               *** VALIDATED 2026-01-27: discover-orgs-by-events.js has OWN scanning code (does NOT use org-scanner.js)
+               *** FUTURE: Should import org-scanner.js instead of duplicate code
                *** Step 6: Fetch homepage from extracted domain
                     **** On 403/401 error: Set tech_block_flag = TRUE, skip to Step 10
                     **** Find: All policy-relevant page URLs
@@ -1337,23 +1355,107 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # ORGANIZATION WORKFLOW 1D: Ad HOC SCANS 
->>>>> SECTION UPDATE NEEDED / NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
-     >>>>> SECTION UPDATE NEEDED: HOW WE SCAN (org-scanner?)
-     >>>>> SECTION UPDATE NEEDED: What do we do if we find a Flag, Tech Block, or Rendering Block?
-     >>>>> SECTION UPDATE NEEDED: Recursive Google search for POCs
-               >>>>> POC (names, email, phones, titles)
-               >>>>> Org Description
-               >>>>> Update database records (status, etc)
+     * VALIDATED 2026-01-27: Use scan-and-scrape-all-live-orgs.js with --org flag
+
+     * Purpose: Re-scan an existing organization on demand
+     * When to Use: TOU may have changed, want to verify flags, check for new POC info
+
+-----
+
+     * How to Run Ad Hoc Scan:
+          ** Run Command: node scrapers/scan-and-scrape-all-live-orgs.js --org "Org Name" --scan-only
+          ** Uses org-scanner.js for full scanning
+          ** Scans all policy pages for restrictions
+          ** Checks for tech blocks (403/401)
+          ** Detects JavaScript rendering requirements
+          ** Updates tou_flag, tech_block_flag, tech_rendering_flag
+          ** Creates scan_log entry with audit trail
+
+-----
+
+     * What Happens If Flags Are Found:
+          ** tou_flag = TRUE: Records restriction quotes in tou_notes, updates tou_scanned_date
+          ** tech_block_flag = TRUE: Records in tou_notes
+          ** tech_rendering_flag = TRUE: Records in scrape_notes
+          ** Status NOT changed automatically (human reviews in Admin Interface)
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# ORGANIZATION WORKFLOW 1E: POC UPDATE SCANS
->>>>> SECTION UPDATE NEEDED / NOTE HOW THIS WORKS TODAY AND HOW WE WANT IT TO WORK IN THE FUTURE
-     >>>>> SECTION UPDATE NEEDED: HOW WE SCAN 
-     >>>>> SECTION UPDATE NEEDED: What do we do if we find a Flag, Tech Block, or Rendering Block?
-     >>>>> SECTION UPDATE NEEDED: Recursive Google search for POCs
-               >>>>> POC (names, email, phones, titles)
-               >>>>> Org Description
-               >>>>> Update database records (status, etc)
+# ORGANIZATION WORKFLOW 1E: POC UPDATE SCANS / CONTACT DISCOVERY
+     * UPDATED 2026-01-27: Created contact-discovery.js for automated contact discovery
+
+-----
+
+     * Purpose: Bootstrap contact information for organizations to enable permission outreach
+     * Target: Organizations with status "Mission Approved (Request Not Sent)"
+     * Method: Google Search API snippets only (no direct site scraping)
+
+-----
+
+     * How Contact Discovery Works (contact-discovery.js)
+          ** Script: scrapers/contact-discovery.js
+          ** Run Command: node scrapers/contact-discovery.js --batch <1-4>
+          ** Searches for 3 contact types per org:
+               *** Legal/Permissions (legal department, permissions, licensing)
+               *** Events (events coordinator, events team, programs)
+               *** Media/PR (media contact, press contact, communications)
+          ** Search method: Google Search API with "site:domain" operator
+               *** Extracts contact info from search result snippets only
+               *** Does NOT fetch or scrape organization pages
+          ** Recursive search: If name found but no email, searches for "Name domain email"
+          ** If still no email: Logs URL for manual review
+
+-----
+
+     * Priority Batching
+          ** Batch 1: Clean orgs (no flags) - Processed first
+          ** Batch 2: TOU flag only
+          ** Batch 3: Tech block flag
+          ** Batch 4: Tech rendering flag
+          ** Orgs sorted alphabetically within each batch
+
+-----
+
+     * API Quota Management
+          ** Free tier: 100 queries/day
+          ** Worst case: 6 searches per org (3 initial + 3 recursive)
+          ** Safe batch: ~15 orgs/day
+          ** Auto-throttle: Stops at 95 queries, saves progress via scan_logs
+
+-----
+
+     * Progress Tracking
+          ** Creates scan_logs entry with scan_type = "contact-discovery" for each org
+          ** Script skips orgs that already have this scan_type entry
+          ** Resume next day: Run same batch, automatically continues where left off
+
+-----
+
+     * Database Updates
+          ** New contacts: Created in contacts collection with:
+               *** contact_type from search (Legal/Permissions, Events, Media/PR)
+               *** source = "Google Search snippet"
+               *** notes = "Auto-discovered by contact-discovery.js"
+               *** last_verified = current date
+          ** Existing contacts: Updates last_verified, adds missing name/title/phone
+          ** URLs for review: Stored in scan_logs full_log field
+
+-----
+
+     * Run Commands
+          ** Check status: node scrapers/contact-discovery.js --status
+          ** Run batch: node scrapers/contact-discovery.js --batch 1
+          ** Limit orgs: node scrapers/contact-discovery.js --batch 1 --limit 10
+
+-----
+
+     * Session Results (2026-01-27)
+          ** Batch 1 completed: 26 orgs processed
+          ** Contacts created: 11
+          ** Contacts updated: 2
+          ** URLs logged for manual review: 36
+          ** Google queries used: 90/100
+          ** Known issue: Name extraction regex too loose (catches phrases like "us by email at")
+          ** Known issue: 1 org missing website (The Hoover Institution)
 
 
 
@@ -1479,10 +1581,9 @@ The contents if this chat and everything related to this project is subject to m
 -----
 
      * Two Scan Scenarios
->>>>> SECTION VALIDATION NEEDED 
+          ** VALIDATED 2026-01-27: Both scenarios confirmed working
 
           ** The unified scan-and-scrape-all-live-orgs.js handles two different scan scenarios:
->>>>> SECTION VALIDATION NEEDED 
 
           ** Discovery Scan (new organizations via --domain):
                *** When: Google finds org/event, or manual add via domain
@@ -1504,6 +1605,13 @@ The contents if this chat and everything related to this project is subject to m
                *** Update DB record?: YES (updates tou_scanned_date)
                *** NEW Flag Detection: If flag goes FALSE → TRUE, action depends on permission_type
                *** Output status: "OK to scrape" or "STOP" (safety gate failure or new restriction)
+
+          ** Contact Discovery Scan (via contact-discovery.js) - NEW 2026-01-27:
+               *** When: Bootstrapping contact info for permission outreach
+               *** Purpose: Find Legal, Events, Media contacts via Google Search
+               *** Method: Google Search API snippets only (no site fetching)
+               *** Create DB record?: YES (creates contacts, updates scan_logs)
+               *** Output status: Contacts created/updated count, URLs for manual review
 
 -----
 
@@ -1559,33 +1667,34 @@ The contents if this chat and everything related to this project is subject to m
 -----
 
      * Run Scrapers
+          ** VALIDATED 2026-01-27: All commands confirmed working
           ** Option A: Scan + Scrape ALL Live Organizations (Recommended for batch)
               *** powershell
->>>>> SECTION VALIDATION NEEDED 
               *** node scrapers/scan-and-scrape-all-live-orgs.js --all
               *** Features: Full scan via org-scanner.js, 5 safety gates, AI event extraction, summary report
 
->>>>> SECTION VALIDATION NEEDED 
           ** Option B: Scan Only ALL Live Organizations (no scraping)
               *** powershell
               *** node scrapers/scan-and-scrape-all-live-orgs.js --all --scan-only
 
->>>>> SECTION VALIDATION NEEDED 
           ** Option C: Scan + Scrape Specific Organization
               *** powershell
               *** node scrapers/scan-and-scrape-all-live-orgs.js --org "INSA"
               *** Features: Auto-detects org, runs pre-scrape policy doc check, safety gates with waiver support, AI event extraction
 
->>>>> SECTION VALIDATION NEEDED 
           ** Option D: Scan Only Specific Organization (no scraping)
               *** powershell
               *** node scrapers/scan-and-scrape-all-live-orgs.js --org "CNAS" --scan-only
 
->>>>> SECTION VALIDATION NEEDED 
           ** Option E: Discover New Org by Domain
               *** powershell
               *** node scrapers/scan-and-scrape-all-live-orgs.js --domain "csis.org"
               *** Features: Dedup check, full discovery scan, displays info for manual add
+
+          ** Option F: Scan All Approved Orgs (excludes "Rejected by Mission") - NEW 2026-01-27
+              *** powershell
+              *** node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only
+              *** Used by org-scanner.yml GitHub Action
 
 -----
 
@@ -1606,8 +1715,8 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
->>>>> SECTION VALIDATION NEEDED 
      * Enrich Events (Optional)
+          ** VALIDATED 2026-01-27: Command confirmed working
           ** After scraping, run AI enrichment:
               *** powershell
               *** node scrapers/enrich-events.js
@@ -1686,26 +1795,24 @@ The contents if this chat and everything related to this project is subject to m
 -----
 
           ** Requirement 4: We update records properly and save the complete sentence/phrase of the restriction for human review
+               *** VALIDATED 2026-01-27: All fields working correctly
                *** tou_flag: Boolean indicating restrictions found
-
->>>>> SECTION UPDATE NEEDED 
                *** tou_notes: Detailed text with context snippets
                *** tou_url: URL where restrictions were found
                *** restriction_source_urls: All URLs where restrictions were found (newline-separated)
->>>>> SECTION VALIDATION NEEDED 
                *** restriction_context: Structured format "PageType | URL | Quote" per line 
->>>>> SECTION VALIDATION NEEDED 
                *** Implementation: scanTOU() captures ALL restriction pages, getContextSnippet() extracts 10-word context before/after trigger
 
 -----
 
->>>>> SECTION VALIDATION NEEDED 
           ** Requirement 5: We maintain an audit log of scans and scan/scrape results so we can see when something changes and do not overwrite earlier findings
+               *** VALIDATED 2026-01-27: scan_logs collection working with 22+ fields
                *** Track scan date, type, duration
                *** Preserve all flags and URLs found
                *** Record status changes (before/after)
                *** Full log output for debugging
                *** Implementation: scan_logs collection (22 fields) - createScanLog() in org-scanner.js
+               *** NEW: scan_type = "contact-discovery" added for contact discovery tracking
 
 -----
 
@@ -2214,10 +2321,11 @@ The contents if this chat and everything related to this project is subject to m
 -----
 
      * scrapers Folder
->>>>> SECTION VALIDATION NEEDED 
+          ** VALIDATED 2026-01-27: Added contact-discovery.js
           ** scrapers/ (main scripts)
                *** scan-and-scrape-all-live-orgs.js - Unified scan + scrape CLI (NEW 2026-01-18, replaces scrape-organization.js, scrape-all-organizations.js, index.js, base-scraper.js)
                *** org-scanner.js - Core scanning module for policy docs, tech blocks, JS rendering, events URL, POC, AI analysis
+               *** contact-discovery.js - Google Search contact discovery for permission outreach (NEW 2026-01-27)
                *** quality-audit.js - Quality audit script for duplicate detection and flag summary (NEW 2026-01-19)
                *** discover-orgs-by-events.js - Event-based organization discovery
                *** suggest-organizations.js - Profile-based organization discovery
@@ -2264,32 +2372,49 @@ The contents if this chat and everything related to this project is subject to m
 
      * Permission & Organization Management (in scrapers/ folder)
 
->>>>> SECTION VALIDATION NEEDED 
+          ** contact-discovery.js (NEW 2026-01-27)
+               *** Google Search API contact discovery for permission outreach
+               *** Targets orgs with status "Mission Approved (Request Not Sent)"
+               *** Searches for: Legal/Permissions, Events, Media/PR contacts
+               *** Uses Google Search snippets only (no site scraping)
+               *** Priority batching: Clean → TOU → Tech Block → Tech Rendering
+               *** Auto-throttles at 95 queries to stay under 100 free/day
+               *** Tracks progress via scan_logs with scan_type = "contact-discovery"
+               *** Run: node scrapers/contact-discovery.js --batch <1-4>
+               *** Run status: node scrapers/contact-discovery.js --status
+
           ** suggest-organizations.js
+               *** VALIDATED 2026-01-27: Currently does NOT call org-scanner.js
                *** Profile-based discovery: AI suggests new organizations based on existing approved ones
                *** Uses AI training knowledge to find similar organizations
+               *** ⚠️ KNOWN ISSUE: AI GUESSES at TOU flags (lines 223-227) without actually scanning
                *** Sets discovery_method = "profile-based"
+               *** FUTURE: Should call org-scanner.js after AI suggests orgs
                *** Run: node scrapers/suggest-organizations.js
 
->>>>> SECTION VALIDATION NEEDED 
           ** discover-orgs-by-events.js
+               *** VALIDATED 2026-01-27: Has DUPLICATE scanning code, does NOT import org-scanner.js
                *** Event-based discovery: Discovers organizations by finding similar events online
                *** Uses embeddings to score candidate events against "ideal event profile"
-               *** Performs policy doc scan and tech block check during discovery
+               *** Contains own extractPocFromHtml(), searchForPocInfo(), savePocContact() (duplicates org-scanner.js)
+               *** Uses Google Search only as FALLBACK when site returns 403/401
                *** Runs AI analysis to extract org name and generate summary 
                *** Applies exclusion keyword filtering 
                *** Sets discovery_method = "event-based"
                *** Populates triggering_event_title, triggering_event_score, triggering_event_url
-               *** Status: Functional
+               *** FUTURE: Should import and use org-scanner.js for Phase B scanning
+               *** Status: Functional but architecture needs cleanup
                *** Run: node scrapers/discover-orgs-by-events.js
 
->>>>> SECTION VALIDATION NEEDED 
           ** org-scanner.js 
+               *** VALIDATED 2026-01-27: Core scanning module, should be used by all discovery scripts
                *** Unified scanning module consolidating policy doc, tech block, events URL, POC, and AI analysis
                *** Context-aware restriction detection to avoid false positives
                *** Auto-status update: sets "Rejected by Org" when restrictions found on Live orgs
                *** JavaScript/tech rendering detection 
-               *** Used by discover-orgs-by-events.js and can be called directly for manual scans
+               *** POC gathering: gatherPOC() fetches 4 hardcoded paths (/contact, /about/contact, /contact-us, /about)
+               *** Used by scan-and-scrape-all-live-orgs.js
+               *** NOT USED BY: discover-orgs-by-events.js, suggest-organizations.js (should be fixed)
                *** Functions: scanOrganization(), scanTOU(), findAllLegalUrls(), findRestrictions(), gatherPOC(), analyzeWithAI()
                *** Key Constants: HIGH_CONFIDENCE_RESTRICTION_TERMS, CONTEXT_REQUIRED_TERMS, PROHIBITION_PHRASES, EXCLUDED_CONTEXTS
                *** Run: node scrapers/org-scanner.js (CLI wrapper coming soon)
@@ -2348,8 +2473,7 @@ The contents if this chat and everything related to this project is subject to m
                *** POC info gathering
                *** AI-powered org analysis
 
->>>>> SECTION VALIDATION NEEDED 
-          ** DELETED FILES (2026-01-18):
+          ** DELETED FILES (2026-01-18): VALIDATED 2026-01-27 - files confirmed deleted
                *** scrape-organization.js - Replaced by scan-and-scrape-all-live-orgs.js
                *** scan-organization.js - Replaced by scan-and-scrape-all-live-orgs.js
                *** scrape-all-organizations.js - Replaced by scan-and-scrape-all-live-orgs.js
@@ -2458,30 +2582,67 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # GITHUB ACTIONS
+     * UPDATED 2026-01-27: Added contact-discovery.yml and org-scanner.yml workflows
 
->>>>> SECTION VALIDATION NEEDED 
+-----
+
      * Workflow: Scrape Events Daily
           ** File: .github/workflows/scrape-events.yml
-          ** Status: NEEDS UPDATE (workflow references old script, update to use scan-and-scrape-all-live-orgs.js)
-          ** Schedule: Runs daily at 11:30 PM EST (04:30 UTC) - changed to avoid peak server hours
+          ** Status: ✅ VALIDATED - workflow runs scan-and-scrape-all-live-orgs.js --all
+          ** Schedule: Runs daily at 11:30 PM EST (04:30 UTC)
           ** What it does:
                *** Sets up Node.js environment
                *** Installs dependencies
                *** Runs scrapers/scan-and-scrape-all-live-orgs.js --all
 
->>>>> SECTION VALIDATION NEEDED 
-          ** Secrets Required (in GitHub repo settings):
-               *** POCKETBASE_URL
-               *** POCKETBASE_ADMIN_EMAIL
-               *** POCKETBASE_ADMIN_PASSWORD
-               *** OPENAI_API_KEY
+-----
+
+     * Workflow: Contact Discovery (Daily) - NEW 2026-01-27
+          ** File: .github/workflows/contact-discovery.yml
+          ** Status: ✅ Active
+          ** Schedule: Runs daily at 3:00 AM EST (08:00 UTC) - after Google quota resets at midnight Pacific
+          ** What it does:
+               *** Sets up Node.js environment
+               *** Installs dependencies
+               *** Creates .env from GitHub Secrets
+               *** Runs contact-discovery.js with auto-batching (tries batch 1, then 2, etc.)
+               *** Stays within 100 free queries/day limit
+          ** Manual trigger: Supports --batch and --limit inputs
+
+-----
+
+     * Workflow: Organization Scanner (Weekly) - NEW 2026-01-27
+          ** File: .github/workflows/org-scanner.yml
+          ** Status: ✅ Active
+          ** Schedule: Runs Sundays at 11:59 PM EST (04:59 UTC)
+          ** What it does:
+               *** Sets up Node.js environment
+               *** Installs dependencies
+               *** Creates .env from GitHub Secrets
+               *** Runs scan-and-scrape-all-live-orgs.js --approved --scan-only
+               *** Scans all orgs except "Rejected by Mission"
+               *** Includes "Rejected by Org" (re-scans in case TOU policies changed)
+          ** Cost: FREE (no external APIs, just direct site fetching)
+          ** Manual trigger: Supports --limit input for testing
+
+-----
+
+     * Secrets Required (in GitHub repo settings → Secrets and variables → Actions)
+          ** POCKETBASE_URL ✅
+          ** POCKETBASE_ADMIN_EMAIL ✅
+          ** POCKETBASE_ADMIN_PASSWORD ✅
+          ** OPENAI_API_KEY ✅
+          ** GOOGLE_SEARCH_API_KEY ✅ (added 2026-01-27)
+          ** GOOGLE_SEARCH_ENGINE_ID ✅ (added 2026-01-27)
 
 -----
 
      * Manual Trigger
           ** Go to GitHub repo → Actions tab
-          ** Select "Scrape Events Daily" workflow
+          ** Select workflow from left sidebar
           ** Click "Run workflow" button
+          ** For contact-discovery: Can specify batch number and limit
+          ** For org-scanner: Can specify limit for testing
           ** Useful for: Testing, immediate updates
 
 -----
@@ -2489,7 +2650,8 @@ The contents if this chat and everything related to this project is subject to m
      * Viewing Logs
           ** Go to GitHub repo → Actions tab
           ** Click on specific workflow run
-          ** Expand "Run scraper" step to see output
+          ** Expand job steps to see output
+          ** Scan results also appear in PocketBase scan_logs collection
 
 
 
@@ -2593,8 +2755,8 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
->>>>> SECTION VALIDATION NEEDED 
      * scan_logs Collection - Tracks every scan operation for audit trail
+          ** VALIDATED 2026-01-27: Added contact-discovery scan_type
 
           ** Field Name: organization
           ** Field Type: Relation
@@ -2607,11 +2769,16 @@ The contents if this chat and everything related to this project is subject to m
 
           ** Field Name: scan_type
           ** Field Type: Select
-          ** Setting - Values: discovery, pre-scrape, manual, scheduled
+          ** Setting - Values: discovery, pre-scrape, manual, scheduled, contact-discovery
           ** Setting - Single/multiple: Single
           ** Setting - Nonempty: on
           ** Setting - Presentable: on
-          ** Field Purpose/Notes: Type of scan performed
+          ** Field Purpose/Notes: Type of scan performed. Values:
+               *** discovery - Initial scan during org discovery
+               *** pre-scrape - Scan before scraping events
+               *** manual - Manual ad-hoc scan
+               *** scheduled - Scheduled weekly scan (org-scanner.yml)
+               *** contact-discovery - Google Search contact discovery (contact-discovery.js) - NEW 2026-01-27
 
           ** Field Name: scan_date
           ** Field Type: DateTime
@@ -3823,90 +3990,100 @@ The contents if this chat and everything related to this project is subject to m
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# NEXT SESSION HANDOFF - CONTACT DISCOVERY IMPROVEMENTS (2026-01-26)
->>>>> SECTION VALIDATION NEEDED 
+# NEXT SESSION HANDOFF - ARCHITECTURE IMPROVEMENTS (2026-01-27)
 
-
-     * Session Focus: Improve how we discover and gather contact information for organizations, possibly using Google Searches to find Legal/Permissions contacts, Events contacts, and general contact information.
+     * Session Focus: Fix architecture issues discovered during contact discovery implementation
 
 -----
 
-     * PREVIOUS SESSION ACCOMPLISHMENTS (2026-01-26):
-          ** Fixed field naming inconsistency:
-               *** PocketBase scan_logs fields renamed: restrictions_found→tou_flag, tech_block→tech_block_flag, js_rendering→tech_rendering_flag
-               *** Admin interface updated to use consistent field names
-          ** Implemented per-page restriction quotes:
-               *** getContextSnippet() now captures 10 words before/after trigger (was 80 characters)
-               *** Each restriction includes: page type, URL, and quote text together
-               *** New format: "PageType | URL | Quote" stored in restriction_context
-               *** New legal_pages_results JSON field in scan_logs for structured data
-          ** Redesigned scan history UI:
-               *** Date and scan type in header
-               *** Checkbox flags (TOU, Tech Block, JS Rendering)
-               *** Quote boxes showing actual restriction text with source URL
-               *** Color-coded pages list (clear/restrictions/blocked)
-          ** Updated email generator:
-               *** Now includes page name, actual quote, and URL in permission request emails
-               *** Example: "Your Terms of Use states: '...you may not use **robots**, spiders...'\n  https://example.org/terms"
+     * SESSION ACCOMPLISHMENTS (2026-01-27):
+          ** Created contact-discovery.js for automated contact discovery:
+               *** Uses Google Search API snippets only (no site scraping)
+               *** Searches for Legal/Permissions, Events, and Media/PR contacts
+               *** Priority batching: Clean → TOU → Tech Block → Tech Rendering
+               *** Recursive search: If name found but no email, searches for "Name domain email"
+               *** Auto-throttles to stay under 100 free queries/day
+               *** Tracks progress via scan_logs with scan_type = "contact-discovery"
+          ** Ran Batch 1 contact discovery:
+               *** 26 orgs processed (all clean orgs completed)
+               *** 11 contacts created, 2 updated
+               *** 36 URLs logged for manual review
+               *** 90/100 Google queries used
+          ** Created GitHub Actions workflows:
+               *** contact-discovery.yml: Daily at 3:00 AM EST (auto-batches)
+               *** org-scanner.yml: Sundays at 11:59 PM EST (scans all non-rejected orgs)
+          ** Added GitHub Secrets:
+               *** GOOGLE_SEARCH_API_KEY
+               *** GOOGLE_SEARCH_ENGINE_ID
 
 -----
 
-     * CONTACT DISCOVERY - CURRENT STATE:
-          ** Scanner looks for POC info on homepage (limited)
-          ** Manual entry of contacts via Admin Interface
-          ** contacts collection exists with types: Legal/Permissions, Events, Media, General, Executive, Other
-          ** Many orgs have no contacts or only generic info@ addresses
+     * ARCHITECTURE ISSUES DISCOVERED (Phase 2 - Future Work):
+          ** discover-orgs-by-events.js has DUPLICATE scanning code:
+               *** Contains its own extractPocFromHtml(), searchForPocInfo(), savePocContact()
+               *** Does NOT import org-scanner.js despite ConOp stating it should
+               *** Uses Google Search only as fallback when site returns 403/401
+          ** suggest-organizations.js GUESSES at TOU flags:
+               *** AI estimates flags on lines 223-227 without actually scanning
+               *** Never calls org-scanner.js
+          ** Current POC gathering locations (duplicated):
+               *** org-scanner.js: gatherPOC(), extractPocFromHtml() - fetches 4 hardcoded paths
+               *** discover-orgs-by-events.js: Duplicate implementations
+          ** Recommended fixes (Phase 2):
+               *** discover-orgs-by-events.js should import and use org-scanner.js for Phase B
+               *** suggest-organizations.js should call org-scanner.js after AI suggests orgs
+               *** Consolidate duplicate code into org-scanner.js
 
 -----
 
-     * CONTACT DISCOVERY - DESIRED IMPROVEMENTS:
-          ** Use Google Search API to find contact pages
-          ** Search patterns like: "site:example.org contact" or "site:example.org legal"
-          ** Extract email addresses from contact pages
-          ** Identify contact type based on page context (Legal, Events, Media, etc.)
-          ** Auto-populate contacts collection with discovered contacts
-          ** Prioritize Legal/Permissions and Events contacts for permission outreach
+     * KNOWN ISSUES TO FIX:
+          ** contact-discovery.js name extraction regex too loose:
+               *** Catches phrases like "here and get", "us by email at"
+               *** Need stricter name validation
+          ** The Hoover Institution org missing website in PocketBase
 
 -----
 
-     * POTENTIAL APPROACHES:
-          ** Option A: Google Custom Search API
-               *** Requires Google Cloud account and API key
-               *** 100 free queries/day, then paid
-               *** Can restrict to specific site with "site:" operator
-          ** Option B: Direct site crawling
-               *** Look for /contact, /about, /team, /staff pages
-               *** Parse for email addresses and context
-               *** No external API needed
-          ** Option C: Hybrid approach
-               *** Use Google to find pages, then crawl those pages
-               *** Best of both worlds
+     * BATCH STATUS (as of 2026-01-27):
+          ** Batch 1 (Clean): 26/26 complete ✅
+          ** Batch 2 (TOU Flag): 0/8 remaining
+          ** Batch 3 (Tech Block): 0/6 remaining
+          ** Batch 4 (Tech Rendering): 0/10 remaining
+          ** Total: 50 orgs, 26 done, 24 remaining (~2 more days)
 
 -----
 
-     * FILES THAT MAY NEED UPDATES:
-          ** scrapers/org-scanner.js - Add contact discovery logic
-          ** admin-interface-v22.html - Display discovered contacts
-          ** This ConOp - Document new contact discovery workflow
+     * AUTOMATION STATUS:
+          ** contact-discovery.yml: ✅ Active - runs daily at 3:00 AM EST
+          ** org-scanner.yml: ✅ Active - runs Sundays at 11:59 PM EST
+          ** scrape-events.yml: ✅ Active - runs daily at 11:30 PM EST
+
+-----
+
+     * FILES UPDATED THIS SESSION:
+          ** scrapers/contact-discovery.js (NEW)
+          ** .github/workflows/contact-discovery.yml (NEW)
+          ** .github/workflows/org-scanner.yml (NEW)
+          ** This ConOp document
 
 -----
 
      * FILES TO UPLOAD FOR NEXT SESSION:
-          ** This ConOp document (2026-01-26-1800)
-          ** admin-interface-v22.html (has new scan history UI)
-          ** scrapers/org-scanner.js (has 10-word context capture and structured restriction data)
-          ** scrapers/scan-and-scrape-all-live-orgs.js (calls scanner)
+          ** This ConOp document (2026-01-27-1530)
+          ** scrapers/contact-discovery.js (if changes needed)
+          ** scrapers/org-scanner.js (for architecture fixes)
+          ** scrapers/discover-orgs-by-events.js (for architecture fixes)
+          ** scrapers/suggest-organizations.js (for architecture fixes)
 
 -----
 
-     * System State (as of 2026-01-26 end of session):
-          ** 75 organizations total
-          ** Scanner: ✅ Working correctly with 10-word context quotes
-          ** scan_logs: ✅ Working with legal_pages_results JSON
-          ** Admin Interface: ✅ Working with new scan history design
-          ** Email Generator: ✅ Working with page name + quote + URL
-          ** Field naming: ✅ FIXED - consistent between organizations and scan_logs
-          ** Contact discovery: ⚠️ Limited - needs improvement (next session focus)
+     * System State (as of 2026-01-27 end of session):
+          ** 50 organizations with status "Mission Approved (Request Not Sent)"
+          ** Contact Discovery: ✅ Working - Batch 1 complete, automated daily
+          ** Org Scanner: ✅ Working - automated weekly
+          ** GitHub Actions: ✅ 3 workflows active (scrape, contact-discovery, org-scanner)
+          ** GitHub Secrets: ✅ 6 secrets configured
+          ** Architecture: ⚠️ Duplicate code exists - Phase 2 cleanup needed
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
