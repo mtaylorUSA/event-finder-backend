@@ -23,7 +23,16 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-26
+ * Last Updated: 2026-01-30
+ * - NEW: savePocContact() saves contacts to contacts collection with new schema
+ * - NEW: checkForDuplicateContact() prevents duplicate contacts
+ * - NEW: detectEmailType(), calculateDataCompleteness() for new schema fields
+ * - UPDATED: gatherPOC() expanded from 4 to 15 contact page paths
+ * - UPDATED: extractPocFromHtml() better filtering, extracts all emails
+ * - UPDATED: createScanLog() now populates poc_found and poc_email fields
+ * - UPDATED: scanOrganization() saves contacts after POC gathering
+ * 
+ * 2026-01-26
  * - CHANGED: getContextSnippet() now captures 20 WORDS before/after (was 80 chars)
  * - NEW: pagesWithRestrictions includes quote text for each page
  * - NEW: allPagesScanned tracks all pages with their results (clear/restrictions/blocked)
@@ -2309,18 +2318,43 @@ async function findEventsUrl(org, homepageHtml = null) {
  * Extract POC info from HTML
  */
 function extractPocFromHtml(html) {
-    const result = { name: '', email: '', phone: '', source: 'website' };
+    const result = { name: '', email: '', phone: '', allEmails: [], source: 'website' };
     
-    // Find email addresses
+    // Find all email addresses
     const emailMatch = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
     if (emailMatch) {
-        // Prefer contact/info/events emails
-        const preferred = emailMatch.find(e =>
-            e.includes('contact') || e.includes('info') ||
-            e.includes('events') || e.includes('media') ||
-            e.includes('press') || e.includes('communications')
-        );
-        result.email = preferred || emailMatch[0];
+        // Filter out common false positives
+        const validEmails = emailMatch.filter(e => {
+            const lower = e.toLowerCase();
+            return !lower.includes('example.com') &&
+                   !lower.includes('email.com') &&
+                   !lower.includes('domain.com') &&
+                   !lower.includes('yourcompany') &&
+                   !lower.includes('sentry.io') &&
+                   !lower.includes('github.com') &&
+                   !lower.includes('wixpress.com') &&
+                   !lower.includes('schema.org') &&
+                   !lower.includes('.png') &&
+                   !lower.includes('.jpg') &&
+                   !lower.includes('.gif') &&
+                   !lower.endsWith('.js');
+        });
+        
+        // Store all valid emails
+        result.allEmails = [...new Set(validEmails)];  // Deduplicate
+        
+        // Prefer contact/info/events emails for primary
+        const preferred = validEmails.find(e => {
+            const lower = e.toLowerCase();
+            return lower.includes('contact') || 
+                   lower.includes('info') ||
+                   lower.includes('events') || 
+                   lower.includes('media') ||
+                   lower.includes('press') || 
+                   lower.includes('communications') ||
+                   lower.includes('general');
+        });
+        result.email = preferred || validEmails[0];
     }
     
     // Find phone numbers
@@ -2334,6 +2368,7 @@ function extractPocFromHtml(html) {
 
 /**
  * Find contact page and extract POC info
+ * UPDATED 2026-01-30: Expanded contact paths from 4 to 15
  */
 async function gatherPOC(html, baseUrl) {
     console.log('   👤 Gathering POC info...');
@@ -2343,11 +2378,28 @@ async function gatherPOC(html, baseUrl) {
     
     if (poc && poc.email) {
         console.log(`      ✅ Found POC on homepage: ${poc.email}`);
+        poc.source = 'homepage';
         return poc;
     }
     
-    // Try to find and fetch contact page
-    const contactPatterns = ['/contact', '/about/contact', '/contact-us', '/about'];
+    // Expanded contact page paths (was 4, now 15)
+    const contactPatterns = [
+        '/contact',
+        '/contact-us',
+        '/contactus',
+        '/about/contact',
+        '/about-us/contact',
+        '/about',
+        '/about-us',
+        '/connect',
+        '/reach-us',
+        '/get-in-touch',
+        '/staff',
+        '/team',
+        '/people',
+        '/leadership',
+        '/our-team'
+    ];
     
     for (const path of contactPatterns) {
         const contactUrl = baseUrl.replace(/\/$/, '') + path;
@@ -2357,14 +2409,371 @@ async function gatherPOC(html, baseUrl) {
             poc = extractPocFromHtml(result.body);
             if (poc && poc.email) {
                 console.log(`      ✅ Found POC on ${path}: ${poc.email}`);
+                poc.source = `website:${path}`;
                 return poc;
             }
         }
         
-        await sleep(1000);
+        await sleep(500);  // Reduced from 1000ms to speed up scanning
     }
     
     console.log('      ℹ️ No POC email found');
+    return null;
+}
+
+/**
+ * Save POC contact to the contacts collection
+ * NEW - 2026-01-30: Saves contacts with new schema fields
+ * 
+ * @param {string} orgId - Organization ID
+ * @param {Object} pocInfo - POC info object with email, name, phone, source
+ * @param {string} scanSource - Source of the scan (e.g., 'org-scanner.js')
+ * @returns {Object|null} Created or updated contact record, or null on error/duplicate
+ */
+async function savePocContact(orgId, pocInfo, scanSource = 'org-scanner.js') {
+    if (!pocInfo || !pocInfo.email) {
+        return null;
+    }
+    
+    await authenticate();
+    
+    const emailNormalized = pocInfo.email.toLowerCase().trim();
+    
+    // Check for duplicate
+    const existingContact = await checkForDuplicateContact(orgId, emailNormalized);
+    
+    if (existingContact) {
+        console.log(`      ℹ️ Contact already exists: ${pocInfo.email}`);
+        
+        // Update last_verified and any missing fields
+        const updates = {
+            last_verified: new Date().toISOString()
+        };
+        
+        // Add name if we have it and existing doesn't
+        if (pocInfo.name && (!existingContact.name || existingContact.name === 'General Contact' || existingContact.name === '')) {
+            updates.name = pocInfo.name;
+        }
+        
+        // Add phone if we have it and existing doesn't
+        if (pocInfo.phone && !existingContact.phone) {
+            updates.phone = pocInfo.phone;
+            // Also add to phones array
+            const existingPhones = existingContact.phones || [];
+            updates.phones = [...existingPhones, {
+                number: pocInfo.phone,
+                type: 'Main',
+                primary: existingPhones.length === 0
+            }];
+        }
+        
+        // Recalculate completeness
+        const mergedContact = { ...existingContact, ...updates };
+        updates.data_completeness = calculateDataCompleteness(mergedContact);
+        
+        try {
+            const response = await fetchModule(
+                `${POCKETBASE_URL}/api/collections/contacts/records/${existingContact.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken
+                    },
+                    body: JSON.stringify(updates)
+                }
+            );
+            
+            if (response.ok) {
+                console.log(`      🔄 Contact updated: ${pocInfo.email}`);
+                return await response.json();
+            }
+        } catch (error) {
+            console.log(`      ⚠️ Failed to update contact: ${error.message}`);
+        }
+        
+        return existingContact;
+    }
+    
+    // Create new contact
+    const emailType = detectEmailType(pocInfo.email);
+    const contactType = mapEmailTypeToContactType(emailType);
+    
+    const contactRecord = {
+        // Original fields
+        name: pocInfo.name || '',
+        email: pocInfo.email,
+        phone: pocInfo.phone || '',
+        organization: orgId,
+        contact_type: contactType,
+        source: pocInfo.source || 'website',
+        notes: `Auto-discovered by ${scanSource}`,
+        last_verified: new Date().toISOString(),
+        
+        // New schema fields
+        emails: [{
+            address: pocInfo.email,
+            type: emailType,
+            primary: true
+        }],
+        phones: pocInfo.phone ? [{
+            number: pocInfo.phone,
+            type: 'Main',
+            primary: true
+        }] : [],
+        email_normalized: emailNormalized,
+        data_completeness: calculateDataCompleteness({
+            name: pocInfo.name,
+            email: pocInfo.email,
+            phone: pocInfo.phone
+        }),
+        is_active: true
+    };
+    
+    try {
+        const response = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/contacts/records`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authToken
+                },
+                body: JSON.stringify(contactRecord)
+            }
+        );
+        
+        if (response.ok) {
+            const created = await response.json();
+            console.log(`      💾 Contact saved: ${pocInfo.email}`);
+            return created;
+        } else {
+            const errorData = await response.json();
+            console.log(`      ⚠️ Failed to save contact: ${JSON.stringify(errorData)}`);
+        }
+    } catch (error) {
+        console.log(`      ⚠️ Failed to save contact: ${error.message}`);
+    }
+    
+    return null;
+}
+
+/**
+ * Check if a contact already exists for this org with this email
+ * NEW - 2026-01-30
+ * 
+ * @param {string} orgId - Organization ID
+ * @param {string} emailNormalized - Lowercase email address
+ * @returns {Object|null} Existing contact record or null
+ */
+async function checkForDuplicateContact(orgId, emailNormalized) {
+    try {
+        // Search by email_normalized first (new field)
+        let filter = encodeURIComponent(`organization = "${orgId}" && email_normalized = "${emailNormalized}"`);
+        let response = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/contacts/records?filter=${filter}`,
+            { headers: { 'Authorization': authToken } }
+        );
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+                return data.items[0];
+            }
+        }
+        
+        // Fall back to case-insensitive email search (for records not yet migrated)
+        filter = encodeURIComponent(`organization = "${orgId}" && email ~ "${emailNormalized}"`);
+        response = await fetchModule(
+            `${POCKETBASE_URL}/api/collections/contacts/records?filter=${filter}`,
+            { headers: { 'Authorization': authToken } }
+        );
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+                return data.items[0];
+            }
+        }
+    } catch (error) {
+        console.log(`      ⚠️ Duplicate check failed: ${error.message}`);
+    }
+    
+    return null;
+}
+
+/**
+ * Detect email type based on email address prefix
+ * NEW - 2026-01-30
+ * 
+ * @param {string} email - Email address
+ * @returns {string} Email type (Legal, Events, Media/PR, General, Personal)
+ */
+function detectEmailType(email) {
+    const lower = email.toLowerCase();
+    
+    if (lower.startsWith('legal') || lower.startsWith('permissions') || 
+        lower.startsWith('licensing') || lower.startsWith('counsel') ||
+        lower.startsWith('compliance')) {
+        return 'Legal';
+    }
+    
+    if (lower.startsWith('events') || lower.startsWith('programs') || 
+        lower.startsWith('conference') || lower.startsWith('meetings') ||
+        lower.startsWith('registration') || lower.startsWith('rsvp')) {
+        return 'Events';
+    }
+    
+    if (lower.startsWith('media') || lower.startsWith('press') || 
+        lower.startsWith('pr@') || lower.startsWith('communications') ||
+        lower.startsWith('comms') || lower.startsWith('publicaffairs') ||
+        lower.startsWith('news')) {
+        return 'Media/PR';
+    }
+    
+    if (lower.startsWith('info') || lower.startsWith('contact') || 
+        lower.startsWith('general') || lower.startsWith('hello') ||
+        lower.startsWith('inquiries') || lower.startsWith('admin')) {
+        return 'General';
+    }
+    
+    // If it looks like a person's email (firstname, firstname.lastname, etc.)
+    if (/^[a-z]+(\.[a-z]+)?@/.test(lower)) {
+        return 'Personal';
+    }
+    
+    return 'General';
+}
+
+/**
+ * Map email type to contact_type field values
+ * NEW - 2026-01-30
+ * 
+ * @param {string} emailType - Email type from detectEmailType()
+ * @returns {string} Contact type for contact_type field
+ */
+function mapEmailTypeToContactType(emailType) {
+    const mapping = {
+        'Legal': 'Legal/Permissions',
+        'Events': 'Events',
+        'Media/PR': 'Media/PR',
+        'General': 'Main Contact',
+        'Personal': 'Other'
+    };
+    return mapping[emailType] || 'Other';
+}
+
+/**
+ * Calculate data completeness level for a contact
+ * NEW - 2026-01-30
+ * 
+ * @param {Object} contact - Contact object with name, email, phone
+ * @returns {string} Completeness level: complete, partial, email_only, name_only
+ */
+function calculateDataCompleteness(contact) {
+    const hasName = contact.name && 
+                    contact.name.trim() !== '' && 
+                    contact.name !== 'General Contact';
+    const hasEmail = contact.email && contact.email.trim() !== '';
+    const hasPhone = contact.phone && contact.phone.trim() !== '';
+    
+    if (hasName && hasEmail && hasPhone) {
+        return 'complete';
+    }
+    if (hasName && hasEmail) {
+        return 'partial';  // Name + email but no phone
+    }
+    if (hasEmail && !hasName) {
+        return 'email_only';
+    }
+    if (hasName && !hasEmail) {
+        return 'name_only';
+    }
+    return 'partial';
+}
+
+/**
+ * Extract domain from email address
+ * NEW - 2026-01-30
+ * "jsmith@brookings.edu" → "brookings.edu"
+ * 
+ * @param {string} email - Email address
+ * @returns {string|null} Domain or null if invalid
+ */
+function extractDomainFromEmail(email) {
+    if (!email || !email.includes('@')) return null;
+    return email.split('@')[1]?.toLowerCase().trim() || null;
+}
+
+/**
+ * Extract domain from website URL
+ * NEW - 2026-01-30
+ * "https://www.brookings.edu/events" → "brookings.edu"
+ * 
+ * @param {string} website - Website URL
+ * @returns {string|null} Domain or null if invalid
+ */
+function extractDomainFromWebsite(website) {
+    if (!website) return null;
+    try {
+        return website.toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .split('/')[0]
+            .split('?')[0] || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Extract core domain for matching
+ * NEW - 2026-01-30
+ * "brookings.edu" → "brookings"
+ * 
+ * @param {string} domain - Full domain
+ * @returns {string|null} Core domain name
+ */
+function extractCoreDomain(domain) {
+    if (!domain) return null;
+    const parts = domain.split('.');
+    if (parts.length >= 2) {
+        if (parts[parts.length - 2] === 'co' || parts[parts.length - 2] === 'org') {
+            return parts.slice(0, -2).join('.') || parts[0];
+        }
+        return parts.slice(0, -1).join('.') || parts[0];
+    }
+    return domain;
+}
+
+/**
+ * Match email domain to an organization
+ * NEW - 2026-01-30
+ * 
+ * @param {string} emailDomain - Domain from email
+ * @param {Array} organizations - Array of org records with website field
+ * @returns {Object|null} { org, matchType, confidence } or null
+ */
+function matchDomainToOrg(emailDomain, organizations) {
+    if (!emailDomain) return null;
+    const emailCore = extractCoreDomain(emailDomain);
+    if (!emailCore) return null;
+    
+    for (const org of organizations) {
+        const orgDomain = extractDomainFromWebsite(org.website);
+        if (orgDomain === emailDomain) {
+            return { org, matchType: 'exact', confidence: 'high' };
+        }
+    }
+    
+    for (const org of organizations) {
+        const orgDomain = extractDomainFromWebsite(org.website);
+        const orgCore = extractCoreDomain(orgDomain);
+        if (orgCore && emailCore === orgCore) {
+            return { org, matchType: 'core', confidence: 'high' };
+        }
+    }
+    
     return null;
 }
 
@@ -2630,7 +3039,11 @@ async function createScanLog(org, result, options = {}) {
         scan_error: result.error || '',
         
         // Notes (auto-generated summary)
-        notes: generateScanSummary(result, flagsChanged)
+        notes: generateScanSummary(result, flagsChanged),
+        
+        // POC fields - NEW 2026-01-30
+        poc_found: !!(result.pocInfo && result.pocInfo.email),
+        poc_email: result.pocInfo?.email || ''
     };
     
     try {
@@ -3065,11 +3478,18 @@ async function scanOrganization(org, options = {}) {
     }
     
     // ───────────────────────────────────────────────────────────────────────
-    // Step 4: POC Gathering
+    // Step 4: POC Gathering and Contact Saving
+    // UPDATED 2026-01-30: Now saves contacts to database
     // ───────────────────────────────────────────────────────────────────────
     
-    if (result.homepageFetched && !result.techBlockFlag && !result.touFlag) {
+    if (result.homepageFetched && !result.techBlockFlag) {
         result.pocInfo = await gatherPOC(result.homepageHtml, baseUrl);
+        
+        // Save contact to database if we found one AND have an org ID
+        if (result.pocInfo && result.pocInfo.email && org.id) {
+            result.contactSaved = await savePocContact(org.id, result.pocInfo, 'org-scanner.js');
+        }
+        
         await sleep(1500);
     }
     
@@ -3299,6 +3719,18 @@ module.exports = {
     gatherPOC,
     analyzeWithAI,
     findRestrictions,
+    
+    // Contact saving functions - NEW 2026-01-30
+    savePocContact,
+    checkForDuplicateContact,
+    detectEmailType,
+    calculateDataCompleteness,
+    
+    // Domain matching functions - NEW 2026-01-30
+    extractDomainFromEmail,
+    extractDomainFromWebsite,
+    extractCoreDomain,
+    matchDomainToOrg,
     
     // JavaScript Rendering Detection (NEW - 2026-01-16)
     detectJavaScriptRendering,

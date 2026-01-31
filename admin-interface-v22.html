@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v25</title>
+    <title>Event Finder Admin v22</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -987,11 +987,13 @@
                     <div class="stats-grid">
                         <div class="stat-card"><h3 id="statOrgs">-</h3><p>Total Organizations</p></div>
                         <div class="stat-card info"><h3 id="statEvents">-</h3><p>Events</p></div>
+                        <div class="stat-card success"><h3 id="statContacts">-</h3><p>👤 Contacts</p></div>
                         <div class="stat-card warning"><h3 id="statPending">-</h3><p>🟣 Nominated</p></div>
                         <div class="stat-card success"><h3 id="statLive">-</h3><p>✅ Live (Scraping)</p></div>
                         <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);"><h3 id="statRestrictions">-</h3><p>🟠 Has Restrictions</p></div>
                         <div class="stat-card danger"><h3 id="statTechBlocked">-</h3><p>⛔ Tech Blocked</p></div>
                         <div class="stat-card danger"><h3 id="statPermissionDenied">-</h3><p>🚫 Declined</p></div>
+                        <div class="stat-card danger"><h3 id="statNoContacts">-</h3><p>❌ No Contacts</p></div>
                         <div class="stat-card warning"><h3 id="statDuplicates">-</h3><p>🔁 Duplicates</p></div>
                     </div>
                     <div id="dashboardContent"><div class="loading">Loading dashboard...</div></div>
@@ -1050,6 +1052,11 @@
                             <option value="Rejected by Org">⛔ Rejected by Org</option>
                             <option value="Live (Scraping Active)">✅ Live</option>
                         </select>
+                        <select id="orgFilterByContacts" onchange="filterOrgsByContacts()">
+                            <option value="">👤 Filter by Contacts...</option>
+                            <option value="none">❌ No Contacts</option>
+                            <option value="has">✅ Has Contacts</option>
+                        </select>
                     </div>
                     <div id="organizationsMessage" class="message info hidden"></div>
                     <div id="organizationsList"><div class="loading">Loading organizations...</div></div>
@@ -1060,6 +1067,12 @@
                     <div class="section-header">
                         <h2>👤 Contacts</h2>
                         <button class="btn" onclick="openAddContactModal()">➕ Add Contact</button>
+                    </div>
+                    <div class="filters">
+                        <select id="filterContactOrg" onchange="loadContacts()">
+                            <option value="">🏢 All Organizations</option>
+                            <option value="none">❌ No Org</option>
+                        </select>
                     </div>
                     <div id="contactsList"><div class="loading">Loading contacts...</div></div>
                 </div>
@@ -1550,7 +1563,11 @@
                         <div class="form-group"><label>Title/Role</label><input type="text" id="contactTitle"></div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>Email</label><input type="email" id="contactEmail"></div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="contactEmail" oninput="autoSuggestOrgFromEmail(this.value)">
+                            <small id="emailOrgSuggestion" style="color: #28a745; display: none;"></small>
+                        </div>
                         <div class="form-group"><label>Phone</label><input type="text" id="contactPhone"></div>
                     </div>
                     <div class="form-group">
@@ -3884,8 +3901,14 @@ Regards,`;
                 const eventsData = await eventsRes.json();
                 const orgs = orgsData.items || [];
 
+                // Calculate contact stats
+                const orgsWithContacts = new Set(allContacts.map(c => c.organization));
+                const orgsNoContacts = orgs.filter(o => !orgsWithContacts.has(o.id)).length;
+
                 document.getElementById('statOrgs').textContent = orgsData.totalItems || 0;
                 document.getElementById('statEvents').textContent = eventsData.totalItems || 0;
+                document.getElementById('statContacts').textContent = allContacts.length || 0;
+                document.getElementById('statNoContacts').textContent = orgsNoContacts;
                 document.getElementById('statPending').textContent = orgs.filter(o => o.status === 'Nominated (Pending Mission Review)').length;
                 document.getElementById('statRestrictions').textContent = orgs.filter(o => o.tou_flag === true || o.tech_block_flag === true).length;
                 document.getElementById('statLive').textContent = orgs.filter(o => o.status === 'Live (Scraping Active)').length;
@@ -4418,6 +4441,12 @@ Regards,`;
 
                 const cardClass = org.tech_block_flag ? 'status-tech-blocked' : config.cardClass;
 
+                // Contact count for display
+                const contactCount = orgContacts.length;
+                const contactBadge = contactCount === 0 
+                    ? '<span class="badge badge-danger" style="background:#dc3545;color:white;">0 contacts</span>'
+                    : `<span class="badge badge-success" style="background:#28a745;color:white;">${contactCount} contact${contactCount !== 1 ? 's' : ''}</span>`;
+
                 let html = `<div class="card ${cardClass}" id="org-${org.id}">`;
 
                 if (org.tech_block_flag) {
@@ -4436,7 +4465,7 @@ Regards,`;
                 }
 
                 html += `
-                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge} ${duplicateBadge}</h3>
+                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${contactBadge} ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge} ${duplicateBadge}</h3>
                     <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>
                     ${org.description ? `<p><strong>Description:</strong> ${escapeHtml(org.description).substring(0, 150)}${org.description.length > 150 ? '...' : ''}</p>` : ''}
                     ${org.website ? `<p><strong>Website:</strong> <a href="${escapeHtml(org.website)}" target="_blank">${escapeHtml(org.website)}</a></p>` : ''}
@@ -4590,31 +4619,93 @@ Regards,`;
             }
         }
 
+        async function filterOrgsByContacts() {
+            const filter = document.getElementById('orgFilterByContacts').value;
+            if (!filter) {
+                renderOrganizationsList(allOrganizations);
+                return;
+            }
+
+            // Refresh contacts data to ensure we have latest
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                allContacts = data.items || [];
+            } catch (error) {
+                console.error('Failed to refresh contacts:', error);
+            }
+
+            // Build contact lookup
+            const orgsWithContacts = new Set(allContacts.map(c => c.organization));
+            
+            let filtered;
+            if (filter === 'none') {
+                filtered = allOrganizations.filter(o => !orgsWithContacts.has(o.id));
+            } else if (filter === 'has') {
+                filtered = allOrganizations.filter(o => orgsWithContacts.has(o.id));
+            }
+            
+            renderOrganizationsList(filtered);
+        }
+
         // ═══════════════════════════════════════════════════════════════════════
         // CONTACTS TAB
         // ═══════════════════════════════════════════════════════════════════════
         async function loadContacts() {
             const container = document.getElementById('contactsList');
+            const filterSelect = document.getElementById('filterContactOrg');
+            const selectedOrg = filterSelect.value;
 
             try {
-                const response = await fetch(`${POCKETBASE_URL}/api/collections/contacts/records?expand=organization&perPage=500`, { headers: { 'Authorization': authToken } });
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/contacts/records?expand=organization&perPage=500&sort=organization,name`, { headers: { 'Authorization': authToken } });
                 const data = await response.json();
-                const contacts = data.items || [];
+                let contacts = data.items || [];
+
+                // Populate org filter dropdown (only on first load or if empty)
+                if (filterSelect.options.length <= 2) {
+                    const orgsInContacts = new Map();
+                    contacts.forEach(c => {
+                        if (c.organization && c.expand?.organization) {
+                            orgsInContacts.set(c.organization, c.expand.organization.name);
+                        }
+                    });
+                    
+                    // Sort orgs alphabetically
+                    const sortedOrgs = [...orgsInContacts.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+                    
+                    // Add org options
+                    sortedOrgs.forEach(([orgId, orgName]) => {
+                        const option = document.createElement('option');
+                        option.value = orgId;
+                        option.textContent = `🏢 ${orgName}`;
+                        filterSelect.appendChild(option);
+                    });
+                }
+
+                // Apply filter
+                if (selectedOrg === 'none') {
+                    contacts = contacts.filter(c => !c.organization);
+                } else if (selectedOrg) {
+                    contacts = contacts.filter(c => c.organization === selectedOrg);
+                }
 
                 if (contacts.length === 0) {
-                    container.innerHTML = `<div class="empty-state"><div class="icon">👤</div><h3>No Contacts Yet</h3></div>`;
+                    const message = selectedOrg === 'none' ? 'No contacts without an organization' : 
+                                   selectedOrg ? 'No contacts for this organization' : 'No Contacts Yet';
+                    container.innerHTML = `<div class="empty-state"><div class="icon">👤</div><h3>${message}</h3></div>`;
                     return;
                 }
 
                 container.innerHTML = contacts.map(c => {
-                    const orgName = c.expand?.organization?.name || 'Unknown';
+                    const orgName = c.expand?.organization?.name || '<span style="color:#dc3545;">No Org</span>';
                     return `
                         <div class="contact-card">
-                            <h5>${escapeHtml(c.name)} ${c.contact_type ? `<span class="badge">${escapeHtml(c.contact_type)}</span>` : ''}</h5>
-                            <p><strong>Organization:</strong> ${escapeHtml(orgName)}</p>
+                            <h5>${escapeHtml(c.name || '(No Name)')} ${c.contact_type ? `<span class="badge">${escapeHtml(c.contact_type)}</span>` : ''}</h5>
+                            <p><strong>Organization:</strong> ${c.expand?.organization ? escapeHtml(orgName) : orgName}</p>
                             ${c.title ? `<p><strong>Title:</strong> ${escapeHtml(c.title)}</p>` : ''}
                             ${c.email ? `<p><strong>Email:</strong> <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></p>` : ''}
                             ${c.phone ? `<p><strong>Phone:</strong> ${escapeHtml(c.phone)}</p>` : ''}
+                            ${c.data_completeness ? `<p><strong>Completeness:</strong> <span class="badge">${escapeHtml(c.data_completeness)}</span></p>` : ''}
                             <div class="contact-actions">
                                 <button class="btn btn-small" onclick="editContact('${c.id}')">✏️ Edit</button>
                                 <button class="btn btn-small btn-danger" onclick="deleteContact('${c.id}', false)">🗑️ Delete</button>
@@ -4627,20 +4718,94 @@ Regards,`;
             }
         }
 
+        // Store orgs for email domain matching
+        let contactModalOrgs = [];
+
         async function openAddContactModal() {
             try {
                 const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?sort=name&perPage=500`, { headers: { 'Authorization': authToken } });
                 const data = await response.json();
-                const orgs = data.items || [];
+                contactModalOrgs = data.items || [];
                 
                 document.getElementById('contactOrg').innerHTML = '<option value="">-- Select Organization --</option>' +
-                    orgs.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+                    contactModalOrgs.map(o => `<option value="${o.id}" data-website="${escapeHtml(o.website || '')}">${escapeHtml(o.name)}</option>`).join('');
                 
                 document.getElementById('addContactForm').reset();
+                document.getElementById('emailOrgSuggestion').style.display = 'none';
                 openModal('addContactModal');
             } catch (error) {
                 alert('Error loading organizations: ' + error.message);
             }
+        }
+
+        /**
+         * Auto-suggest organization based on email domain
+         */
+        function autoSuggestOrgFromEmail(email) {
+            const suggestionEl = document.getElementById('emailOrgSuggestion');
+            const orgSelect = document.getElementById('contactOrg');
+            
+            // Only suggest if no org is currently selected
+            if (orgSelect.value) {
+                suggestionEl.style.display = 'none';
+                return;
+            }
+            
+            if (!email || !email.includes('@')) {
+                suggestionEl.style.display = 'none';
+                return;
+            }
+            
+            // Extract domain from email
+            const emailDomain = email.split('@')[1]?.toLowerCase().trim();
+            if (!emailDomain) {
+                suggestionEl.style.display = 'none';
+                return;
+            }
+            
+            // Extract core domain (remove TLD)
+            const emailCore = emailDomain.split('.').slice(0, -1).join('.') || emailDomain.split('.')[0];
+            
+            // Try to match to an organization
+            let matchedOrg = null;
+            let matchType = '';
+            
+            for (const org of contactModalOrgs) {
+                if (!org.website) continue;
+                
+                // Extract domain from org website
+                let orgDomain = org.website.toLowerCase()
+                    .replace(/^https?:\/\//, '')
+                    .replace(/^www\./, '')
+                    .split('/')[0];
+                
+                // Exact match
+                if (orgDomain === emailDomain) {
+                    matchedOrg = org;
+                    matchType = 'exact';
+                    break;
+                }
+                
+                // Core match
+                const orgCore = orgDomain.split('.').slice(0, -1).join('.') || orgDomain.split('.')[0];
+                if (orgCore && emailCore && orgCore === emailCore) {
+                    matchedOrg = org;
+                    matchType = 'core';
+                    break;
+                }
+            }
+            
+            if (matchedOrg) {
+                suggestionEl.innerHTML = `✨ Auto-matched to: <strong>${escapeHtml(matchedOrg.name)}</strong> <button type="button" class="btn btn-small btn-success" style="padding: 2px 8px; font-size: 11px;" onclick="selectSuggestedOrg('${matchedOrg.id}')">Select</button>`;
+                suggestionEl.style.display = 'block';
+            } else {
+                suggestionEl.style.display = 'none';
+            }
+        }
+        
+        function selectSuggestedOrg(orgId) {
+            document.getElementById('contactOrg').value = orgId;
+            document.getElementById('emailOrgSuggestion').style.display = 'none';
         }
 
         document.getElementById('addContactForm').addEventListener('submit', async (e) => {
