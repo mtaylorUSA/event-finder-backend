@@ -34,9 +34,19 @@
  *   - Added university department/center extraction for .edu domains
  *   - Added retail/hospitality exclusions
  *   - Added university event exclusions (orientation, open house)
+ * 
+ * Version: 2026-01-31
+ *   - NOW IMPORTS org-scanner.js for POC gathering (no more duplicate code)
+ *   - Smart POC: Uses Google Search for flagged orgs, direct fetch for clean orgs
+ *   - Removed extractPocFromHtml(), searchForPocInfo(), savePocContact()
+ *   - Now calls scanner.gatherPOC() and scanner.savePocContact()
  */
 
 require('dotenv').config();
+
+// Import org-scanner for unified scanning functions
+// NEW 2026-01-31: Uses org-scanner.js instead of duplicate code
+const scanner = require('./org-scanner');
 
 // ============================================================================
 // CONFIGURATION
@@ -297,6 +307,10 @@ async function main() {
         const authData = await authResponse.json();
         authToken = authData.token;
         console.log('   ✅ Authenticated successfully');
+        
+        // Initialize org-scanner for POC gathering
+        await scanner.init();
+        console.log('   ✅ Org scanner initialized');
     } catch (error) {
         console.error('   ❌ Authentication failed:', error.message);
         process.exit(1);
@@ -656,8 +670,9 @@ async function main() {
             const savedOrg = await saveResponse.json();
             
             // Save POC contact if we have info
+            // UPDATED 2026-01-31: Uses org-scanner.js savePocContact
             if (result.pocInfo && (result.pocInfo.email || result.pocInfo.name)) {
-                await savePocContact(fetch, authToken, savedOrg.id, result.pocInfo);
+                await scanner.savePocContact(savedOrg.id, result.pocInfo, 'discover-orgs-by-events.js');
             }
             
             // Log result with flags
@@ -754,8 +769,8 @@ async function performInitialOrgScan(fetch, candidate) {
             result.orgType = webOrgInfo.orgType || '';
             result.aiSummary = webOrgInfo.summary || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
             
-            // Search for POC via web
-            result.pocInfo = await searchForPocInfo(fetch, candidate.domain);
+            // Search for POC via Google (tech blocked)
+            result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
             return result;
         }
         
@@ -785,7 +800,7 @@ async function performInitialOrgScan(fetch, candidate) {
         result.orgName = webOrgInfo.orgName || candidate.domain;
         result.orgType = webOrgInfo.orgType || '';
         result.aiSummary = webOrgInfo.summary || `Unable to analyze - fetch error: ${error.message}. Discovered via event: "${candidate.title}"`;
-        result.pocInfo = await searchForPocInfo(fetch, candidate.domain);
+        result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
         return result;
     }
     
@@ -869,38 +884,18 @@ async function performInitialOrgScan(fetch, candidate) {
     
     // ─────────────────────────────────────────────────────────────────────
     // B3: Gather POC info
+    // UPDATED 2026-01-31: Uses org-scanner.js smart POC gathering
     // ─────────────────────────────────────────────────────────────────────
     
     console.log(`   📡 B3: Gathering POC info...`);
     
-    if (result.touFlag || result.techBlockFlag) {
-        // Use web search for POC (don't fetch more pages from restricted site)
-        console.log(`      ℹ️ TOU/Block detected - using web search for POC`);
-        result.pocInfo = await searchForPocInfo(fetch, candidate.domain);
-    } else {
-        // Try to extract POC from homepage or contact page
-        result.pocInfo = extractPocFromHtml(homepageHtml);
-        
-        if (!result.pocInfo || !result.pocInfo.email) {
-            // Try fetching contact page
-            const contactUrl = findContactUrl(homepageHtml, baseUrl);
-            if (contactUrl) {
-                try {
-                    const contactResponse = await fetch(contactUrl, {
-                        headers: { 'User-Agent': 'Mozilla/5.0' },
-                        timeout: 10000
-                    });
-                    
-                    if (contactResponse.ok) {
-                        const contactHtml = await contactResponse.text();
-                        result.pocInfo = extractPocFromHtml(contactHtml);
-                    }
-                } catch (e) {
-                    // Ignore contact page errors
-                }
-            }
-        }
-    }
+    // Use org-scanner's smart POC gathering (respects flags)
+    result.pocInfo = await scanner.gatherPOC(homepageHtml, baseUrl, {
+        touFlag: result.touFlag,
+        techBlockFlag: result.techBlockFlag,
+        techRenderingFlag: false,  // Not checked in discovery phase
+        orgName: result.orgName || candidate.domain
+    });
     
     if (result.pocInfo && result.pocInfo.email) {
         console.log(`      ✅ POC found: ${result.pocInfo.email}`);
@@ -1006,55 +1001,17 @@ function extractMetaDescription(html) {
     return '';
 }
 
-/**
- * Extract POC info from HTML
- */
-function extractPocFromHtml(html) {
-    const result = { name: '', email: '', phone: '' };
-    
-    // Find email addresses
-    const emailMatch = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-    if (emailMatch) {
-        // Prefer contact/info/events emails
-        const preferred = emailMatch.find(e => 
-            e.includes('contact') || e.includes('info') || 
-            e.includes('events') || e.includes('media')
-        );
-        result.email = preferred || emailMatch[0];
-    }
-    
-    // Find phone numbers
-    const phoneMatch = html.match(/(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-    if (phoneMatch) {
-        result.phone = phoneMatch[0];
-    }
-    
-    return result.email || result.phone ? result : null;
-}
-
-/**
- * Search web for POC info (used when we can't fetch their pages)
- */
-async function searchForPocInfo(fetch, domain) {
-    console.log(`      🔍 Searching web for POC info...`);
-    
-    try {
-        const query = `"${domain}" contact email`;
-        const results = await executeGoogleSearch(fetch, query);
-        
-        for (const result of results.slice(0, 3)) {
-            // Look for email in snippet
-            const emailMatch = result.snippet.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-            if (emailMatch) {
-                return { email: emailMatch[0], name: '', phone: '', source: 'web_search' };
-            }
-        }
-    } catch (e) {
-        console.log(`      ⚠️ POC search failed: ${e.message}`);
-    }
-    
-    return null;
-}
+// ============================================================================
+// POC FUNCTIONS - REMOVED (now imported from org-scanner.js)
+// ============================================================================
+// The following functions have been moved to org-scanner.js for consistency:
+// - extractPocFromHtml() -> scanner.gatherPOCDirectFetch()
+// - searchForPocInfo() -> scanner.gatherPOCViaGoogleSearch()
+// - savePocContact() -> scanner.savePocContact()
+//
+// This script now uses scanner.gatherPOC() which automatically chooses
+// the right method based on TOU/tech flags.
+// ============================================================================
 
 /**
  * Search web for org info when site is blocked (403/401)
@@ -1136,36 +1093,7 @@ Return ONLY valid JSON:
     };
 }
 
-/**
- * Save POC contact to database
- */
-async function savePocContact(fetch, authToken, orgId, pocInfo) {
-    if (!pocInfo || !pocInfo.email) return;
-    
-    try {
-        const contactRecord = {
-            name: pocInfo.name || 'General Contact',
-            email: pocInfo.email,
-            phone: pocInfo.phone || '',
-            organization: orgId,
-            contact_type: 'Other',
-            notes: pocInfo.source === 'web_search' ? 'Found via web search during discovery' : 'Extracted from website during discovery'
-        };
-        
-        await fetch(`${POCKETBASE_URL}/api/collections/contacts/records`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify(contactRecord)
-        });
-        
-        console.log(`      💾 POC contact saved`);
-    } catch (e) {
-        console.log(`      ⚠️ Failed to save POC: ${e.message}`);
-    }
-}
+// savePocContact() removed - now using scanner.savePocContact()
 
 /**
  * Use AI to analyze homepage and extract org name + summary
