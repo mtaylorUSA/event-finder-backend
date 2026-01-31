@@ -4,15 +4,22 @@
  * AI-powered organization suggestion script
  * - Analyzes existing organizations to suggest similar ones
  * - Checks for duplicates by source_id (domain) before saving
- * - Saves new suggestions to organizations collection with status = "Pending Mission Review"
- * - Flags TOU concerns for admin review
+ * - Saves new suggestions to organizations collection with status = "Nominated (Pending Mission Review)"
+ * - NOW SCANS suggested orgs with org-scanner.js for real TOU/tech flags
+ * - Saves POC contacts if found
  *
  * Usage: node suggest-organizations.js
  *
- * Last Updated: 2025-12-04
+ * Last Updated: 2026-01-31
+ * - NOW IMPORTS org-scanner.js for actual scanning (not AI guessing)
+ * - After AI suggests, scans each org for real TOU/tech flags
+ * - Saves contacts with smart POC gathering
  */
 
 require('dotenv').config();
+
+// Import org-scanner for actual scanning after AI suggestions
+const scanner = require('./org-scanner');
 
 // ============================================================================
 // CONFIGURATION
@@ -305,12 +312,14 @@ RESPOND WITH VALID JSON ONLY - an array of objects with the fields above. No mar
       org_type: suggestion.org_type || '',
       events_url: suggestion.events_url || '',
       source_id: sourceId,
-      status: 'Pending Mission Review',
+      status: 'Nominated (Pending Mission Review)',
       discovered_date: new Date().toISOString(),
+      discovery_method: 'profile-based',  // NEW: Track how org was discovered
       ai_reasoning: (suggestion.reasoning || '').substring(0, 2000),
       similarity_score: suggestion.similarity_score || 75,
-      tou_flag: suggestion.tou_flag || false,
-      tou_notes: (suggestion.tou_analysis || '').substring(0, 2000),
+      // NOTE: tou_flag will be updated by org-scanner with actual scan results
+      tou_flag: false,  // Start false, scanner will set true if found
+      tou_notes: '',    // Scanner will populate with real findings
       scraping_enabled: false
     };
 
@@ -349,14 +358,19 @@ RESPOND WITH VALID JSON ONLY - an array of objects with the fields above. No mar
   console.log('════════════════════════════════════════\n');
 
   try {
+    // Initialize org-scanner for scanning suggested orgs
+    console.log('🔧 Initializing org-scanner...');
+    await scanner.init();
+    console.log('✅ Scanner ready\n');
+
     // Step 1: Fetch all existing organizations
     const existingOrgs = await fetchAllOrganizations();
 
     // Filter to approved/active orgs for AI context
     const approvedOrgs = existingOrgs.filter(org => 
-      org.status !== 'Mission Rejected' && 
-      org.status !== 'Permission Rejected' &&
-      org.status !== 'Pending Mission Review'
+      org.status !== 'Rejected by Mission' && 
+      org.status !== 'Rejected by Org' &&
+      org.status !== 'Nominated (Pending Mission Review)'
     );
 
     if (approvedOrgs.length === 0) {
@@ -391,14 +405,44 @@ RESPOND WITH VALID JSON ONLY - an array of objects with the fields above. No mar
       const saved = await saveSuggestion(suggestion);
 
       if (saved) {
-        const touWarning = suggestion.tou_flag ? ' ⚠️ TOU FLAG' : '';
-        console.log(`✅ SAVED: "${suggestion.name}"${touWarning}`);
+        console.log(`✅ SAVED: "${suggestion.name}"`);
         console.log(`   └─ Type: ${suggestion.org_type}`);
-        console.log(`   └─ Status: Pending Mission Review`);
-        if (suggestion.tou_flag) {
-          console.log(`   └─ TOU Note: ${suggestion.tou_analysis?.substring(0, 80)}...`);
-        }
+        console.log(`   └─ Status: Nominated (Pending Mission Review)`);
         stats.saved++;
+
+        // ───────────────────────────────────────────────────────────────────
+        // NEW: Scan the org with org-scanner.js for real TOU/tech flags
+        // ───────────────────────────────────────────────────────────────────
+        console.log(`   🔍 Scanning for TOU/tech issues...`);
+        
+        try {
+          const scanResult = await scanner.scanOrganization({
+            id: saved.id,
+            name: saved.name,
+            website: saved.website,
+            source_id: saved.source_id
+          }, { skipAI: true });  // Skip AI since we already have AI analysis
+          
+          // Report scan findings
+          if (scanResult.touFlag) {
+            console.log(`   └─ ⚠️ TOU restrictions found: ${scanResult.touUrl || 'Multiple pages'}`);
+          }
+          if (scanResult.techBlockFlag) {
+            console.log(`   └─ ⛔ Tech block detected (403/401)`);
+          }
+          if (scanResult.techRenderingFlag) {
+            console.log(`   └─ ⚙️ JS rendering detected`);
+          }
+          if (scanResult.pocInfo?.email) {
+            console.log(`   └─ 👤 POC found: ${scanResult.pocInfo.email}`);
+          }
+          if (!scanResult.touFlag && !scanResult.techBlockFlag && !scanResult.techRenderingFlag) {
+            console.log(`   └─ ✅ No restrictions detected`);
+          }
+          
+        } catch (scanError) {
+          console.log(`   └─ ⚠️ Scan failed: ${scanError.message}`);
+        }
 
         // Add to existingOrgs to prevent duplicates within this batch
         existingOrgs.push({
@@ -425,11 +469,12 @@ RESPOND WITH VALID JSON ONLY - an array of objects with the fields above. No mar
 
     if (stats.saved > 0) {
       console.log('📋 NEXT STEPS:');
-      console.log('   1. Open PocketBase Admin');
-      console.log('   2. Go to organizations collection');
-      console.log('   3. Filter by status = "Pending Mission Review"');
-      console.log('   4. Check TOU flags (⚠️) carefully');
-      console.log('   5. Update status to "Mission Approved Pending Permission" or "Mission Rejected"');
+      console.log('   1. Open Admin Interface');
+      console.log('   2. Go to Organizations tab');
+      console.log('   3. Filter by status = "Nominated (Pending Mission Review)"');
+      console.log('   4. Review TOU/Tech flags (set by actual scan, not AI guess)');
+      console.log('   5. Approve or reject for mission fit');
+      console.log('   NOTE: POC contacts have been auto-saved if found');
       console.log('');
     }
 
