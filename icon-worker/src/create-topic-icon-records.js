@@ -1,16 +1,20 @@
-import "dotenv/config";
-
 // =============================================================================
 // CREATE-TOPIC-ICON-RECORDS.JS
 // Scans events collection and creates topic_icons records for unique combinations
+// NOTE: Only processes APPROVED events to avoid wasting DALL-E API costs
+// NOTE: .env is loaded by config.js from PROJECT ROOT (not icon-worker folder)
 // =============================================================================
 
-const POCKETBASE_URL = process.env.POCKETBASE_URL;
-const ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD;
+import { getConfig } from "./config.js";
+
+const cfg = getConfig();
+
+const POCKETBASE_URL = cfg.POCKETBASE_URL;
+const ADMIN_EMAIL = cfg.POCKETBASE_ADMIN_EMAIL;
+const ADMIN_PASSWORD = cfg.POCKETBASE_ADMIN_PASSWORD;
 
 if (!POCKETBASE_URL || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  console.error("❌ Missing environment variables. Check your .env file.");
+  console.error("❌ Missing environment variables. Check your .env file in the project root.");
   process.exit(1);
 }
 
@@ -34,18 +38,20 @@ async function pbAdminLogin() {
   return json.token;
 }
 
-async function fetchAllEvents(token) {
+async function fetchApprovedEvents(token) {
   const allItems = [];
   let page = 1;
   const perPage = 200;
 
   while (true) {
-    const url = `${POCKETBASE_URL}/api/collections/events/records?page=${page}&perPage=${perPage}`;
+    // Only fetch events where event_status = "approved"
+    const filter = encodeURIComponent('event_status = "approved"');
+    const url = `${POCKETBASE_URL}/api/collections/events/records?page=${page}&perPage=${perPage}&filter=${filter}`;
     const res = await fetch(url, { headers: { Authorization: token } });
 
     if (!res.ok) {
       const t = await res.text();
-      throw new Error(`Failed to fetch events: ${res.status} ${t}`);
+      throw new Error(`Failed to fetch approved events: ${res.status} ${t}`);
     }
 
     const json = await res.json();
@@ -137,10 +143,10 @@ async function main() {
   const token = await pbAdminLogin();
   console.log("✅ Logged in successfully.\n");
 
-  // Fetch all events
-  console.log("📡 Fetching all events...");
-  const events = await fetchAllEvents(token);
-  console.log(`✅ Found ${events.length} events.\n`);
+  // Fetch only approved events (saves DALL-E costs by not generating icons for nominated/rejected events)
+  console.log("📡 Fetching approved events...");
+  const events = await fetchApprovedEvents(token);
+  console.log(`✅ Found ${events.length} approved events.\n`);
 
   // Fetch existing topic_icons
   console.log("📡 Fetching existing topic_icons...");
@@ -164,7 +170,7 @@ async function main() {
     }
   }
 
-  // Extract unique combinations from events
+  // Extract unique combinations from approved events
   const uniqueCombos = new Map(); // key -> { topics, regions, countries, transnational_org }
 
   for (const event of events) {
