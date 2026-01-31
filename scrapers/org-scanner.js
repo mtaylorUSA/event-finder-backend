@@ -23,7 +23,15 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-30
+ * Last Updated: 2026-01-31
+ * - NEW: gatherPOCViaGoogleSearch() uses Google snippets for flagged orgs
+ * - NEW: Smart POC gathering - respects TOU/tech flags
+ * - UPDATED: gatherPOC() now checks flags and uses appropriate method
+ * - If TOU flag, tech block, or tech rendering: Use Google Search
+ * - If no flags: Direct fetch (faster, saves API quota)
+ * - Google Search fallback if direct fetch finds nothing
+ * 
+ * 2026-01-30
  * - NEW: savePocContact() saves contacts to contacts collection with new schema
  * - NEW: checkForDuplicateContact() prevents duplicate contacts
  * - NEW: detectEmailType(), calculateDataCompleteness() for new schema fields
@@ -86,6 +94,8 @@ const POCKETBASE_URL = process.env.POCKETBASE_URL;
 const POCKETBASE_ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL;
 const POCKETBASE_ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
+const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
 // User agent for requests
 const USER_AGENT = 'EventFinderBot/1.0 (Research tool; Contact: matthew_e_taylor@hotmail.com)';
@@ -2367,12 +2377,110 @@ function extractPocFromHtml(html) {
 }
 
 /**
- * Find contact page and extract POC info
- * UPDATED 2026-01-30: Expanded contact paths from 4 to 15
+ * Search for POC info via Google Search snippets
+ * NEW - 2026-01-31: Respects TOU/tech flags by not scraping sites
+ * 
+ * @param {string} orgName - Organization name for search
+ * @param {string} domain - Organization domain for search
+ * @returns {Object|null} POC info with email, name, phone, source or null
  */
-async function gatherPOC(html, baseUrl) {
-    console.log('   👤 Gathering POC info...');
+async function gatherPOCViaGoogleSearch(orgName, domain) {
+    if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+        console.log('      ⚠️ Google Search API not configured - skipping');
+        return null;
+    }
     
+    console.log('      🔍 Using Google Search for POC (respecting site restrictions)...');
+    
+    // Search queries to try
+    const queries = [
+        `"${orgName}" contact email`,
+        `"${domain}" contact email`,
+        `"${orgName}" legal department email`,
+        `"${orgName}" media contact email`
+    ];
+    
+    for (const query of queries) {
+        try {
+            const url = new URL('https://www.googleapis.com/customsearch/v1');
+            url.searchParams.set('key', GOOGLE_SEARCH_API_KEY);
+            url.searchParams.set('cx', GOOGLE_SEARCH_ENGINE_ID);
+            url.searchParams.set('q', query);
+            url.searchParams.set('num', '5');
+            
+            console.log(`      📡 Searching: "${query.substring(0, 50)}..."`);
+            
+            const response = await fetchModule(url.toString());
+            
+            if (!response.ok) {
+                continue;
+            }
+            
+            const data = await response.json();
+            const items = data.items || [];
+            
+            // Extract contact info from snippets
+            for (const item of items) {
+                const snippet = (item.snippet || '') + ' ' + (item.title || '');
+                
+                // Find email
+                const emailMatch = snippet.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                if (emailMatch) {
+                    const email = emailMatch[0];
+                    
+                    // Skip obvious false positives
+                    if (email.includes('example.com') || email.includes('domain.com')) {
+                        continue;
+                    }
+                    
+                    // Try to find name near email
+                    let name = '';
+                    const namePatterns = [
+                        /(?:contact|email|reach)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
+                        /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+at\s+|\s*[,\-]\s*)/
+                    ];
+                    for (const pattern of namePatterns) {
+                        const nameMatch = snippet.match(pattern);
+                        if (nameMatch) {
+                            name = nameMatch[1];
+                            break;
+                        }
+                    }
+                    
+                    // Try to find phone
+                    let phone = '';
+                    const phoneMatch = snippet.match(/(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+                    if (phoneMatch) {
+                        phone = phoneMatch[0];
+                    }
+                    
+                    console.log(`      ✅ Found POC via Google: ${email}`);
+                    return {
+                        email,
+                        name,
+                        phone,
+                        source: 'google_search',
+                        allEmails: [email]
+                    };
+                }
+            }
+            
+            await sleep(1000);  // Rate limit between queries
+            
+        } catch (error) {
+            console.log(`      ⚠️ Search error: ${error.message}`);
+        }
+    }
+    
+    console.log('      ℹ️ No POC found via Google Search');
+    return null;
+}
+
+/**
+ * Find contact page and extract POC info via direct fetch
+ * UPDATED 2026-01-31: Renamed from gatherPOC, only used when no flags
+ */
+async function gatherPOCDirectFetch(html, baseUrl) {
     // First try to extract from provided HTML (homepage)
     let poc = extractPocFromHtml(html || '');
     
@@ -2417,8 +2525,60 @@ async function gatherPOC(html, baseUrl) {
         await sleep(500);  // Reduced from 1000ms to speed up scanning
     }
     
-    console.log('      ℹ️ No POC email found');
     return null;
+}
+
+/**
+ * Smart POC gathering - respects TOU/tech flags
+ * UPDATED 2026-01-31: Uses Google Search when flags are present
+ * 
+ * @param {string} html - Homepage HTML (may be empty if tech blocked)
+ * @param {string} baseUrl - Organization website URL
+ * @param {Object} options - Options including flags and org info
+ * @param {boolean} options.touFlag - TOU restrictions detected
+ * @param {boolean} options.techBlockFlag - Technical block detected
+ * @param {boolean} options.techRenderingFlag - JS rendering detected
+ * @param {string} options.orgName - Organization name for Google search
+ * @returns {Object|null} POC info or null
+ */
+async function gatherPOC(html, baseUrl, options = {}) {
+    console.log('   👤 Gathering POC info...');
+    
+    const { touFlag, techBlockFlag, techRenderingFlag, orgName } = options;
+    const hasRestrictions = touFlag || techBlockFlag || techRenderingFlag;
+    
+    // Extract domain from URL
+    let domain = '';
+    try {
+        domain = new URL(baseUrl).hostname.replace(/^www\./, '');
+    } catch (e) {
+        domain = baseUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    }
+    
+    if (hasRestrictions) {
+        // Use Google Search - respect their restrictions
+        const reason = techBlockFlag ? 'tech block' : touFlag ? 'TOU restrictions' : 'JS rendering';
+        console.log(`      ℹ️ Site has ${reason} - using Google Search instead of scraping`);
+        
+        return await gatherPOCViaGoogleSearch(orgName || domain, domain);
+    } else {
+        // No restrictions - direct fetch is faster and saves API quota
+        console.log('      ℹ️ No restrictions - fetching contact pages directly');
+        
+        const poc = await gatherPOCDirectFetch(html, baseUrl);
+        
+        // If direct fetch fails, try Google as fallback
+        if (!poc && GOOGLE_SEARCH_API_KEY) {
+            console.log('      ℹ️ Direct fetch found nothing - trying Google Search fallback');
+            return await gatherPOCViaGoogleSearch(orgName || domain, domain);
+        }
+        
+        if (!poc) {
+            console.log('      ℹ️ No POC email found');
+        }
+        
+        return poc;
+    }
 }
 
 /**
@@ -3479,11 +3639,17 @@ async function scanOrganization(org, options = {}) {
     
     // ───────────────────────────────────────────────────────────────────────
     // Step 4: POC Gathering and Contact Saving
-    // UPDATED 2026-01-30: Now saves contacts to database
+    // UPDATED 2026-01-31: Now uses Google Search when flags are present
     // ───────────────────────────────────────────────────────────────────────
     
-    if (result.homepageFetched && !result.techBlockFlag) {
-        result.pocInfo = await gatherPOC(result.homepageHtml, baseUrl);
+    // Gather POC even if flags are present - gatherPOC will use Google Search
+    if (result.homepageFetched || result.techBlockFlag || result.touFlag || result.techRenderingFlag) {
+        result.pocInfo = await gatherPOC(result.homepageHtml, baseUrl, {
+            touFlag: result.touFlag,
+            techBlockFlag: result.techBlockFlag,
+            techRenderingFlag: result.techRenderingFlag,
+            orgName: org.name || org.source_id
+        });
         
         // Save contact to database if we found one AND have an org ID
         if (result.pocInfo && result.pocInfo.email && org.id) {
@@ -3717,6 +3883,8 @@ module.exports = {
     extractEventsUrlFromTriggeringUrl,
     validateEventsUrl,
     gatherPOC,
+    gatherPOCViaGoogleSearch,  // NEW 2026-01-31: Google Search for flagged orgs
+    gatherPOCDirectFetch,       // NEW 2026-01-31: Direct fetch for clean orgs
     analyzeWithAI,
     findRestrictions,
     
