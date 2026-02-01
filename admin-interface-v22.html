@@ -1681,14 +1681,14 @@
                     <div class="form-group checkbox-group">
                         <label>
                             <input type="checkbox" id="scanForceContacts" onchange="updateScanCommand()">
-                            <strong>Force Contact Gathering</strong> - Search all 5 contact categories (uses Google API quota)
+                            <strong>Force Contact Gathering</strong> - Search all 5 contact categories even if org already has contacts
                         </label>
                     </div>
-                    <div class="form-group checkbox-group">
-                        <label>
-                            <input type="checkbox" id="scanContactsOnly" onchange="updateScanCommand()">
-                            <strong>Contacts Only</strong> - Skip TOU/tech scans, just gather contacts (faster)
-                        </label>
+                    <div class="info-box success" style="margin-top: 15px;">
+                        <p><strong>🔒 Safety Guarantee:</strong></p>
+                        <p>• Contact gathering ALWAYS uses Google Search only</p>
+                        <p>• We NEVER scrape org websites for contacts</p>
+                        <p>• TOU/tech scans only check their policy pages (not content)</p>
                     </div>
                 </div>
 
@@ -5271,7 +5271,6 @@ Regards,`;
             
             // Reset checkboxes
             document.getElementById('scanForceContacts').checked = false;
-            document.getElementById('scanContactsOnly').checked = false;
             document.getElementById('scanCommandCopied').style.display = 'none';
             
             // Update command with org name
@@ -5290,7 +5289,6 @@ Regards,`;
             
             // Reset checkboxes
             document.getElementById('scanForceContacts').checked = false;
-            document.getElementById('scanContactsOnly').checked = false;
             document.getElementById('scanCommandCopied').style.display = 'none';
             
             // Update command with org name
@@ -5306,20 +5304,12 @@ Regards,`;
         function updateScanCommand() {
             const orgName = currentOrg ? currentOrg.name : 'Organization Name';
             const forceContacts = document.getElementById('scanForceContacts').checked;
-            const contactsOnly = document.getElementById('scanContactsOnly').checked;
             
             // Build command
             let command = `node scrapers/adhoc-scanner.js --org "${orgName}"`;
             
-            if (contactsOnly) {
-                command += ' --contacts-only';
-                // Disable force contacts if contacts-only is selected (it's implied)
-                document.getElementById('scanForceContacts').disabled = true;
-            } else {
-                document.getElementById('scanForceContacts').disabled = false;
-                if (forceContacts) {
-                    command += ' --force-contacts';
-                }
+            if (forceContacts) {
+                command += ' --force-contacts';
             }
             
             document.getElementById('scanCommandText').textContent = command;

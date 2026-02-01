@@ -18,12 +18,23 @@
  * - Scan history logging to scan_logs collection - NEW 2026-01-25
  * - Per-page restriction quotes with 20 words context - NEW 2026-01-26
  * 
+ * 🔒 SECURITY POLICY (2026-02-01):
+ * - Contact gathering ALWAYS uses Google Search only
+ * - We NEVER scrape org websites for contact info (/contact, /about, /team, etc.)
+ * - This respects all org Terms of Use regardless of detected flags
+ * - gatherPOCDirectFetch() is DEPRECATED and disabled
+ * 
  * Usage:
  *   const scanner = require('./org-scanner');
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-01-31
+ * Last Updated: 2026-02-01
+ * - 🔒 SECURITY: gatherPOC() now ALWAYS uses Google Search (never direct fetch)
+ * - 🔒 SECURITY: gatherPOCDirectFetch() DEPRECATED - scraping contact pages is unsafe
+ * - Contact gathering respects all TOU policies regardless of detected flags
+ * 
+ * 2026-01-31
  * - MAJOR: Consolidated contact gathering (deprecates contact-discovery.js)
  * - NEW: CONTACT_CATEGORIES - 5 categories for comprehensive POC discovery
  * - NEW: getExistingContactTypes() - Check what contacts org already has
@@ -2573,55 +2584,21 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
 }
 
 /**
- * Find contact page and extract POC info via direct fetch
+ * ⛔ DEPRECATED - DO NOT USE (SECURITY RISK)
+ * 
+ * This function fetched /contact, /about, /team pages directly from org websites.
+ * This is effectively scraping and could violate org Terms of Use.
+ * 
+ * As of 2026-02-01, ALL contact gathering must use Google Search only.
+ * This function is kept for reference but should NEVER be called.
+ * 
  * UPDATED 2026-01-31: Renamed from gatherPOC, only used when no flags
+ * DEPRECATED 2026-02-01: Security risk - never scrape org websites for contacts
  */
-async function gatherPOCDirectFetch(html, baseUrl) {
-    // First try to extract from provided HTML (homepage)
-    let poc = extractPocFromHtml(html || '');
-    
-    if (poc && poc.email) {
-        console.log(`      ✅ Found POC on homepage: ${poc.email}`);
-        poc.source = 'homepage';
-        return poc;
-    }
-    
-    // Expanded contact page paths (was 4, now 15)
-    const contactPatterns = [
-        '/contact',
-        '/contact-us',
-        '/contactus',
-        '/about/contact',
-        '/about-us/contact',
-        '/about',
-        '/about-us',
-        '/connect',
-        '/reach-us',
-        '/get-in-touch',
-        '/staff',
-        '/team',
-        '/people',
-        '/leadership',
-        '/our-team'
-    ];
-    
-    for (const path of contactPatterns) {
-        const contactUrl = baseUrl.replace(/\/$/, '') + path;
-        const result = await fetchUrl(contactUrl);
-        
-        if (result.success) {
-            poc = extractPocFromHtml(result.body);
-            if (poc && poc.email) {
-                console.log(`      ✅ Found POC on ${path}: ${poc.email}`);
-                poc.source = `website:${path}`;
-                return poc;
-            }
-        }
-        
-        await sleep(500);  // Reduced from 1000ms to speed up scanning
-    }
-    
-    return null;
+async function gatherPOCDirectFetch_DEPRECATED(html, baseUrl) {
+    console.log('      ⛔ ERROR: gatherPOCDirectFetch is DEPRECATED - use Google Search instead');
+    console.log('      ⛔ This function scrapes org websites which may violate their TOU');
+    return null;  // Always return null - do not execute unsafe code
 }
 
 /**
@@ -2702,53 +2679,21 @@ async function gatherPOC(html, baseUrl, options = {}) {
     }
     
     // ─────────────────────────────────────────────────────────────────────────
-    // Gather contacts
+    // Gather contacts - ALWAYS via Google Search (SECURITY FIX 2026-02-01)
+    // We NEVER scrape org websites for contacts - this respects all TOU policies
     // ─────────────────────────────────────────────────────────────────────────
     
     let allContacts = [];
     
-    if (hasRestrictions) {
-        // Use Google Search - respect their restrictions
-        const reason = techBlockFlag ? 'tech block' : touFlag ? 'TOU restrictions' : 'JS rendering';
-        console.log(`      ℹ️ Site has ${reason} - using Google Search instead of scraping`);
-        
+    // SECURITY: Always use Google Search for contact gathering
+    // Even if no restrictions are detected, we cannot guarantee we haven't missed something
+    // Google Search is always safe - it only returns publicly indexed information
+    console.log('      🔒 Using Google Search for contacts (respects all TOU policies)');
+    
+    if (GOOGLE_SEARCH_API_KEY) {
         allContacts = await gatherPOCViaGoogleSearch(orgName || domain, domain, { skipCategories });
-        
     } else {
-        // No restrictions - try direct fetch first, then Google fallback
-        console.log('      ℹ️ No restrictions - trying direct fetch first');
-        
-        const directPoc = await gatherPOCDirectFetch(html, baseUrl);
-        
-        if (directPoc && directPoc.email) {
-            // Got one via direct fetch, add it
-            allContacts.push({
-                email: directPoc.email,
-                name: directPoc.name || '',
-                phone: directPoc.phone || '',
-                source: directPoc.source || 'website',
-                contactType: mapEmailTypeToContactType(detectEmailType(directPoc.email)),
-                categoryType: detectEmailType(directPoc.email)
-            });
-            console.log(`      ✅ Found via direct fetch: ${directPoc.email}`);
-            
-            // Update skipCategories based on what we found
-            const foundType = detectEmailType(directPoc.email);
-            if (foundType === 'Legal') skipCategories.push('Legal/Permissions');
-            if (foundType === 'Events') skipCategories.push('Events');
-            if (foundType === 'Media/PR') skipCategories.push('Media/PR');
-            if (foundType === 'General') skipCategories.push('General');
-        }
-        
-        // If we don't have all key types yet, try Google Search
-        const needsMoreContacts = !skipCategories.includes('Legal/Permissions') || 
-                                   !skipCategories.includes('Events');
-        
-        if (needsMoreContacts && GOOGLE_SEARCH_API_KEY) {
-            console.log('      ℹ️ Searching Google for additional contact types...');
-            const googleContacts = await gatherPOCViaGoogleSearch(orgName || domain, domain, { skipCategories });
-            allContacts.push(...googleContacts);
-        }
+        console.log('      ⚠️ Google Search API not configured - cannot gather contacts safely');
     }
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -4181,7 +4126,7 @@ module.exports = {
     validateEventsUrl,
     gatherPOC,
     gatherPOCViaGoogleSearch,  // UPDATED 2026-01-31: Now searches all 5 categories
-    gatherPOCDirectFetch,
+    gatherPOCDirectFetch: gatherPOCDirectFetch_DEPRECATED,  // ⛔ DEPRECATED 2026-02-01: Security risk
     analyzeWithAI,
     findRestrictions,
     
