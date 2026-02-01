@@ -1886,6 +1886,14 @@
             currentOrgId = null;
             currentOrg = null;
             isNewOrg = false;
+            
+            // Reload data to reflect any changes made
+            if (previousTab === 'organizations') {
+                loadOrganizations();
+            } else if (previousTab === 'byStatus') {
+                loadByStatus();
+            }
+            
             switchTab(previousTab);
         }
 
