@@ -4299,7 +4299,8 @@ Regards,`;
                 <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'overview')">✏️ Edit Org</button>
                 <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Edit Contacts</button>
                 <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
-                <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>`;
+                <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>
+                <button class="btn btn-small btn-warning" onclick="openScanModalForOrg('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🔍 Scan</button>`;
 
             // Show Approve Mission button for nominated orgs
             if (isNominated) {
@@ -4549,6 +4550,7 @@ Regards,`;
                         <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Edit Contacts</button>
                         <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
                         <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 See Events</button>
+                        <button class="btn btn-small btn-warning" onclick="openScanModalForOrg('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🔍 Scan</button>
                         <button class="btn btn-small btn-danger" onclick="deleteOrgFromList('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🗑️ Delete</button>
                     </div>
                 </div>`;
@@ -5266,6 +5268,25 @@ Regards,`;
                 alert('❌ No organization selected');
                 return;
             }
+            
+            // Reset checkboxes
+            document.getElementById('scanForceContacts').checked = false;
+            document.getElementById('scanContactsOnly').checked = false;
+            document.getElementById('scanCommandCopied').style.display = 'none';
+            
+            // Update command with org name
+            updateScanCommand();
+            
+            // Open modal
+            openModal('scanOrgModal');
+        }
+        
+        /**
+         * Open the Scan Org modal for a specific org (from org cards in list view)
+         */
+        function openScanModalForOrg(orgId, orgName) {
+            // Set a temporary currentOrg for the modal to use
+            currentOrg = { id: orgId, name: orgName };
             
             // Reset checkboxes
             document.getElementById('scanForceContacts').checked = false;
