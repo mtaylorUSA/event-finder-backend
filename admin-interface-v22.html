@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v23</title>
+    <title>Event Finder Admin v24</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -1427,7 +1427,30 @@
                                 
                                 <div class="draft-generator-box">
                                     <h6>📝 Email Draft Generator</h6>
-                                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Auto-generates TOU-aware email based on org restrictions.</p>
+                                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Select the type of email to generate:</p>
+                                    
+                                    <!-- Email Type Selector -->
+                                    <div class="email-type-selector" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                                        <div style="margin-bottom: 8px;">
+                                            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin-bottom: 10px;">
+                                                <input type="radio" name="emailType" value="introduction" checked style="margin-top: 3px;">
+                                                <span>
+                                                    <strong>📨 Introduction / Solicitation Email</strong><br>
+                                                    <span style="font-size: 12px; color: #666;">Request permission to gather events (TOU-aware)</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div>
+                                            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                                                <input type="radio" name="emailType" value="scraping-announcement" style="margin-top: 3px;">
+                                                <span>
+                                                    <strong>🚀 Scraping Announcement Email</strong><br>
+                                                    <span style="font-size: 12px; color: #666;">Notify org that automated event gathering has begun</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
                                     <button type="button" class="btn btn-small btn-info" onclick="generateEmailDraft()">📝 Generate Draft</button>
                                     <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('emailOutDraft')" style="margin-left: 5px;">📋 Copy</button>
                                     <div class="form-group" style="margin-top: 10px;">
@@ -3040,8 +3063,8 @@
         }
         
         /**
-         * Generate email draft (moved from old generatePermissionDraft)
-         * Updated: Now includes To: field with all selected recipients
+         * Generate email draft based on selected email type
+         * Supports: introduction (permission request) and scraping-announcement
          */
         function generateEmailDraft() {
             const orgName = currentOrg.name;
@@ -3052,57 +3075,111 @@
             
             const restrictionContext = currentOrg.restriction_context || '';
             
+            // Get selected email type
+            const emailTypeRadio = document.querySelector('input[name="emailType"]:checked');
+            const emailType = emailTypeRadio ? emailTypeRadio.value : 'introduction';
+            
             // Get selected recipients from To: field
             const toField = document.getElementById('emailOutToField').value.trim();
             const toLine = toField ? `To: ${toField}` : 'To: [Select recipients above]';
             
-            // Calculate proceed date (1 week from now)
-            const proceedDate = new Date();
-            proceedDate.setDate(proceedDate.getDate() + 7);
-            const proceedDateStr = proceedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-            
             let draft;
             let subject;
             
-            if (hasAnyRestriction) {
-                // Build restriction bullets from structured data
-                // NEW FORMAT (2026-01-26): "PageType | URL | Quote" per line
-                let restrictionBullets = '';
+            // ═══════════════════════════════════════════════════════════════════════
+            // SCRAPING ANNOUNCEMENT EMAIL
+            // ═══════════════════════════════════════════════════════════════════════
+            if (emailType === 'scraping-announcement') {
+                subject = `Notice: Event Collection Now Active - ${orgName}`;
                 
-                // Handle TOU restriction
-                if (currentOrg.tou_flag) {
-                    if (restrictionContext) {
-                        const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                // Check permission type for context
+                const permissionType = currentOrg.permission_type || '';
+                let permissionContext = '';
+                
+                if (permissionType === 'Explicit') {
+                    permissionContext = `Thank you for granting us permission to include ${orgName}'s events in our service. `;
+                } else if (permissionType === 'Waiver') {
+                    permissionContext = `Thank you for granting us explicit permission to include ${orgName}'s events in our service, despite your website's standard terms. `;
+                } else if (permissionType === 'Implied (No Response)') {
+                    permissionContext = `As mentioned in our previous email, we are proceeding with including ${orgName}'s events since we did not receive any objection during the notification period. `;
+                } else {
+                    permissionContext = ``;
+                }
+                
+                draft = `${toLine}
+Subject: ${subject}
+
+Hello,
+
+${permissionContext}We wanted to let you know that our automated event collection for ${orgName} is now active.
+
+What this means:
+• Our system will periodically check your public events page for new listings
+• All events will link directly to your original event pages
+• ${orgName} is clearly credited as the source
+• Access is rate-limited and conducted during off-peak hours to minimize any server impact
+
+As always:
+• You can request changes or opt-out at any time by replying to this email
+• We are happy to accommodate any specific preferences you may have
+
+Thank you for helping us connect people with valuable national security, defense, and intelligence events.
+
+Best regards,`;
+                
+                // Show message
+                const recipientCount = toField ? toField.split(';').length : 0;
+                const recipientText = recipientCount > 0 ? ` (${recipientCount} recipient${recipientCount > 1 ? 's' : ''})` : '';
+                showMessage('profileMessage', `🚀 Scraping announcement draft generated!${recipientText}`, 'success');
+            }
+            // ═══════════════════════════════════════════════════════════════════════
+            // INTRODUCTION / SOLICITATION EMAIL (EXISTING LOGIC)
+            // ═══════════════════════════════════════════════════════════════════════
+            else {
+                // Calculate proceed date (1 week from now)
+                const proceedDate = new Date();
+                proceedDate.setDate(proceedDate.getDate() + 7);
+                const proceedDateStr = proceedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                
+                if (hasAnyRestriction) {
+                    // Build restriction bullets from structured data
+                    // NEW FORMAT (2026-01-26): "PageType | URL | Quote" per line
+                    let restrictionBullets = '';
+                    
+                    // Handle TOU restriction
+                    if (currentOrg.tou_flag) {
+                        if (restrictionContext) {
+                            const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                            
+                            contextLines.forEach(line => {
+                                const parts = line.split(' | ');
+                                if (parts.length >= 3) {
+                                    // New format: PageType | URL | Quote
+                                    const [pageType, url, quote] = parts;
+                                    restrictionBullets += `• Your ${pageType} states: "${quote.trim()}"\n  ${url.trim()}\n\n`;
+                                } else if (parts.length === 1 && line.trim()) {
+                                    // Old format: just the context text
+                                    restrictionBullets += `• Your website states: "${line.trim()}"\n\n`;
+                                }
+                            });
+                        }
                         
-                        contextLines.forEach(line => {
-                            const parts = line.split(' | ');
-                            if (parts.length >= 3) {
-                                // New format: PageType | URL | Quote
-                                const [pageType, url, quote] = parts;
-                                restrictionBullets += `• Your ${pageType} states: "${quote.trim()}"\n  ${url.trim()}\n\n`;
-                            } else if (parts.length === 1 && line.trim()) {
-                                // Old format: just the context text
-                                restrictionBullets += `• Your website states: "${line.trim()}"\n\n`;
-                            }
-                        });
+                        // Fallback if tou_flag is set but no valid restriction bullets were generated
+                        if (!restrictionBullets) {
+                            restrictionBullets += `• Your website's terms restrict automated gathering of information.\n\n`;
+                        }
                     }
                     
-                    // Fallback if tou_flag is set but no valid restriction bullets were generated
-                    if (!restrictionBullets) {
-                        restrictionBullets += `• Your website's terms restrict automated gathering of information.\n\n`;
+                    if (hasTechBlock) {
+                        restrictionBullets += `• Your website blocks automated access (returns 403 Forbidden).\n`;
                     }
-                }
-                
-                if (hasTechBlock) {
-                    restrictionBullets += `• Your website blocks automated access (returns 403 Forbidden).\n`;
-                }
-                
-                if (hasTechRendering) {
-                    restrictionBullets += `• Your events page requires JavaScript to display content.\n`;
-                }
-                
-                subject = `Permission Request: Event Listing from ${orgName}`;
-                draft = `${toLine}
+                    
+                    if (hasTechRendering) {
+                        restrictionBullets += `• Your events page requires JavaScript to display content.\n`;
+                    }
+                    
+                    subject = `Permission Request: Event Listing from ${orgName}`;
+                    draft = `${toLine}
 Subject: ${subject}
 
 Hello,
@@ -3126,9 +3203,9 @@ Would you please reply with a quick note giving us permission to proceed?
 Thank you for your time and consideration.
 
 Regards,`;
-            } else {
-                subject = `Notice: Automated Event Collection from ${orgName}`;
-                draft = `${toLine}
+                } else {
+                    subject = `Notice: Automated Event Collection from ${orgName}`;
+                    draft = `${toLine}
 Subject: ${subject}
 
 Hello,
@@ -3146,24 +3223,25 @@ We wanted to notify you before we begin, so you have the opportunity to decline 
 Thank you for your time.
 
 Regards,`;
+                }
+                
+                // Show message for introduction email
+                let detectedFlags = [];
+                if (currentOrg.tou_flag) detectedFlags.push('TOU');
+                if (hasTechBlock) detectedFlags.push('Tech Block');
+                if (hasTechRendering) detectedFlags.push('JS Rendering');
+                
+                const recipientCount = toField ? toField.split(';').length : 0;
+                const recipientText = recipientCount > 0 ? ` (${recipientCount} recipient${recipientCount > 1 ? 's' : ''})` : '';
+                
+                const draftType = hasAnyRestriction 
+                    ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})${recipientText}` 
+                    : `📝 Standard notice draft${recipientText}`;
+                showMessage('profileMessage', `${draftType} generated!`, 'success');
             }
             
             document.getElementById('emailOutDraft').value = draft;
             document.getElementById('emailOutSubject').value = subject;
-            
-            // Show message
-            let detectedFlags = [];
-            if (currentOrg.tou_flag) detectedFlags.push('TOU');
-            if (hasTechBlock) detectedFlags.push('Tech Block');
-            if (hasTechRendering) detectedFlags.push('JS Rendering');
-            
-            const recipientCount = toField ? toField.split(';').length : 0;
-            const recipientText = recipientCount > 0 ? ` (${recipientCount} recipient${recipientCount > 1 ? 's' : ''})` : '';
-            
-            const draftType = hasAnyRestriction 
-                ? `⚠️ Restriction-aware draft (${detectedFlags.join(', ')})${recipientText}` 
-                : `📝 Standard notice draft${recipientText}`;
-            showMessage('profileMessage', `${draftType} generated!`, 'success');
         }
         
         /**
