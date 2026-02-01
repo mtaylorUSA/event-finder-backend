@@ -1026,6 +1026,11 @@
                             <option value="restricted-rejected-mission">🟠 Rejected by Mission - Restricted!</option>
                             <option value="restricted-rejected-org">🟠 Rejected by Org - Restricted!</option>
                         </select>
+                        <select id="filterByOutreach" onchange="loadByOutreach()">
+                            <option value="">📞 Outreach Status...</option>
+                            <option value="ready-for-outreach">🟢 Ready for Outreach (not contacted)</option>
+                            <option value="ready-for-followup">🔄 Ready for Follow-up (7+ days)</option>
+                        </select>
                     </div>
                     <div id="byStatusMessage" class="message info hidden"></div>
                     <div id="byStatusList"><div class="loading">Loading organizations...</div></div>
@@ -1083,7 +1088,8 @@
                     <div class="filters">
                         <select id="filterEventStatus" onchange="loadEvents()">
                             <option value="">All Statuses</option>
-                            <option value="nominated">📋 Nominated (Needs Review)</option>
+                            <option value="nominated-ready">📋 Nominated (Pending Approval)</option>
+                            <option value="nominated-restricted">🚫 Restricted (Org Not Approved)</option>
                             <option value="approved">✅ Approved</option>
                             <option value="rejected">❌ Rejected</option>
                         </select>
@@ -3880,38 +3886,27 @@ Regards,`;
                 container.innerHTML = summaryHtml + events.map(e => {
                     const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
                     
-                    // Event status badge
+                    // Event status dropdown
                     const eventStatus = e.event_status || 'nominated';
-                    const statusBadge = eventStatus === 'approved' 
-                        ? '<span class="badge badge-live">✅ Approved</span>'
-                        : eventStatus === 'rejected'
-                        ? '<span class="badge badge-danger">❌ Rejected</span>'
-                        : '<span class="badge badge-warning">📋 Nominated</span>';
-                    
-                    // Action buttons
-                    const actionButtons = eventStatus === 'nominated' || !eventStatus
-                        ? `<div class="event-actions">
-                               <button class="btn btn-small btn-success" onclick="updateEventStatusFromProfile('${e.id}', 'approved')">✅ Accept</button>
-                               <button class="btn btn-small btn-danger" onclick="updateEventStatusFromProfile('${e.id}', 'rejected')">❌ Reject</button>
-                           </div>`
-                        : eventStatus === 'approved'
-                        ? `<div class="event-actions">
-                               <button class="btn btn-small btn-danger" onclick="updateEventStatusFromProfile('${e.id}', 'rejected')">❌ Reject</button>
-                               <button class="btn btn-small btn-secondary" onclick="updateEventStatusFromProfile('${e.id}', 'nominated')">↩️ Back to Review</button>
-                           </div>`
-                        : `<div class="event-actions">
-                               <button class="btn btn-small btn-success" onclick="updateEventStatusFromProfile('${e.id}', 'approved')">✅ Accept</button>
-                               <button class="btn btn-small btn-secondary" onclick="updateEventStatusFromProfile('${e.id}', 'nominated')">↩️ Back to Review</button>
-                           </div>`;
+                    const statusDropdown = `
+                        <select class="inline-status-select" onchange="updateEventStatusFromProfile('${e.id}', this.value)" style="min-width: 150px;">
+                            <option value="nominated" ${eventStatus === 'nominated' ? 'selected' : ''}>📋 Nominated</option>
+                            <option value="approved" ${eventStatus === 'approved' ? 'selected' : ''}>✅ Approved</option>
+                            <option value="rejected" ${eventStatus === 'rejected' ? 'selected' : ''}>❌ Rejected</option>
+                        </select>
+                    `;
                     
                     return `
                         <div class="event-card" id="profile-event-${e.id}">
-                            <h5>${escapeHtml(e.title)} ${statusBadge}</h5>
+                            <h5>${escapeHtml(e.title)}</h5>
                             <p><strong>Date:</strong> ${startDate}</p>
                             ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
                             ${e.event_type ? `<p><strong>Type:</strong> ${escapeHtml(e.event_type)}</p>` : ''}
                             ${e.url ? `<p><a href="${escapeHtml(e.url)}" target="_blank">View Event →</a></p>` : ''}
-                            ${actionButtons}
+                            <div class="event-actions">
+                                <label style="font-weight: 600; margin-right: 8px;">Status:</label>
+                                ${statusDropdown}
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -3939,6 +3934,8 @@ Regards,`;
                         `• Live (Scraping Active)\n\n` +
                         `Please update the organization status first.`
                     );
+                    // Reset dropdown to previous value
+                    loadProfileEvents();
                     return;
                 }
             }
@@ -4055,12 +4052,13 @@ Regards,`;
             const restrictionsDropdown = document.getElementById('filterByRestrictions');
             const statusFilter = statusDropdown.value;
             
-            // Reset the other dropdown
+            // Reset the other dropdowns
             restrictionsDropdown.value = '';
+            document.getElementById('filterByOutreach').value = '';
             
             // No filter selected - show prompt
             if (!statusFilter) {
-                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, or <strong>Orgs with Restrictions</strong> to see flagged organizations.</p></div>`;
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, <strong>Orgs with Restrictions</strong> to see flagged organizations, or <strong>Outreach Status</strong> to find orgs ready for contact.</p></div>`;
                 return;
             }
 
@@ -4127,12 +4125,13 @@ Regards,`;
             const restrictionsDropdown = document.getElementById('filterByRestrictions');
             const restrictionFilter = restrictionsDropdown.value;
             
-            // Reset the other dropdown
+            // Reset the other dropdowns
             statusDropdown.value = '';
+            document.getElementById('filterByOutreach').value = '';
             
             // No filter selected - show prompt
             if (!restrictionFilter) {
-                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, or <strong>Orgs with Restrictions</strong> to see flagged organizations.</p></div>`;
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, <strong>Orgs with Restrictions</strong> to see flagged organizations, or <strong>Outreach Status</strong> to find orgs ready for contact.</p></div>`;
                 return;
             }
 
@@ -4196,6 +4195,104 @@ Regards,`;
 
             } catch (error) {
                 console.error('loadByRestrictions error:', error);
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // OUTREACH STATUS FILTER - Find orgs ready for contact or follow-up
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadByOutreach() {
+            const container = document.getElementById('byStatusList');
+            const statusDropdown = document.getElementById('filterByStatus');
+            const restrictionsDropdown = document.getElementById('filterByRestrictions');
+            const outreachDropdown = document.getElementById('filterByOutreach');
+            const outreachFilter = outreachDropdown.value;
+            
+            // Reset the other dropdowns
+            statusDropdown.value = '';
+            restrictionsDropdown.value = '';
+            
+            // No filter selected - show prompt
+            if (!outreachFilter) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, <strong>Orgs with Restrictions</strong> to see flagged organizations, or <strong>Outreach Status</strong> to find orgs ready for contact.</p></div>`;
+                return;
+            }
+
+            try {
+                container.innerHTML = '<div class="loading">Loading organizations...</div>';
+
+                // Calculate date 7 days ago for follow-up filter
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                const sevenDaysAgoISO = sevenDaysAgo.toISOString().replace('T', ' ').slice(0, 19);
+
+                let filterValue = '';
+                let filterLabel = '';
+                
+                if (outreachFilter === 'ready-for-outreach') {
+                    // Mission Approved + No flags + Not yet contacted (no permission_requested_date)
+                    filterValue = `(status='Mission Approved (Request Not Sent)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && (permission_requested_date='' || permission_requested_date=null))`;
+                    filterLabel = 'Ready for Outreach';
+                } else if (outreachFilter === 'ready-for-followup') {
+                    // Permission Requested + No flags + permission_requested_date is 7+ days ago
+                    filterValue = `(status='Permission Requested (Pending Org Response)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && permission_requested_date!='' && permission_requested_date<='${sevenDaysAgoISO}')`;
+                    filterLabel = 'Ready for Follow-up (7+ days)';
+                }
+
+                const filterParam = `&filter=${encodeURIComponent(filterValue)}`;
+                
+                console.log('📞 Outreach filter:', filterValue);
+                console.log('📅 Seven days ago:', sevenDaysAgoISO);
+
+                const [orgsRes, contactsRes, eventsRes] = await Promise.all([
+                    fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500${filterParam}`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500`, { headers: { 'Authorization': authToken } })
+                ]);
+
+                const orgsData = await orgsRes.json();
+                console.log('📞 Outreach orgs response:', orgsData);
+                const contactsData = await contactsRes.json();
+                const eventsData = await eventsRes.json();
+
+                const orgs = orgsData.items || [];
+                const contacts = contactsData.items || [];
+                const events = eventsData.items || [];
+
+                // Build lookups
+                const contactsByOrg = {};
+                contacts.forEach(c => {
+                    if (!contactsByOrg[c.organization]) contactsByOrg[c.organization] = [];
+                    contactsByOrg[c.organization].push(c);
+                });
+
+                const eventCountByOrg = {};
+                events.forEach(e => { eventCountByOrg[e.organization] = (eventCountByOrg[e.organization] || 0) + 1; });
+
+                if (orgs.length === 0) {
+                    const emptyIcon = outreachFilter === 'ready-for-outreach' ? '✅' : '📭';
+                    const emptyMessage = outreachFilter === 'ready-for-outreach' 
+                        ? 'All mission-approved orgs without flags have been contacted!'
+                        : 'No orgs are due for follow-up yet (7+ days since contact).';
+                    container.innerHTML = `<div class="empty-state"><div class="icon">${emptyIcon}</div><h3>No Organizations Found</h3><p>${emptyMessage}</p></div>`;
+                    return;
+                }
+
+                // Sort alphabetically, ignoring "The"
+                orgs.sort((a, b) => {
+                    const nameA = a.name.replace(/^The\s+/i, '').toLowerCase();
+                    const nameB = b.name.replace(/^The\s+/i, '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+                // Add count header
+                const countHeader = `<div class="info-box success" style="margin-bottom: 20px;"><p><strong>📞 ${filterLabel}:</strong> ${orgs.length} organization${orgs.length !== 1 ? 's' : ''} found</p></div>`;
+                
+                container.innerHTML = countHeader + orgs.map(org => renderByStatusCard(org, contactsByOrg[org.id] || [], eventCountByOrg[org.id] || 0, outreachFilter)).join('');
+
+            } catch (error) {
+                console.error('loadByOutreach error:', error);
                 container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
             }
         }
@@ -4973,6 +5070,9 @@ Regards,`;
             const statusFilter = document.getElementById('filterEventStatus').value;
             const sortBy = document.getElementById('sortEvents').value || '-start_date';
             
+            // Define approved org statuses (for nominated-ready vs nominated-restricted)
+            const approvedOrgStatuses = ['Permission Granted (Not Live)', 'Live (Scraping Active)'];
+            
             console.log('🔍 loadEvents called');
             console.log('   orgFilter:', orgFilter);
             console.log('   statusFilter:', statusFilter);
@@ -5004,9 +5104,11 @@ Regards,`;
                 let filterParts = [];
                 if (orgFilter) filterParts.push(`organization='${orgFilter}'`);
                 
-                // Handle event_status filter - 'nominated' includes null/empty (legacy events)
-                if (statusFilter === 'nominated') {
-                    // Match 'nominated' OR empty string OR null (events created before event_status field)
+                // Handle event_status filter
+                // For nominated-ready and nominated-restricted, we filter to nominated events first,
+                // then filter client-side based on org status
+                if (statusFilter === 'nominated-ready' || statusFilter === 'nominated-restricted') {
+                    // Get all nominated events (will filter by org status client-side)
                     filterParts.push(`(event_status='nominated' || event_status='' || event_status=null)`);
                 } else if (statusFilter) {
                     filterParts.push(`event_status='${statusFilter}'`);
@@ -5028,9 +5130,21 @@ Regards,`;
                 const data = await response.json();
                 let events = data.items || [];
                 
-                console.log('   Events found:', events.length);
-                if (events.length > 0) {
-                    console.log('   First event org:', events[0].organization);
+                console.log('   Events found (before org filter):', events.length);
+                
+                // Client-side filter for org status (nominated-ready vs nominated-restricted)
+                if (statusFilter === 'nominated-ready') {
+                    events = events.filter(e => {
+                        const orgStatus = e.expand?.organization?.status;
+                        return approvedOrgStatuses.includes(orgStatus);
+                    });
+                    console.log('   Events after nominated-ready filter:', events.length);
+                } else if (statusFilter === 'nominated-restricted') {
+                    events = events.filter(e => {
+                        const orgStatus = e.expand?.organization?.status;
+                        return !approvedOrgStatuses.includes(orgStatus);
+                    });
+                    console.log('   Events after nominated-restricted filter:', events.length);
                 }
                 
                 // Client-side sort for organization name
@@ -5050,7 +5164,9 @@ Regards,`;
 
                 if (events.length === 0) {
                     let filterDesc = [];
-                    if (statusFilter) filterDesc.push(`status "${statusFilter}"`);
+                    if (statusFilter === 'nominated-ready') filterDesc.push('nominated events from approved orgs');
+                    else if (statusFilter === 'nominated-restricted') filterDesc.push('nominated events from non-approved orgs');
+                    else if (statusFilter) filterDesc.push(`status "${statusFilter}"`);
                     if (orgFilter) {
                         const orgName = document.getElementById('filterEventOrg').selectedOptions[0]?.text || 'selected org';
                         filterDesc.push(`org "${orgName}"`);
@@ -5064,29 +5180,15 @@ Regards,`;
                     const orgName = e.expand?.organization?.name || 'Unknown';
                     const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
                     
-                    // Event status badge
+                    // Event status dropdown
                     const eventStatus = e.event_status || 'nominated';
-                    const statusBadge = eventStatus === 'approved' 
-                        ? '<span class="badge badge-live">✅ Approved</span>'
-                        : eventStatus === 'rejected'
-                        ? '<span class="badge badge-danger">❌ Rejected</span>'
-                        : '<span class="badge badge-warning">📋 Nominated</span>';
-                    
-                    // Action buttons based on status
-                    const actionButtons = eventStatus === 'nominated'
-                        ? `<div class="event-actions">
-                               <button class="btn btn-small btn-success" onclick="updateEventStatus('${e.id}', 'approved')">✅ Accept</button>
-                               <button class="btn btn-small btn-danger" onclick="updateEventStatus('${e.id}', 'rejected')">❌ Reject</button>
-                           </div>`
-                        : eventStatus === 'approved'
-                        ? `<div class="event-actions">
-                               <button class="btn btn-small btn-danger" onclick="updateEventStatus('${e.id}', 'rejected')">❌ Reject</button>
-                               <button class="btn btn-small btn-secondary" onclick="updateEventStatus('${e.id}', 'nominated')">↩️ Back to Review</button>
-                           </div>`
-                        : `<div class="event-actions">
-                               <button class="btn btn-small btn-success" onclick="updateEventStatus('${e.id}', 'approved')">✅ Accept</button>
-                               <button class="btn btn-small btn-secondary" onclick="updateEventStatus('${e.id}', 'nominated')">↩️ Back to Review</button>
-                           </div>`;
+                    const statusDropdown = `
+                        <select class="inline-status-select" onchange="updateEventStatus('${e.id}', this.value)" style="min-width: 150px;">
+                            <option value="nominated" ${eventStatus === 'nominated' ? 'selected' : ''}>📋 Nominated</option>
+                            <option value="approved" ${eventStatus === 'approved' ? 'selected' : ''}>✅ Approved</option>
+                            <option value="rejected" ${eventStatus === 'rejected' ? 'selected' : ''}>❌ Rejected</option>
+                        </select>
+                    `;
                     
                     // Get topics and create combination key (4-part format)
                     // Format: "Topics|Regions|Countries|TransnationalOrgs"
@@ -5135,7 +5237,7 @@ Regards,`;
                                     <div class="icon-status-indicator">${iconStatus}</div>
                                 </div>
                                 <div class="event-details">
-                                    <h3>${escapeHtml(e.title)} ${statusBadge}</h3>
+                                    <h3>${escapeHtml(e.title)}</h3>
                                     <p><strong>Organization:</strong> ${escapeHtml(orgName)}</p>
                                     <p><strong>Date:</strong> ${startDate}</p>
                                     ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
@@ -5147,7 +5249,10 @@ Regards,`;
                                         ${orgBadges}
                                     </div>
                                     <div class="icon-key-debug" title="Icon lookup key"><small>🔑 ${escapeHtml(topicCombination)}</small></div>
-                                    ${actionButtons}
+                                    <div class="event-actions">
+                                        <label style="font-weight: 600; margin-right: 8px;">Status:</label>
+                                        ${statusDropdown}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -5190,6 +5295,8 @@ Regards,`;
                             `• Live (Scraping Active)\n\n` +
                             `Please update the organization status first.`
                         );
+                        // Reset dropdown - reload events
+                        loadEvents();
                         return;
                     }
                 } catch (error) {
