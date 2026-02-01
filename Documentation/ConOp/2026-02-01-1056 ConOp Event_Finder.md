@@ -1,6 +1,6 @@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # DOCUMENT NAME:  
-2026-02-01-1029 ConOp Event_Finder.md
+2026-02-01-1400 ConOp Event_Finder.md
 
 
 
@@ -1204,6 +1204,71 @@ The contents if this chat and everything related to this project is subject to m
 
           ** We maintain an audit log of scans and scan/scrape results so we can see when something changes and have quality control.
 
+-----
+
+     * 🔒 SECURITY ARCHITECTURE AFFIRMATION (2026-02-01):
+          ** ALL scanners and scrapers use org-scanner.js as the core module
+          ** ALL contact gathering uses GOOGLE SEARCH ONLY
+          ** We NEVER scrape org websites for contact info (/contact, /about, /team, etc.)
+          ** This respects ALL org Terms of Use regardless of detected flags
+          ** gatherPOCDirectFetch() is DEPRECATED and disabled
+
+          ** Unified Flow for ALL Scripts:
+               *** Step 1: SCAN - Fetch homepage and legal pages for TOU/tech flags
+               *** Step 2: FLAG - Set tou_flag, tech_block_flag, tech_rendering_flag as detected
+               *** Step 3: GOOGLE - Gather contacts via Google Search only (respects all TOU)
+
+          ** Scripts Using This Model:
+               *** ✅ scan-and-scrape-all-live-orgs.js (daily scraping, weekly re-scan)
+               *** ✅ suggest-organizations.js (profile-based discovery)
+               *** ✅ discover-orgs-by-events.js (event-based discovery)
+               *** ✅ adhoc-scanner.js (on-demand scanning)
+
+-----
+
+     * 📅 AUTOMATED WORKFLOW SCHEDULE (2026-02-01):
+          ** All workflows spaced to stay within Google Search quota (100/day free tier)
+          ** Discovery scripts run on separate days with buffer for quota reset
+
+          ** Daily - 11:30 PM EST:
+               *** Workflow: scrape-events.yml
+               *** Script: scan-and-scrape-all-live-orgs.js --all
+               *** Purpose: Pre-scrape scan + event scraping for Live orgs
+               *** Google Queries: ~0 (skip logic - existing orgs have contacts)
+
+          ** Monday - 10:00 PM EST:
+               *** Workflow: suggest-organizations.yml
+               *** Script: suggest-organizations.js
+               *** Purpose: AI suggests new orgs based on existing approved org profiles
+               *** Google Queries: ~15-25 (5 per new org suggested)
+
+          ** Wednesday - 10:00 PM EST:
+               *** Workflow: discover-orgs-by-events.yml
+               *** Script: discover-orgs-by-events.js
+               *** Purpose: Find new orgs by searching for similar events online
+               *** Google Queries: ~30-50 (event searches + 5 per new org found)
+
+          ** Saturday - 10:00 PM EST:
+               *** Workflow: org-scanner.yml
+               *** Script: scan-and-scrape-all-live-orgs.js --approved --scan-only
+               *** Purpose: Re-scan all orgs (except Rejected by Mission) for TOU changes
+               *** Google Queries: ~0 (skip logic - existing orgs have contacts)
+
+          ** Manual (as needed):
+               *** Script: adhoc-scanner.js --org "Name"
+               *** Purpose: On-demand org scanning via CLI or Admin Interface [🔍 Scan] button
+               *** Google Queries: Up to 5 per org (one per contact category)
+
+-----
+
+     * Workflow Files Location:
+          ** All GitHub Actions workflows in: .github/workflows/
+               *** scrape-events.yml - Daily scraping
+               *** suggest-organizations.yml - Monday profile-based discovery
+               *** discover-orgs-by-events.yml - Wednesday event-based discovery
+               *** org-scanner.yml - Saturday weekly re-scan
+               *** contact-discovery.yml.disabled - DEPRECATED (functionality in org-scanner.js)
+
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -2249,18 +2314,57 @@ When an event has been approved, we generate an image to accompany it on the web
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # GITHUB ACTIONS
 
-     * UPDATED 2026-02-01: contact-discovery.yml disabled, functionality in org-scanner.js
+     * UPDATED 2026-02-01: Added suggest-organizations.yml and discover-orgs-by-events.yml, updated org-scanner.yml schedule
+
+-----
+
+     * 🔒 ALL WORKFLOWS USE SCAN → FLAG → GOOGLE MODEL:
+          ** Every automated workflow uses org-scanner.js
+          ** Contact gathering ALWAYS uses Google Search only
+          ** Workflows spaced to stay within 100/day Google quota
 
 -----
 
      * Workflow: Scrape Events Daily
           ** File: .github/workflows/scrape-events.yml
-          ** Status: ✅ VALIDATED - workflow runs scan-and-scrape-all-live-orgs.js --all
-          ** Schedule: Runs daily at 11:30 PM EST (04:30 UTC)
-          ** What it does:
-               *** Sets up Node.js environment
-               *** Installs dependencies
-               *** Runs scrapers/scan-and-scrape-all-live-orgs.js --all
+          ** Status: ✅ Active
+          ** Schedule: Daily at 11:30 PM EST (04:30 UTC)
+          ** Script: scan-and-scrape-all-live-orgs.js --all
+          ** Purpose: Pre-scrape scan + event scraping for Live orgs
+          ** Google Queries: ~0 (skip logic - existing orgs have contacts)
+
+-----
+
+     * Workflow: Profile-Based Org Discovery (Weekly) - NEW 2026-02-01
+          ** File: .github/workflows/suggest-organizations.yml
+          ** Status: ✅ Active
+          ** Schedule: Monday at 10:00 PM EST (03:00 UTC Tuesday)
+          ** Script: suggest-organizations.js
+          ** Purpose: AI suggests new orgs based on existing approved org profiles
+          ** Google Queries: ~15-25 (5 per new org suggested)
+          ** Uses org-scanner.js for real TOU/tech flag detection
+
+-----
+
+     * Workflow: Event-Based Org Discovery (Weekly) - NEW 2026-02-01
+          ** File: .github/workflows/discover-orgs-by-events.yml
+          ** Status: ✅ Active
+          ** Schedule: Wednesday at 10:00 PM EST (03:00 UTC Thursday)
+          ** Script: discover-orgs-by-events.js
+          ** Purpose: Find new orgs by searching for similar events online
+          ** Google Queries: ~30-50 (event searches + 5 per new org found)
+          ** Uses org-scanner.js for Phase B scanning
+
+-----
+
+     * Workflow: Weekly Organization Scanner - UPDATED 2026-02-01
+          ** File: .github/workflows/org-scanner.yml
+          ** Status: ✅ Active
+          ** Schedule: Saturday at 10:00 PM EST (03:00 UTC Sunday) - moved from Sunday
+          ** Script: scan-and-scrape-all-live-orgs.js --approved --scan-only
+          ** Purpose: Re-scan all orgs (except Rejected by Mission) for TOU changes
+          ** Google Queries: ~0 (skip logic - existing orgs have contacts)
+          ** Manual trigger: Supports --limit input for testing
 
 -----
 
@@ -2273,29 +2377,13 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Workflow: Organization Scanner (Weekly) - NEW 2026-01-27
-          ** File: .github/workflows/org-scanner.yml
-          ** Status: ✅ Active
-          ** Schedule: Runs Sundays at 11:59 PM EST (04:59 UTC)
-          ** What it does:
-               *** Sets up Node.js environment
-               *** Installs dependencies
-               *** Creates .env from GitHub Secrets
-               *** Runs scan-and-scrape-all-live-orgs.js --approved --scan-only
-               *** Scans all orgs except "Rejected by Mission"
-               *** Includes "Rejected by Org" (re-scans in case TOU policies changed)
-          ** Cost: FREE (no external APIs, just direct site fetching)
-          ** Manual trigger: Supports --limit input for testing
-
------
-
      * Secrets Required (in GitHub repo settings → Secrets and variables → Actions)
           ** POCKETBASE_URL ✅
           ** POCKETBASE_ADMIN_EMAIL ✅
           ** POCKETBASE_ADMIN_PASSWORD ✅
           ** OPENAI_API_KEY ✅
-          ** GOOGLE_SEARCH_API_KEY ✅ (added 2026-01-27)
-          ** GOOGLE_SEARCH_ENGINE_ID ✅ (added 2026-01-27)
+          ** GOOGLE_SEARCH_API_KEY ✅
+          ** GOOGLE_SEARCH_ENGINE_ID ✅
 
 -----
 
@@ -2303,7 +2391,8 @@ When an event has been approved, we generate an image to accompany it on the web
           ** Go to GitHub repo → Actions tab
           ** Select workflow from left sidebar
           ** Click "Run workflow" button
-          ** For contact-discovery: Can specify batch number and limit
+          ** For suggest-organizations: Can specify limit
+          ** For discover-orgs-by-events: Can specify max_queries and max_nominations
           ** For org-scanner: Can specify limit for testing
           ** Useful for: Testing, immediate updates
 

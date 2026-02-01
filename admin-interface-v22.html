@@ -1026,6 +1026,11 @@
                             <option value="restricted-rejected-mission">🟠 Rejected by Mission - Restricted!</option>
                             <option value="restricted-rejected-org">🟠 Rejected by Org - Restricted!</option>
                         </select>
+                        <select id="filterByOutreach" onchange="loadByOutreach()">
+                            <option value="">📞 Outreach Status...</option>
+                            <option value="ready-for-outreach">🟢 Ready for Outreach (not contacted)</option>
+                            <option value="ready-for-followup">🔄 Ready for Follow-up (7+ days)</option>
+                        </select>
                     </div>
                     <div id="byStatusMessage" class="message info hidden"></div>
                     <div id="byStatusList"><div class="loading">Loading organizations...</div></div>
@@ -4036,12 +4041,13 @@ Regards,`;
             const restrictionsDropdown = document.getElementById('filterByRestrictions');
             const statusFilter = statusDropdown.value;
             
-            // Reset the other dropdown
+            // Reset the other dropdowns
             restrictionsDropdown.value = '';
+            document.getElementById('filterByOutreach').value = '';
             
             // No filter selected - show prompt
             if (!statusFilter) {
-                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, or <strong>Orgs with Restrictions</strong> to see flagged organizations.</p></div>`;
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, <strong>Orgs with Restrictions</strong> to see flagged organizations, or <strong>Outreach Status</strong> to find orgs ready for contact.</p></div>`;
                 return;
             }
 
@@ -4108,12 +4114,13 @@ Regards,`;
             const restrictionsDropdown = document.getElementById('filterByRestrictions');
             const restrictionFilter = restrictionsDropdown.value;
             
-            // Reset the other dropdown
+            // Reset the other dropdowns
             statusDropdown.value = '';
+            document.getElementById('filterByOutreach').value = '';
             
             // No filter selected - show prompt
             if (!restrictionFilter) {
-                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, or <strong>Orgs with Restrictions</strong> to see flagged organizations.</p></div>`;
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, <strong>Orgs with Restrictions</strong> to see flagged organizations, or <strong>Outreach Status</strong> to find orgs ready for contact.</p></div>`;
                 return;
             }
 
@@ -4177,6 +4184,104 @@ Regards,`;
 
             } catch (error) {
                 console.error('loadByRestrictions error:', error);
+                container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // OUTREACH STATUS FILTER - Find orgs ready for contact or follow-up
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadByOutreach() {
+            const container = document.getElementById('byStatusList');
+            const statusDropdown = document.getElementById('filterByStatus');
+            const restrictionsDropdown = document.getElementById('filterByRestrictions');
+            const outreachDropdown = document.getElementById('filterByOutreach');
+            const outreachFilter = outreachDropdown.value;
+            
+            // Reset the other dropdowns
+            statusDropdown.value = '';
+            restrictionsDropdown.value = '';
+            
+            // No filter selected - show prompt
+            if (!outreachFilter) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">👆</div><h3>Select a Filter</h3><p>Use <strong>Workflow Status</strong> to filter by status, <strong>Orgs with Restrictions</strong> to see flagged organizations, or <strong>Outreach Status</strong> to find orgs ready for contact.</p></div>`;
+                return;
+            }
+
+            try {
+                container.innerHTML = '<div class="loading">Loading organizations...</div>';
+
+                // Calculate date 7 days ago for follow-up filter
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                const sevenDaysAgoISO = sevenDaysAgo.toISOString().replace('T', ' ').slice(0, 19);
+
+                let filterValue = '';
+                let filterLabel = '';
+                
+                if (outreachFilter === 'ready-for-outreach') {
+                    // Mission Approved + No flags + Not yet contacted (no permission_requested_date)
+                    filterValue = `(status='Mission Approved (Request Not Sent)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && (permission_requested_date='' || permission_requested_date=null))`;
+                    filterLabel = 'Ready for Outreach';
+                } else if (outreachFilter === 'ready-for-followup') {
+                    // Permission Requested + No flags + permission_requested_date is 7+ days ago
+                    filterValue = `(status='Permission Requested (Pending Org Response)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && permission_requested_date!='' && permission_requested_date<='${sevenDaysAgoISO}')`;
+                    filterLabel = 'Ready for Follow-up (7+ days)';
+                }
+
+                const filterParam = `&filter=${encodeURIComponent(filterValue)}`;
+                
+                console.log('📞 Outreach filter:', filterValue);
+                console.log('📅 Seven days ago:', sevenDaysAgoISO);
+
+                const [orgsRes, contactsRes, eventsRes] = await Promise.all([
+                    fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500${filterParam}`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500`, { headers: { 'Authorization': authToken } })
+                ]);
+
+                const orgsData = await orgsRes.json();
+                console.log('📞 Outreach orgs response:', orgsData);
+                const contactsData = await contactsRes.json();
+                const eventsData = await eventsRes.json();
+
+                const orgs = orgsData.items || [];
+                const contacts = contactsData.items || [];
+                const events = eventsData.items || [];
+
+                // Build lookups
+                const contactsByOrg = {};
+                contacts.forEach(c => {
+                    if (!contactsByOrg[c.organization]) contactsByOrg[c.organization] = [];
+                    contactsByOrg[c.organization].push(c);
+                });
+
+                const eventCountByOrg = {};
+                events.forEach(e => { eventCountByOrg[e.organization] = (eventCountByOrg[e.organization] || 0) + 1; });
+
+                if (orgs.length === 0) {
+                    const emptyIcon = outreachFilter === 'ready-for-outreach' ? '✅' : '📭';
+                    const emptyMessage = outreachFilter === 'ready-for-outreach' 
+                        ? 'All mission-approved orgs without flags have been contacted!'
+                        : 'No orgs are due for follow-up yet (7+ days since contact).';
+                    container.innerHTML = `<div class="empty-state"><div class="icon">${emptyIcon}</div><h3>No Organizations Found</h3><p>${emptyMessage}</p></div>`;
+                    return;
+                }
+
+                // Sort alphabetically, ignoring "The"
+                orgs.sort((a, b) => {
+                    const nameA = a.name.replace(/^The\s+/i, '').toLowerCase();
+                    const nameB = b.name.replace(/^The\s+/i, '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+                // Add count header
+                const countHeader = `<div class="info-box success" style="margin-bottom: 20px;"><p><strong>📞 ${filterLabel}:</strong> ${orgs.length} organization${orgs.length !== 1 ? 's' : ''} found</p></div>`;
+                
+                container.innerHTML = countHeader + orgs.map(org => renderByStatusCard(org, contactsByOrg[org.id] || [], eventCountByOrg[org.id] || 0, outreachFilter)).join('');
+
+            } catch (error) {
+                console.error('loadByOutreach error:', error);
                 container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
             }
         }
