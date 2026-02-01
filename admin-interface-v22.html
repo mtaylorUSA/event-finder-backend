@@ -3443,6 +3443,7 @@ Regards,`;
                 currentOrg.status = newStatus;
                 const config = STATUS_CONFIG[newStatus] || { icon: '❓' };
                 document.getElementById('profileOrgStatus').innerHTML = `${config.icon} ${newStatus}`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} ${newStatus}</span>`;
                 showMessage('profileMessage', '✅ Status changed!', 'success');
             } catch (error) {
                 alert('Error: ' + error.message);
@@ -3688,6 +3689,7 @@ Regards,`;
                 // Update UI
                 const config = STATUS_CONFIG['Rejected by Org'];
                 document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected by Org`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected by Org</span>`;
                 document.getElementById('permissionResponseDate').value = today;
                 
                 // Update alerts
@@ -3755,6 +3757,7 @@ Regards,`;
 
                 const config = STATUS_CONFIG['Rejected by Org'];
                 document.getElementById('profileOrgStatus').innerHTML = `${config.icon} Rejected by Org`;
+                document.getElementById('statusCurrentStatus').innerHTML = `<span class="badge ${config.badge}">${config.icon} Rejected by Org</span>`;
 
                 // Update alerts
                 const alertsDiv = document.getElementById('statusAlerts');
@@ -3921,6 +3924,25 @@ Regards,`;
          * Update event status from org profile page
          */
         async function updateEventStatusFromProfile(eventId, newStatus) {
+            // Safety gate: If approving, verify org status first
+            // Since we're in the org profile, we can use currentOrg
+            if (newStatus === 'approved') {
+                const allowedStatuses = ['Permission Granted (Not Live)', 'Live (Scraping Active)'];
+                
+                if (!allowedStatuses.includes(currentOrg.status)) {
+                    alert(
+                        `⛔ Cannot approve this event!\n\n` +
+                        `Organization: ${currentOrg.name}\n` +
+                        `Current Org Status: ${currentOrg.status || 'Unknown'}\n\n` +
+                        `Events can only be approved when the organization status is:\n` +
+                        `• Permission Granted (Not Live)\n` +
+                        `• Live (Scraping Active)\n\n` +
+                        `Please update the organization status first.`
+                    );
+                    return;
+                }
+            }
+            
             try {
                 const response = await fetch(
                     `${POCKETBASE_URL}/api/collections/events/records/${eventId}`,
@@ -5138,9 +5160,43 @@ Regards,`;
         
         /**
          * Update event status (approve/reject/nominate)
+         * Safety gate: Cannot approve events unless org is Permission Granted or Live
          */
         async function updateEventStatus(eventId, newStatus) {
             const statusFilter = document.getElementById('filterEventStatus').value;
+            
+            // Safety gate: If approving, verify org status first
+            if (newStatus === 'approved') {
+                try {
+                    // Fetch event with organization expanded
+                    const eventRes = await fetch(
+                        `${POCKETBASE_URL}/api/collections/events/records/${eventId}?expand=organization`,
+                        { headers: { 'Authorization': authToken } }
+                    );
+                    const eventData = await eventRes.json();
+                    const orgStatus = eventData.expand?.organization?.status;
+                    const orgName = eventData.expand?.organization?.name || 'Unknown';
+                    
+                    // Only allow approval if org is Permission Granted or Live
+                    const allowedStatuses = ['Permission Granted (Not Live)', 'Live (Scraping Active)'];
+                    
+                    if (!allowedStatuses.includes(orgStatus)) {
+                        alert(
+                            `⛔ Cannot approve this event!\n\n` +
+                            `Organization: ${orgName}\n` +
+                            `Current Org Status: ${orgStatus || 'Unknown'}\n\n` +
+                            `Events can only be approved when the organization status is:\n` +
+                            `• Permission Granted (Not Live)\n` +
+                            `• Live (Scraping Active)\n\n` +
+                            `Please update the organization status first.`
+                        );
+                        return;
+                    }
+                } catch (error) {
+                    alert(`❌ Error checking organization status: ${error.message}`);
+                    return;
+                }
+            }
             
             try {
                 const response = await fetch(
