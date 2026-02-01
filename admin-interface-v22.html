@@ -2018,6 +2018,8 @@
 
         document.getElementById('profileOverviewForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            console.log('💾 Save clicked - currentOrgId:', currentOrgId);
+            
             const data = {
                 name: document.getElementById('profileName').value,
                 org_type: document.getElementById('profileType').value,
@@ -2029,36 +2031,52 @@
                 permission_type: document.getElementById('profilePermissionType').value || null,
                 event_policy: document.getElementById('profileEventPolicy').value || null
             };
+            
+            console.log('💾 Data to save:', data);
 
             try {
                 let response;
                 if (isNewOrg) {
+                    console.log('💾 Creating new org...');
                     response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
                         body: JSON.stringify(data)
                     });
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(JSON.stringify(err));
+                    }
                     const newOrg = await response.json();
                     currentOrgId = newOrg.id;
                     currentOrg = newOrg;
                     isNewOrg = false;
                     document.getElementById('profileOrgId').value = newOrg.id;
+                    console.log('✅ New org created:', newOrg.id);
                 } else {
+                    console.log('💾 Updating org:', currentOrgId);
                     response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${currentOrgId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json', 'Authorization': authToken },
                         body: JSON.stringify(data)
                     });
+                    console.log('💾 Response status:', response.status);
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(JSON.stringify(err));
+                    }
                     currentOrg = { ...currentOrg, ...data };
+                    console.log('✅ Org updated');
                 }
                 
                 document.getElementById('profileOrgName').textContent = data.name;
                 const config = STATUS_CONFIG[data.status] || { icon: '❓' };
                 document.getElementById('profileOrgStatus').innerHTML = `${config.icon} ${data.status}`;
                 
-                showMessage('profileMessage', isNewOrg ? '✅ Organization created!' : '✅ Overview saved!', 'success');
+                showMessage('profileMessage', '✅ Overview saved!', 'success');
             } catch (error) {
-                alert('Error: ' + error.message);
+                console.error('❌ Save error:', error);
+                showMessage('profileMessage', '❌ Error saving: ' + error.message, 'error');
             }
         });
 
