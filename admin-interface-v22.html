@@ -1715,6 +1715,7 @@
         let authToken = null;
         let allOrganizations = [];
         let allContacts = [];
+        let allEventCountByOrg = {};
         let currentOrgId = null;
         let currentOrg = null;
         let previousTab = 'byStatus';
@@ -4554,16 +4555,23 @@ Regards,`;
             const container = document.getElementById('organizationsList');
 
             try {
-                const [orgsRes, contactsRes] = await Promise.all([
+                const [orgsRes, contactsRes, eventsRes] = await Promise.all([
                     fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`, { headers: { 'Authorization': authToken } }),
-                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } })
+                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } }),
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500`, { headers: { 'Authorization': authToken } })
                 ]);
 
                 const orgsData = await orgsRes.json();
                 const contactsData = await contactsRes.json();
+                const eventsData = await eventsRes.json();
 
                 allOrganizations = orgsData.items || [];
                 allContacts = contactsData.items || [];
+                const allEvents = eventsData.items || [];
+
+                // Build event count lookup (store globally)
+                allEventCountByOrg = {};
+                allEvents.forEach(e => { allEventCountByOrg[e.organization] = (allEventCountByOrg[e.organization] || 0) + 1; });
 
                 // Sort orgs alphabetically (ignoring "The")
                 allOrganizations.sort((a, b) => {
@@ -4607,8 +4615,9 @@ Regards,`;
                 const permissionDeniedBadge = org.permission_type === 'Denied' ? '<span class="badge badge-permission-denied">🚫 DECLINED</span>' : '';
                 const duplicateBadge = org.duplicate_flag ? '<span class="badge badge-duplicate">🔁 DUPLICATE</span>' : '';
 
-                // Find phone number
+                // Find phone number and counts
                 const orgContacts = contactsByOrg[org.id] || [];
+                const eventCount = allEventCountByOrg[org.id] || 0;
                 let phoneNumber = 'No phone';
                 const mainContact = orgContacts.find(c => c.contact_type === 'Main Contact' && c.phone);
                 if (mainContact) {
@@ -4665,7 +4674,7 @@ Regards,`;
                         <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'overview')">✏️ Edit Org</button>
                         <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Contacts (${orgContacts.length})</button>
                         <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
-                        <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 See Events</button>
+                        <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>
                         <button class="btn btn-small btn-warning" onclick="openScanModalForOrg('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🔍 Scan</button>
                         <button class="btn btn-small btn-danger" onclick="deleteOrgFromList('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🗑️ Delete</button>
                     </div>
