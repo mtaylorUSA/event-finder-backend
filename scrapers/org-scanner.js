@@ -30,6 +30,11 @@
  *   const result = await scanner.scanOrganization(org);
  * 
  * Last Updated: 2026-02-01
+ * - 🐛 BUGFIX: findAllLegalUrls() now filters out third-party policy pages
+ *   - Was scanning policies.google.com instead of org's own policies (CNAS bug)
+ *   - Added THIRD_PARTY_POLICY_DOMAINS blocklist (Google, Microsoft, Facebook, etc.)
+ *   - Added isOrgDomain() helper to verify URLs belong to the org's domain
+ *   - Prevents false negatives where external policies are scanned instead of org policies
  * - 🔒 SECURITY: gatherPOC() now ALWAYS uses Google Search (never direct fetch)
  * - 🔒 SECURITY: gatherPOCDirectFetch() DEPRECATED - scraping contact pages is unsafe
  * - Contact gathering respects all TOU policies regardless of detected flags
@@ -1293,6 +1298,130 @@ async function findAllLegalUrls(html, baseUrl) {
     const foundUrls = new Set(); // Use Set to avoid duplicates
     const urlDetails = []; // Track details for logging
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NEW 2026-02-01: Extract org domain for same-domain filtering
+    // This prevents scanning third-party policy pages (e.g., policies.google.com)
+    // ═══════════════════════════════════════════════════════════════════════════
+    let orgDomain = '';
+    try {
+        const baseUrlObj = new URL(baseUrl);
+        // Extract core domain (e.g., "cnas.org" from "www.cnas.org" or "conference.cnas.org")
+        const hostParts = baseUrlObj.hostname.split('.');
+        if (hostParts.length >= 2) {
+            orgDomain = hostParts.slice(-2).join('.').toLowerCase();
+        } else {
+            orgDomain = baseUrlObj.hostname.toLowerCase();
+        }
+    } catch (e) {
+        console.log('      ⚠️ Could not parse base URL domain');
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NEW 2026-02-01: Third-party policy domains to ALWAYS exclude
+    // These are commonly linked from websites but are NOT the org's own policies
+    // ═══════════════════════════════════════════════════════════════════════════
+    const THIRD_PARTY_POLICY_DOMAINS = [
+        // Google
+        'policies.google.com',
+        'google.com/policies',
+        'google.com/intl',
+        // Microsoft
+        'privacy.microsoft.com',
+        'microsoft.com/privacy',
+        // Meta / Facebook
+        'facebook.com/policy',
+        'facebook.com/privacy',
+        'facebook.com/legal',
+        'meta.com/privacy',
+        // Twitter / X
+        'twitter.com/privacy',
+        'twitter.com/tos',
+        'x.com/privacy',
+        'x.com/tos',
+        // LinkedIn
+        'linkedin.com/legal',
+        'linkedin.com/privacy',
+        // YouTube
+        'youtube.com/t/terms',
+        'youtube.com/privacy',
+        // Apple
+        'apple.com/legal',
+        'apple.com/privacy',
+        // Amazon / AWS
+        'amazon.com/privacy',
+        'aws.amazon.com/privacy',
+        // Cloud / Infrastructure
+        'cloudflare.com/privacypolicy',
+        'cloudflare.com/privacy',
+        // Payment processors
+        'stripe.com/privacy',
+        'paypal.com/privacy',
+        'square.com/legal',
+        // Marketing / CRM
+        'mailchimp.com/legal',
+        'hubspot.com/legal',
+        'salesforce.com/privacy',
+        'constantcontact.com/legal',
+        // Software / Tools
+        'adobe.com/privacy',
+        'zoom.us/privacy',
+        'slack.com/privacy',
+        'dropbox.com/privacy',
+        // Event platforms
+        'eventbrite.com/privacypolicy',
+        'eventbrite.com/l/privacy',
+        // Media
+        'vimeo.com/privacy',
+        'soundcloud.com/pages/privacy',
+        'spotify.com/legal',
+        // Analytics
+        'hotjar.com/legal',
+        'crazyegg.com/privacy',
+        // Social
+        'instagram.com/legal',
+        'pinterest.com/privacy',
+        'tiktok.com/legal'
+    ];
+    
+    /**
+     * NEW 2026-02-01: Check if URL is from the org's domain
+     * Allows exact match or subdomains (e.g., www.cnas.org, conference.cnas.org)
+     * Returns false for third-party policy pages
+     */
+    function isOrgDomain(url) {
+        if (!orgDomain) return true; // If we couldn't parse, allow all (fail open for path checking)
+        
+        try {
+            const urlObj = new URL(url);
+            const urlHost = urlObj.hostname.toLowerCase();
+            const fullUrl = url.toLowerCase();
+            
+            // Check for third-party policy domains FIRST (highest priority filter)
+            for (const blocked of THIRD_PARTY_POLICY_DOMAINS) {
+                if (urlHost.includes(blocked) || fullUrl.includes(blocked)) {
+                    console.log(`      ⛔ Skipping third-party policy: ${url.substring(0, 70)}...`);
+                    return false;
+                }
+            }
+            
+            // Check if URL domain matches org domain (exact or subdomain)
+            if (urlHost === orgDomain || urlHost.endsWith('.' + orgDomain)) {
+                return true;
+            }
+            
+            // Also check www variant
+            if (urlHost === 'www.' + orgDomain) {
+                return true;
+            }
+            
+            console.log(`      ⛔ Skipping external domain: ${urlHost} (org domain: ${orgDomain})`);
+            return false;
+            
+        } catch (e) {
+            return false; // Can't parse URL, skip it to be safe
+        }
+    }
+    
     // STEP 1: Look for ALL legal links in the homepage HTML
     if (html) {
         // Match href attributes that might contain legal page URLs
@@ -1316,6 +1445,14 @@ async function findAllLegalUrls(html, baseUrl) {
                 }
             }
             
+            // ═══════════════════════════════════════════════════════════════════
+            // NEW 2026-02-01: Check domain BEFORE checking if it's a legal page
+            // This prevents scanning third-party policies like policies.google.com
+            // ═══════════════════════════════════════════════════════════════════
+            if (!isOrgDomain(url)) {
+                continue; // Skip external domains
+            }
+            
             // Check if it's a genuine legal page (not a content page)
             if (isLegalPageUrl(url)) {
                 if (!foundUrls.has(url)) {
@@ -1327,6 +1464,12 @@ async function findAllLegalUrls(html, baseUrl) {
     }
     
     // STEP 2: Try common TOU paths that weren't already found
+    // NEW 2026-02-01: Added logging for visibility
+    let pathsAttempted = 0;
+    let pathsFound = 0;
+    
+    console.log(`      🔍 Checking ${TOU_PATHS.length} standard legal paths...`);
+    
     for (const path of TOU_PATHS) {
         const testUrl = baseUrl.replace(/\/$/, '') + path;
         
@@ -1335,11 +1478,14 @@ async function findAllLegalUrls(html, baseUrl) {
             continue;
         }
         
+        pathsAttempted++;
+        
         // Check if the path exists
         const result = await fetchUrl(testUrl);
         
         if (result.isBlocked) {
             // Return immediately on tech block
+            console.log(`      ⛔ Tech block at: ${path}`);
             return { 
                 urls: [], 
                 urlDetails: [],
@@ -1350,18 +1496,24 @@ async function findAllLegalUrls(html, baseUrl) {
         }
         
         if (result.success) {
+            pathsFound++;
             foundUrls.add(testUrl);
             urlDetails.push({ url: testUrl, method: 'path' });
+            console.log(`      ✅ Found: ${path}`);
         }
         
         await sleep(800); // Respectful delay between path checks
     }
     
+    console.log(`      📊 Path check complete: ${pathsFound} found out of ${pathsAttempted} attempted`);
+    
     return { 
         urls: Array.from(foundUrls), 
         urlDetails,
         isBlocked: false, 
-        error: null 
+        error: null,
+        pathsAttempted,  // NEW: For debugging
+        pathsFound       // NEW: For debugging
     };
 }
 
@@ -1915,6 +2067,7 @@ async function scanTOU(website, html = null) {
         touUrls: [],            // ALL legal URLs scanned
         touFlag: false,
         techBlockFlag: false,
+        noLegalPagesFlag: false, // NEW 2026-02-01: True if no legal pages found (needs manual review)
         touNotes: '',
         foundKeywords: [],
         context: [],
@@ -1939,8 +2092,9 @@ async function scanTOU(website, html = null) {
     }
     
     if (legalSearch.urls.length === 0) {
-        console.log('      ℹ️ No legal pages found (no prohibition assumed)');
-        result.touNotes = 'No legal pages found - no explicit prohibition';
+        console.log('      ⚠️ NO LEGAL PAGES FOUND - flagging for manual review');
+        result.noLegalPagesFlag = true;  // NEW 2026-02-01: Flag for manual review
+        result.touNotes = `⚠️ NO LEGAL PAGES FOUND - Manual review required.\n\nPaths attempted: ${legalSearch.pathsAttempted || 'unknown'}\nNo Terms of Use, Privacy Policy, or other legal pages were found at standard paths.\nThis org needs manual verification before scraping.`;
         return result;
     }
     
@@ -3759,6 +3913,7 @@ async function scanOrganization(org, options = {}) {
         result.touUrl = touResult.touUrl;
         result.touFlag = touResult.touFlag;
         result.techBlockFlag = result.techBlockFlag || touResult.techBlockFlag;
+        result.noLegalPagesFlag = touResult.noLegalPagesFlag || false;  // NEW 2026-02-01
         result.foundKeywords = touResult.foundKeywords;
         result.falsePositivesSkipped = touResult.falsePositivesSkipped || 0;
         
@@ -3988,6 +4143,11 @@ async function scanOrganization(org, options = {}) {
             updates.tech_block_flag = result.techBlockFlag;
             result.fieldsUpdated.push('tech_block_flag');
         }
+        // NEW 2026-02-01: Flag orgs with no legal pages for manual review
+        if (result.noLegalPagesFlag !== org.no_legal_pages_flag) {
+            updates.no_legal_pages_flag = result.noLegalPagesFlag;
+            result.fieldsUpdated.push('no_legal_pages_flag');
+        }
         if (result.touNotes) {
             updates.tou_notes = result.touNotes;
             result.fieldsUpdated.push('tou_notes');
@@ -4074,6 +4234,7 @@ async function scanOrganization(org, options = {}) {
     console.log('════════════════════════════════════════════════════════════════');
     console.log(`   Tech Block: ${result.techBlockFlag ? '⛔ YES' : '✅ No'}`);
     console.log(`   TOU Flag: ${result.touFlag ? '⚠️ YES' : '✅ No'}`);
+    console.log(`   No Legal Pages: ${result.noLegalPagesFlag ? '⚠️ YES (manual review needed)' : '✅ No'}`);  // NEW 2026-02-01
     console.log(`   Tech Rendering Flag: ${result.techRenderingFlag ? `⚙️ YES (${result.jsRenderConfidence} confidence)` : '✅ No'}`);
     console.log(`   TOU URL: ${result.touUrl || 'Not found'}`);
     console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
