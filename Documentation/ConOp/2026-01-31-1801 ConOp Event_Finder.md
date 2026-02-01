@@ -1,6 +1,6 @@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # DOCUMENT NAME:  
-2026-01-31-1500 ConOp Event_Finder.md
+2026-01-31-1900 ConOp Event_Finder.md
 
 
 
@@ -804,10 +804,11 @@ The contents if this chat and everything related to this project is subject to m
 -----
 
      * After Scraping: Image Generation
-          ** Events need topic icons for display on event cards
-          ** If event has new topic/region/country/org combination:
-               *** create-topic-icon-records.js creates topic_icons record
-               *** generate-topic-icons.js generates the actual image
+          ** APPROVED events need topic icons for display on event cards
+          ** If approved event has new topic/region/country/org combination:
+               *** create-topic-icon-records.js creates topic_icons record (only for approved events)
+               *** generate-topic-icons.js generates the actual image via DALL-E 3
+          ** Nominated/rejected events are skipped (saves DALL-E API costs)
           ** See ORGANIZATION WORKFLOW 6: IMAGE GENERATION for details
 
 
@@ -843,6 +844,7 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # ORGANIZATION WORKFLOW 6: IMAGE GENERATION 
+     * VALIDATED 2026-01-31: Updated to reflect approved-events-only filtering
 
      * Purpose: Generate unique topic icons for approved events to display on event cards
 
@@ -852,16 +854,17 @@ The contents if this chat and everything related to this project is subject to m
           ** When an event is approved, it needs a topic icon for display
           ** Icon is based on: Topic + Region + Country + Organization combination
           ** System checks topic_icons collection for existing icon with matching combination
-          ** If no icon exists: generate-topic-icons.js creates one via DALL-E 3 API
+          ** If no icon exists: create-topic-icon-records.js creates the record, then generate-topic-icons.js creates the image via DALL-E 3 API
+          ** IMPORTANT: Only APPROVED events are processed (nominated/rejected events are skipped to save DALL-E costs)
 
 -----
 
      * Current Implementation
-          ** Script: icon-worker/src/generate-topic-icons.js
-          ** Run Command: cd icon-worker && node src/generate-topic-icons.js
-          ** Process:
-               *** Fetches topic_icons records missing icon_file
-               *** Builds prompt using policyEngine.js and rules.js
+          ** Step 1: Run create-topic-icon-records.js to scan approved events for new combinations
+               *** Command: cd icon-worker && node src/create-topic-icon-records.js
+               *** Creates topic_icons records for new combinations (no images yet)
+          ** Step 2: Run generate-topic-icons.js to generate images for records missing icon_file
+               *** Command: cd icon-worker && node src/generate-topic-icons.js
                *** Calls DALL-E 3 API to generate 1024x1024 PNG
                *** Validates image (OCR text check, panel detection, downscale audit)
                *** Uploads valid icon to PocketBase
@@ -919,13 +922,14 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Contact Discovery Methods (as of 2026-01-31):
-          ** Automatic via Scanning: All discovery scripts now auto-save contacts
-               *** org-scanner.js saves POC contacts during any scan
-               *** Uses smart POC gathering (Google Search for flagged orgs, direct for clean)
-          ** Batch Discovery: contact-discovery.js for targeted contact search
-               *** Targets specific org statuses
-               *** Uses Google Search API snippets only
+     * Contact Discovery Methods (UPDATED 2026-01-31):
+          ** ALL contact discovery now via org-scanner.js (contact-discovery.js deprecated)
+               *** gatherPOC() searches 5 contact categories: Legal/Permissions, Events, Media/PR, Leadership, General
+               *** Smart skip: On re-scans, skips if org already has Legal or Events contact
+               *** forceAggressive: Option to search all categories regardless of existing contacts
+               *** Google Search for flagged orgs (TOU/tech block/JS rendering)
+               *** Direct fetch for clean orgs (faster, saves API quota)
+          ** Contacts auto-saved during any scan operation
 
 -----
 
@@ -945,12 +949,21 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Smart POC Gathering (NEW 2026-01-31):
-          ** gatherPOC() in org-scanner.js checks for restrictions first
+     * Smart POC Gathering (UPDATED 2026-01-31):
+          ** gatherPOC() in org-scanner.js with smart skip logic
+          ** First scan (org has 0 contacts):
+               *** Searches all 5 categories: Legal/Permissions, Events, Media/PR, Leadership, General
+               *** Uses up to 5 Google queries (one per category)
+          ** Re-scan (org has Legal or Events contact):
+               *** Skips contact gathering entirely (saves quota)
+               *** Logs: "Skipping contact gathering - already have Legal/Events contact"
+          ** forceAggressive mode:
+               *** Bypasses skip logic
+               *** Searches all 5 categories regardless of existing contacts
+               *** Usage: For ad-hoc deep contact gathering
           ** If org has TOU/tech block/JS rendering flags:
                *** Uses gatherPOCViaGoogleSearch() - Google snippets only
                *** Respects site restrictions - does NOT scrape
-               *** Searches: "[Org Name] contact email", "[domain] legal email", etc.
           ** If org has NO flags:
                *** Uses gatherPOCDirectFetch() - fetches contact pages
                *** Tries 15 common paths: /contact, /about/contact, /staff, /team, etc.
@@ -976,41 +989,38 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Batch Contact Discovery (contact-discovery.js):
-          ** Script: scrapers/contact-discovery.js
-          ** Run Command: node scrapers/contact-discovery.js --batch <1-4>
-          ** Target: Organizations with status "Mission Approved (Request Not Sent)"
-          ** Method: Google Search API snippets only (no direct site scraping)
-          ** Searches for 3 contact types per org:
-               *** Legal/Permissions (legal department, permissions, licensing)
-               *** Events (events coordinator, events team, programs)
-               *** Media/PR (media contact, press contact, communications)
-          ** Recursive search: If name found but no email, searches for "Name domain email"
+     * Batch Contact Discovery (DEPRECATED 2026-01-31):
+          ** Script: scrapers/contact-discovery.js - DEPRECATED
+          ** Functionality merged into org-scanner.js
+          ** Use org-scanner.js gatherPOC() with forceAggressive option instead
+          ** Original features now in org-scanner.js:
+               *** Searches for 5 contact types per org (was 3)
+               *** Smart skip logic for re-scans
+               *** Google query tracking
 
 -----
 
-     * Priority Batching (contact-discovery.js):
-          ** Batch 1: Clean orgs (no flags) - Processed first
-          ** Batch 2: TOU flag only
-          ** Batch 3: Tech block flag
-          ** Batch 4: Tech rendering flag
-          ** Orgs sorted alphabetically within each batch
+     * Priority Batching (DEPRECATED - was in contact-discovery.js):
+          ** No longer applicable - contact gathering happens during regular scans
+          ** Smart skip logic replaces batching: 
+               *** First scan: searches all 5 categories
+               *** Re-scan: skips if has Legal or Events contact
 
 -----
 
-     * API Quota Management:
+     * API Quota Management (UPDATED 2026-01-31):
           ** Free tier: 100 queries/day
-          ** Worst case: 6 searches per org (3 initial + 3 recursive)
-          ** Safe batch: ~15 orgs/day
-          ** Auto-throttle: Stops at 95 queries, saves progress via scan_logs
+          ** First scan: Up to 5 queries (one per contact category)
+          ** Re-scan: 0 queries (skips if has Legal or Events contact)
+          ** Tracking: googleQueryCount variable, resetGoogleQueryCount(), getGoogleQueryCount()
+          ** Quota-efficient: Smart skip logic conserves queries for new orgs
 
 -----
 
-     * Run Commands:
-          ** Check batch status: node scrapers/contact-discovery.js --status
-          ** Run batch: node scrapers/contact-discovery.js --batch 1
+     * Run Commands (UPDATED 2026-01-31):
+          ** Single org scan (includes 5-category POC search): node scrapers/scan-and-scrape-all-live-orgs.js --org "Org Name" --scan-only
           ** Fix orphan contacts: node scrapers/fix-orphan-contacts.js
-          ** Single org scan (includes POC): node scrapers/scan-and-scrape-all-live-orgs.js --org "Org Name" --scan-only
+          ** Batch discovery: DEPRECATED - use regular scanning instead
 
 
 
@@ -1597,8 +1607,8 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # IMAGE GENERATION PROGRAM ARCHITECTURE
-     * VALIDATED 2026-01-28: Section accurately describes image generation system
-When an event has been approved, we generate an image to accompany it on the website.
+     * VALIDATED 2026-01-31: Updated to reflect approved-events-only filtering
+When an event has been approved, we generate an image to accompany it on the website. Only APPROVED events trigger icon generation (saves DALL-E API costs).
 
      * Purpose
           ** Generate safe, professional topic icons for event cards automatically
@@ -1672,8 +1682,10 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Uploads valid icons to PocketBase
 
           ** create-topic-icon-records.js
-               *** Scans events collection for unique topic/region/country/org combinations
+               *** Scans APPROVED events only for unique topic/region/country/org combinations
+               *** Skips nominated/rejected events (saves DALL-E costs)
                *** Creates topic_icons records for each unique combination
+               *** Uses config.js to load .env from project root (consistent with other scripts)
                *** Does not generate images (that's done by generate-topic-icons.js)
 
           ** clear-icons.js
@@ -1733,6 +1745,8 @@ When an event has been approved, we generate an image to accompany it on the web
      * Workflow
           ** Step 1: cd to icon-worker folder
           ** Step 2: Run npm run create-records to create topic_icons records for new combinations
+               *** Only scans APPROVED events (nominated/rejected are skipped)
+               *** Saves DALL-E API costs by not generating icons for unapproved events
           ** Step 3: Run npm run generate to generate icons for records missing icon_file
           ** Step 4: Icons are automatically uploaded to PocketBase and linked to events via topic_combination key
 
@@ -2005,16 +2019,12 @@ When an event has been approved, we generate an image to accompany it on the web
 
      * Permission & Organization Management (in scrapers/ folder)
 
-          ** contact-discovery.js (NEW 2026-01-27)
-               *** Google Search API contact discovery for permission outreach
-               *** Targets orgs with status "Mission Approved (Request Not Sent)"
-               *** Searches for: Legal/Permissions, Events, Media/PR contacts
-               *** Uses Google Search snippets only (no site scraping)
-               *** Priority batching: Clean → TOU → Tech Block → Tech Rendering
-               *** Auto-throttles at 95 queries to stay under 100 free/day
-               *** Tracks progress via scan_logs with scan_type = "contact-discovery"
-               *** Run: node scrapers/contact-discovery.js --batch <1-4>
-               *** Run status: node scrapers/contact-discovery.js --status
+          ** contact-discovery.js (DEPRECATED 2026-01-31)
+               *** Status: ❌ DEPRECATED - Functionality merged into org-scanner.js
+               *** Was: Google Search API contact discovery for permission outreach
+               *** Now: Use org-scanner.js instead, which searches all 5 contact categories
+               *** File: Deleted from repo (backup available if needed)
+               *** Replacement: org-scanner.js gatherPOC() with forceAggressive option
 
           ** suggest-organizations.js
                *** VALIDATED 2026-01-27: Currently does NOT call org-scanner.js
@@ -2040,17 +2050,19 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Run: node scrapers/discover-orgs-by-events.js
 
           ** org-scanner.js 
-               *** VALIDATED 2026-01-27: Core scanning module, should be used by all discovery scripts
-               *** Unified scanning module consolidating policy doc, tech block, events URL, POC, and AI analysis
+               *** UPDATED 2026-01-31: Now handles ALL contact discovery (deprecates contact-discovery.js)
+               *** Unified scanning module: policy docs, tech blocks, JS rendering, events URL, POC, AI analysis
                *** Context-aware restriction detection to avoid false positives
                *** Auto-status update: sets "Rejected by Org" when restrictions found on Live orgs
                *** JavaScript/tech rendering detection 
-               *** POC gathering: gatherPOC() fetches 4 hardcoded paths (/contact, /about/contact, /contact-us, /about)
-               *** Used by scan-and-scrape-all-live-orgs.js
-               *** NOT USED BY: discover-orgs-by-events.js, suggest-organizations.js (should be fixed)
-               *** Functions: scanOrganization(), scanTOU(), findAllLegalUrls(), findRestrictions(), gatherPOC(), analyzeWithAI()
-               *** Key Constants: HIGH_CONFIDENCE_RESTRICTION_TERMS, CONTEXT_REQUIRED_TERMS, PROHIBITION_PHRASES, EXCLUDED_CONTEXTS
-               *** Run: node scrapers/org-scanner.js (CLI wrapper coming soon)
+               *** NEW: Searches 5 contact categories: Legal/Permissions, Events, Media/PR, Leadership, General
+               *** NEW: Smart skip logic - skips re-scans if org already has Legal or Events contact
+               *** NEW: forceAggressive option for ad-hoc deep contact gathering
+               *** NEW: Google query tracking (resetGoogleQueryCount, getGoogleQueryCount)
+               *** Used by scan-and-scrape-all-live-orgs.js, discover-orgs-by-events.js, suggest-organizations.js
+               *** Functions: scanOrganization(), gatherPOC(), gatherPOCViaGoogleSearch(), savePocContact(), analyzeWithAI()
+               *** Key Constants: HIGH_CONFIDENCE_RESTRICTION_TERMS, CONTACT_CATEGORIES, EXCLUDED_CONTEXTS
+               *** Run: node scrapers/org-scanner.js (via scan-and-scrape-all-live-orgs.js)
 
 -----
 
@@ -2209,17 +2221,12 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Workflow: Contact Discovery (Daily) - NEW 2026-01-27
-          ** File: .github/workflows/contact-discovery.yml
-          ** Status: ✅ Active
-          ** Schedule: Runs daily at 3:00 AM EST (08:00 UTC) - after Google quota resets at midnight Pacific
-          ** What it does:
-               *** Sets up Node.js environment
-               *** Installs dependencies
-               *** Creates .env from GitHub Secrets
-               *** Runs contact-discovery.js with auto-batching (tries batch 1, then 2, etc.)
-               *** Stays within 100 free queries/day limit
-          ** Manual trigger: Supports --batch and --limit inputs
+     * Workflow: Contact Discovery (Daily) - DISABLED 2026-01-31
+          ** File: .github/workflows/contact-discovery.yml.disabled
+          ** Status: ❌ DISABLED - Functionality merged into org-scanner.js
+          ** Reason: Contact gathering now happens during regular org scans
+          ** org-scanner.js searches all 5 contact categories automatically
+          ** To re-enable: Rename file back to contact-discovery.yml
 
 -----
 
@@ -3899,50 +3906,55 @@ When an event has been approved, we generate an image to accompany it on the web
 # SESSION HANDOFFS - CONTACT DISCOVERY AND ENHANCEMENT
 
      * QUICK START PROMPT:
-          ** "I'm working on Event Finder contact discovery. Please read ConOp sections: ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT and SCANNING - UNIFIED APPROACH PHILOSOPHY. Contact saving is now integrated into org-scanner.js. [Describe your specific task]"
+          ** "I'm working on Event Finder contact discovery. Please read ConOp sections: ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT and SCANNING - ORG-SCANNER DETAILS. Contact gathering is now unified in org-scanner.js (contact-discovery.js deprecated). [Describe your specific task]"
 
 -----
 
      * FILES TO UPLOAD:
           ** ✅ ConOp (this document)
-          ** ✅ scrapers/org-scanner.js (has gatherPOC(), savePocContact())
-          ** ✅ scrapers/contact-discovery.js (batch discovery)
+          ** ✅ scrapers/org-scanner.js (has ALL contact gathering logic)
           ** ✅ scrapers/fix-orphan-contacts.js (domain matching)
           ** ⚪ admin-interface-v22.html (for Contacts tab reference)
+          ** ❌ scrapers/contact-discovery.js (DEPRECATED - do not upload)
 
 -----
 
      * ConOp Sections to Emphasize:
           ** ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT
-          ** SCANNING - UNIFIED APPROACH PHILOSOPHY - DECISION LOGIC
           ** SCANNING - ORG-SCANNER DETAILS
           ** POCKETBASE COLLECTIONS - contacts Collection
 
 -----
 
-     * MAJOR UPDATE (2026-01-31): Unified Contact Saving
-          ** All discovery scripts now auto-save contacts via org-scanner.js
-          ** Smart POC gathering: Google Search for flagged orgs, direct fetch for clean
-          ** New contacts schema with emails array, data_completeness, email_normalized
-          ** Domain-to-org matching for orphan contacts
+     * MAJOR UPDATE (2026-01-31): Consolidated Contact Gathering
+          ** contact-discovery.js DEPRECATED - all functionality in org-scanner.js
+          ** org-scanner.js now searches 5 contact categories: Legal/Permissions, Events, Media/PR, Leadership, General
+          ** Smart skip logic: Skips re-scans if org already has Legal or Events contact
+          ** forceAggressive option: For ad-hoc deep contact gathering
+          ** Google query tracking for quota awareness
+          ** Tested: CNAS found 2 contacts (Personal, Leadership) in 4 queries
 
 -----
 
      * Contact Gathering Architecture (UPDATED 2026-01-31):
 
-          ** UNIFIED via org-scanner.js - Used by ALL discovery scripts:
-               *** gatherPOC(html, baseUrl, options) - Main function, checks flags first
-               *** gatherPOCViaGoogleSearch(orgName, domain) - For flagged orgs
-               *** gatherPOCDirectFetch(html, baseUrl) - For clean orgs (15 paths)
+          ** ALL via org-scanner.js:
+               *** gatherPOC(html, baseUrl, options) - Main function with skip logic
+               *** gatherPOCViaGoogleSearch(orgName, domain, options) - Searches all 5 categories
+               *** gatherPOCDirectFetch(html, baseUrl) - Direct fetch for clean orgs
                *** savePocContact(orgId, pocInfo, scanSource) - Saves to contacts collection
-               *** Email type detection: Legal, Events, Media/PR, General, Personal
-               *** Duplicate checking by email_normalized
+               *** getExistingContactTypes(orgId) - Check what contacts org already has
+               *** CONTACT_CATEGORIES constant - 5 category definitions
 
-          ** Batch Discovery via contact-discovery.js:
-               *** Targets orgs with status "Mission Approved (Request Not Sent)"
-               *** Uses Google Search API with "site:domain" operator
-               *** Searches for 3 contact types (Legal, Events, Media/PR)
-               *** Runs independently of scanning workflow
+          ** Skip Logic (for re-scans):
+               *** If org has Legal/Permissions contact → Skip gathering
+               *** If org has Events contact → Skip gathering
+               *** Use forceAggressive: true to override skip
+
+          ** forceAggressive Mode (for ad-hoc scans):
+               *** Bypasses skip logic
+               *** Searches all 5 categories regardless of existing contacts
+               *** Usage: await scanner.scanOrganization(org, { forceAggressive: true })
 
           ** Orphan Contact Linking via fix-orphan-contacts.js:
                *** Links contacts without org to matching org by email domain
@@ -3961,10 +3973,18 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
+     * Google Search Quota Management:
+          ** 100 free queries/day limit
+          ** First scan: Up to 5 queries (one per category)
+          ** Re-scan: 0 queries (skips if has Legal or Events contact)
+          ** Tracking: googleQueryCount, resetGoogleQueryCount(), getGoogleQueryCount()
+
+-----
+
      * Run Commands:
-          ** Batch discovery: node scrapers/contact-discovery.js --batch 1
+          ** Org scan (includes contacts): node scrapers/scan-and-scrape-all-live-orgs.js --org "Name" --scan-only
+          ** Org scan with aggressive contacts: (requires code to pass forceAggressive: true - future ad-hoc scanner)
           ** Fix orphan contacts: node scrapers/fix-orphan-contacts.js
-          ** Single org scan (includes POC): node scrapers/scan-and-scrape-all-live-orgs.js --org "Name" --scan-only
 
 -----
 
@@ -3972,17 +3992,17 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Current Status: ✅ UNIFIED AND WORKING
-          ** Smart POC gathering integrated into all scanners
-          ** Tested: AFCEA (TOU flag → used Google Search → saved events@afcea.org)
-          ** Admin Interface has contact count badges, filters, auto-suggest
+     * Current Status: ✅ CONSOLIDATED AND WORKING
+          ** contact-discovery.js DEPRECATED - deleted from repo
+          ** 5 contact categories searched on first scan
+          ** Smart skip on re-scans to conserve quota
+          ** Tested: CNAS scan found 2 contacts, used 4 Google queries
 
 -----
 
      * Remaining Work:
-          ** 1. 🧹 Run fix-orphan-contacts.js to link existing orphan contacts
-          ** 2. 🔧 Test contact-discovery.js with new schema
-          ** 3. 📊 Add contact deduplication workflow in Admin Interface
+          ** 1. 🔧 Build ad-hoc scanner CLI with forceAggressive option
+          ** 2. 📊 Add contact deduplication workflow in Admin Interface
 
 
 
@@ -3996,6 +4016,7 @@ When an event has been approved, we generate an image to accompany it on the web
 
      * FILES TO UPLOAD:
           ** ✅ ConOp (this document)
+          ** ✅ icon-worker/src/create-topic-icon-records.js
           ** ✅ icon-worker/src/generate-topic-icons.js
           ** ✅ icon-worker/src/rules.js
           ** ✅ icon-worker/src/policyEngine.js
@@ -4019,14 +4040,18 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Last Session: Not recently worked on
+     * Last Session: 2026-01-31
+          ** Fixed create-topic-icon-records.js to only process APPROVED events
+          ** Updated script to use config.js (consistent with generate-topic-icons.js)
+          ** Saves DALL-E API costs by skipping nominated/rejected events
 
 -----
 
      * Current Status: ✅ FUNCTIONAL
-          ** Icons generate automatically for new topic/region/country/org combinations
-          ** Validation includes OCR text check, panel detection, downscale audit
-          ** Max 6 attempts per icon before flagging for manual review
+          ** ✅ Icons only generated for APPROVED events (saves DALL-E costs)
+          ** ✅ create-topic-icon-records.js uses config.js for .env loading
+          ** ✅ Validation includes OCR text check, panel detection, downscale audit
+          ** ✅ Max 6 attempts per icon before flagging for manual review
 
 -----
 
@@ -4035,7 +4060,7 @@ When an event has been approved, we generate an image to accompany it on the web
 -----
 
      * Next Steps:
-          ** Run icon generation after scraping new events
+          ** Run icon generation after scraping and approving new events
           ** Monitor for failed validations
 
 
@@ -4044,7 +4069,7 @@ When an event has been approved, we generate an image to accompany it on the web
 # SESSION HANDOFFS - ORG DISCOVERY
 
      * QUICK START PROMPT:
-          ** "I'm working on Event Finder organization discovery. Please read ConOp sections: ORGANIZATION WORKFLOW STEP 1B/1C and SCANNING - UNIFIED APPROACH PHILOSOPHY. All discovery scripts now use org-scanner.js. [Describe your specific task]"
+          ** "I'm working on Event Finder organization discovery. Please read ConOp sections: ORGANIZATION WORKFLOW STEP 1B/1C and SCANNING - UNIFIED APPROACH PHILOSOPHY. All discovery scripts use org-scanner.js which now handles all contact gathering. [Describe your specific task]"
 
 -----
 
@@ -4052,7 +4077,7 @@ When an event has been approved, we generate an image to accompany it on the web
           ** ✅ ConOp (this document)
           ** ✅ scrapers/discover-orgs-by-events.js (imports org-scanner.js)
           ** ✅ scrapers/suggest-organizations.js (calls org-scanner.js after AI)
-          ** ✅ scrapers/org-scanner.js (core scanning module)
+          ** ✅ scrapers/org-scanner.js (core scanning module - now handles ALL contact gathering)
           ** ⚪ scrapers/generate-embeddings.js (for embedding questions)
 
 -----
@@ -4065,11 +4090,12 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * MAJOR UPDATE (2026-01-31): Unified Scanning Complete
-          ** discover-orgs-by-events.js now imports from org-scanner.js
-          ** suggest-organizations.js now calls org-scanner.js after AI suggests
-          ** All duplicate POC code removed from discovery scripts
-          ** Smart POC gathering: Google Search for flagged orgs, direct for clean
+     * MAJOR UPDATE (2026-01-31): Consolidated Contact Gathering
+          ** contact-discovery.js DEPRECATED - functionality merged into org-scanner.js
+          ** org-scanner.js now searches 5 contact categories on first scan
+          ** Smart skip logic: Skips re-scans if org already has Legal or Events contact
+          ** forceAggressive option: For ad-hoc deep contact gathering (future)
+          ** discover-orgs-by-events.js and suggest-organizations.js use unified contact gathering
 
 -----
 
@@ -4082,6 +4108,7 @@ When an event has been approved, we generate an image to accompany it on the web
           ** ✅ suggest-organizations.js - scans after AI suggests (real flags, not guessed)
           ** ✅ All contact saving uses unified savePocContact()
           ** ✅ Smart POC respects TOU/tech flags
+          ** ✅ contact-discovery.js deprecated - functionality in org-scanner.js
 
 -----
 
@@ -4089,10 +4116,17 @@ When an event has been approved, we generate an image to accompany it on the web
           ** ✅ FIXED: discover-orgs-by-events.js duplicate code removed
           ** ✅ FIXED: suggest-organizations.js now does real scans
           ** ✅ FIXED: All scripts use consistent POC gathering logic
+          ** ✅ FIXED: contact-discovery.js consolidated into org-scanner.js
 
 -----
 
      * Key Code Changes Made (2026-01-31):
+          ** org-scanner.js:
+               *** NEW: CONTACT_CATEGORIES constant with 5 categories
+               *** NEW: gatherPOCViaGoogleSearch() searches all 5 categories
+               *** NEW: getExistingContactTypes() for skip logic
+               *** NEW: googleQueryCount tracking
+               *** UPDATED: gatherPOC() with skip logic and forceAggressive option
           ** discover-orgs-by-events.js:
                *** Added: const scanner = require('./org-scanner')
                *** Added: await scanner.init() after authentication
@@ -4108,8 +4142,9 @@ When an event has been approved, we generate an image to accompany it on the web
 -----
 
      * Next Steps:
-          ** 1. 🧪 Test full discovery workflow end-to-end
-          ** 2. 📸 Fix image generation (only approved events) - Phase 2
+          ** 1. 🔧 Build ad-hoc scanner CLI with forceAggressive option
+          ** 2. 🧪 Test full discovery workflow end-to-end
+          ** 3. ✅ DONE 2026-01-31: Fixed image generation (only approved events)
 
 
 
@@ -4341,69 +4376,61 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Contact Discovery BATCH STATUS (as of 2026-01-27):
-          ** ✅ Batch 1 (Clean): 26/26 complete
-          ** ⏳ Batch 2 (TOU Flag): 0/8 remaining
-          ** ⏳ Batch 3 (Tech Block): 0/6 remaining
-          ** ⏳ Batch 4 (Tech Rendering): 0/10 remaining
-          ** Total: 50 orgs, 26 done, 24 remaining
+
 
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # SESSION HANDOFFS - FUTURE REQUIREMENTS TRACKER
 
+     * This section tracks all ">>>>>>" FUTURE REQUIREMENT markers in the ConOp
 
-     * EVENT APPROVAL (Workflow 5):
+-----
 
-
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-ESSENTIAL FEATURES TO FINISH
-
-🔴 HIGH PRIORITY
->>>>> Run fix-orphan-contacts.js
-     * We built it but never ran it
-     * Links existing orphan contacts to orgs by email domain
-     * Quick win: node scrapers/fix-orphan-contacts.js --dry-run then run for real
-
-🟡 MEDIUM PRIORITY
->>>>> Test Full Discovery Workflow End-to-End
-     * Run discover-orgs-by-events.js to verify it works with org-scanner import
-     * Run suggest-organizations.js to verify scanning after AI suggests
-     * ENsure we do not exceed Google search limits, since we are using it for periodica scans already every day
-     * Ensure we are not scanning multiple times using different scanners
-
-
-
-🟢 LOWER PRIORITY
->>>>> Contact Deduplication Workflow
-     * Admin Interface tool to merge duplicate contacts
-     * Uses possible_duplicate_of and merged_into fields
-
->>>>> Ad-hoc Scanning from Admin Interface
-     * [Quick Scan] button on org profile page
-
->>>>> MANUAL DISCOVERY (Workflow 1A):
+     * MANUAL DISCOVERY (Workflow 1A):
           ** >>>>> IMPLEMENT ORG-SCANNER to perform scanning when there is a Manual Discovery
           ** >>>>> ADD [Scan and Nominate] button in Admin Interface
           ** >>>>> USE ORG-SCANNER AND RECURSIVE SEARCHING at this stage
-          ** New Orgs, once scanned go into Status Nominated (Pending Mission Review)
 
->>>>> Make sure we get complete name of Org, followed by acronym, and we do not record the acronym as the org when the Org has a full name.
+-----
 
->>>>> Standardize Org names
+     * PROFILE-BASED DISCOVERY (Workflow 1B):
+          ** >>>>> Integrate org-scanner.js to verify AI suggestions
+          ** >>>>> Consider deprecating in favor of EVENT-BASED DISCOVERY
 
->>>>> Standardize contact info.  
+-----
 
->>>>> Build Event approval function.  
+     * EVENT APPROVAL (Workflow 5):
+          ** >>>>> NEED BULK EVENT APPROVAL WORKFLOW
+          ** >>>>> NEED EVENT DELETION CAPABILITY (currently events persist)
 
->>>>> EVENT DELETION CAPABILITY (currently events persist)
+-----
 
->>>>> EVENT PUBLISHING (Workflow 7):
+     * EVENT PUBLISHING (Workflow 7):
           ** >>>>> NEED BULK CURATION TOOLS (hide multiple events)
           ** >>>>> NEED EVENT EXPIRATION HANDLING (auto-hide past events?)
           ** >>>>> NEED EVENT DELETION WORKFLOW
 
->>>>> VERCEL DEPLOYMENT:
+-----
+
+     * ORG INFORMATION VALIDATION (Workflow 9):
+          ** >>>>> Add [Run Scan] button on Admin Interface for each Org
+
+-----
+
+     * VERCEL DEPLOYMENT:
           ** >>>>> Migrate website to new URL: https://BalanceFWD.com
 
+
+ESSENTIAL FEATURES TO FINISH
+     * Get all scanners and scraper to use Org-Scanner to discover, nominate gather Orgs, events, pre-scrape check.  Identify flags.    
+     * Use GOOGLE recursive search to gather contacts when there are flags.
+          * Ensure we do not gather information from ORg if they have scraping resitcions.
+          * ENsure we do not exceed Google search limits, since we are using it for periodica scans already every day
+          * Ensure we are not scanning multiple times using different scanners
+     * De-dupe Orgs
+          * Make sure we get complete name of Org, followed by acronym, and we do not record the acronym as the org when the Org has a full name.
+     * Standardize Org names
+     * STandardize contact info.  
+     * Build Event approval function.  
+     * ✅ DONE 2026-01-31: Only generating images from DALL-E when an event has been approved.

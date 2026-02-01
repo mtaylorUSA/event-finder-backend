@@ -1,6 +1,6 @@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # DOCUMENT NAME:  
-2026-01-31-1500 ConOp Event_Finder.md
+2026-02-01-1200 ConOp Event_Finder.md
 
 
 
@@ -276,12 +276,12 @@ The contents if this chat and everything related to this project is subject to m
   
 -----
 
-     * Scanning NOW INTEGRATED (2026-01-31):
+     * Scanning NOW INTEGRATED (SECURITY UPDATE 2026-02-01):
           ** ✅ Uses org-scanner.js to verify AI suggestions
           ** ✅ Actually scans websites for TOU restrictions
           ** ✅ Detects tech blocks (403/401)
           ** ✅ Detects JS rendering requirements
-          ** ✅ Smart POC gathering with ethical compliance
+          ** 🔒 Smart POC gathering via Google Search ONLY (never scrapes org sites)
           ** ✅ Saves contacts to contacts collection
 
 -----
@@ -326,13 +326,14 @@ The contents if this chat and everything related to this project is subject to m
                     **** If score > 0.40, proceed to Phase B
                *** Step 5: Extract domain from high-scoring result URLs
 
-          ** Phase B: Scanning (UPDATED 2026-01-31 - Now uses org-scanner.js):  
+          ** Phase B: Scanning (SECURITY UPDATE 2026-02-01 - Now uses org-scanner.js):  
                *** NOW IMPORTS from org-scanner.js (removed duplicate code)
-               *** Uses scanner.gatherPOC() for smart POC gathering
+               *** Uses scanner.gatherPOC() for smart POC gathering (Google Search only)
                *** Uses scanner.savePocContact() for contact saving
-               *** What Info It Scans: Homepage, 15 contact page paths, all legal pages
+               *** What Info It Scans: Homepage, all legal pages (TOU, Privacy, etc.)
                *** Does It Flag?: YES - real TOU/tech block/JS rendering detection
-               *** What Info Does It Bring Back: org name, description, POC info, triggering event
+               *** What Info Does It Bring Back: org name, description, POC info (via Google Search), triggering event
+               *** 🔒 SECURITY: Contact info gathered via Google Search only (never fetches /contact, /about, /team pages)
 
                *** Step 6: Fetch homepage from extracted domain
                     **** On 403/401 error: Set tech_block_flag = TRUE, use Google Search for info
@@ -343,9 +344,9 @@ The contents if this chat and everything related to this project is subject to m
                     **** If restrictions found in ANY page: Set tou_flag = TRUE
                     **** Record specific phrases and which page they came from in tou_notes
 
-               *** Step 8: Smart POC Gathering (NEW 2026-01-31)
-                    **** If org has restrictions: Uses Google Search snippets ONLY (ethical)
-                    **** If NO restrictions: Direct fetch of contact pages
+               *** Step 8: Smart POC Gathering (SECURITY UPDATE 2026-02-01)
+                    **** 🔒 ALWAYS uses Google Search snippets ONLY (never scrapes org websites)
+                    **** Respects ALL Terms of Use regardless of detected flags
                     **** Automatically saves contacts to contacts collection
 
                *** Step 9: AI Analysis
@@ -378,7 +379,7 @@ The contents if this chat and everything related to this project is subject to m
           ** Page fetching only occurs AFTER the discovery process identifies candidates:
                *** Homepage fetch: To find TOU page URL and gather basic org info
                *** TOU page fetch: To scan for scraping restrictions (ethical - reading rules to comply)
-               *** Contact page fetch: ONLY if no TOU restrictions found
+               *** 🔒 Contact page fetch: NEVER - all contacts gathered via Google Search only (security policy 2026-02-01)
 
 -----
 
@@ -420,9 +421,10 @@ The contents if this chat and everything related to this project is subject to m
                     **** Find ALL policy-relevant page URLs from homepage (terms, privacy, legal, etc.)
                     **** Fetch and scan EACH page for restriction keywords using context-aware detection
                     **** Output: tou_flag (TRUE if ANY page contains restrictions), tou_notes (specific phrases found)
-               *** Step B3: POC Gathering
-                    **** If NO restrictions: Fetch About/Contact pages, gather POC info
-                    **** If restrictions found: Use web search for POC (LinkedIn, Wikipedia, etc.)
+               *** Step B3: POC Gathering (SECURITY UPDATE 2026-02-01)
+                    **** 🔒 ALWAYS uses Google Search only (never fetches About/Contact pages)
+                    **** Searches all 5 contact categories: Legal/Permissions, Events, Media/PR, Leadership, General
+                    **** Respects ALL org Terms of Use regardless of detected flags
                *** Step B4: Create Nomination Record
                     **** Status: Nominated (Pending Mission Review) - ALWAYS
                     **** Populate fields: name, website, source_id, ai_reasoning, discovery_method
@@ -804,10 +806,11 @@ The contents if this chat and everything related to this project is subject to m
 -----
 
      * After Scraping: Image Generation
-          ** Events need topic icons for display on event cards
-          ** If event has new topic/region/country/org combination:
-               *** create-topic-icon-records.js creates topic_icons record
-               *** generate-topic-icons.js generates the actual image
+          ** APPROVED events need topic icons for display on event cards
+          ** If approved event has new topic/region/country/org combination:
+               *** create-topic-icon-records.js creates topic_icons record (only for approved events)
+               *** generate-topic-icons.js generates the actual image via DALL-E 3
+          ** Nominated/rejected events are skipped (saves DALL-E API costs)
           ** See ORGANIZATION WORKFLOW 6: IMAGE GENERATION for details
 
 
@@ -843,6 +846,7 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # ORGANIZATION WORKFLOW 6: IMAGE GENERATION 
+     * VALIDATED 2026-01-31: Updated to reflect approved-events-only filtering
 
      * Purpose: Generate unique topic icons for approved events to display on event cards
 
@@ -852,16 +856,17 @@ The contents if this chat and everything related to this project is subject to m
           ** When an event is approved, it needs a topic icon for display
           ** Icon is based on: Topic + Region + Country + Organization combination
           ** System checks topic_icons collection for existing icon with matching combination
-          ** If no icon exists: generate-topic-icons.js creates one via DALL-E 3 API
+          ** If no icon exists: create-topic-icon-records.js creates the record, then generate-topic-icons.js creates the image via DALL-E 3 API
+          ** IMPORTANT: Only APPROVED events are processed (nominated/rejected events are skipped to save DALL-E costs)
 
 -----
 
      * Current Implementation
-          ** Script: icon-worker/src/generate-topic-icons.js
-          ** Run Command: cd icon-worker && node src/generate-topic-icons.js
-          ** Process:
-               *** Fetches topic_icons records missing icon_file
-               *** Builds prompt using policyEngine.js and rules.js
+          ** Step 1: Run create-topic-icon-records.js to scan approved events for new combinations
+               *** Command: cd icon-worker && node src/create-topic-icon-records.js
+               *** Creates topic_icons records for new combinations (no images yet)
+          ** Step 2: Run generate-topic-icons.js to generate images for records missing icon_file
+               *** Command: cd icon-worker && node src/generate-topic-icons.js
                *** Calls DALL-E 3 API to generate 1024x1024 PNG
                *** Validates image (OCR text check, panel detection, downscale audit)
                *** Uploads valid icon to PocketBase
@@ -919,13 +924,14 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Contact Discovery Methods (as of 2026-01-31):
-          ** Automatic via Scanning: All discovery scripts now auto-save contacts
-               *** org-scanner.js saves POC contacts during any scan
-               *** Uses smart POC gathering (Google Search for flagged orgs, direct for clean)
-          ** Batch Discovery: contact-discovery.js for targeted contact search
-               *** Targets specific org statuses
-               *** Uses Google Search API snippets only
+     * Contact Discovery Methods (SECURITY UPDATE 2026-02-01):
+          ** ALL contact discovery now via org-scanner.js using GOOGLE SEARCH ONLY
+               *** 🔒 SECURITY POLICY: We NEVER scrape org websites for contact info
+               *** This respects ALL Terms of Use regardless of detected flags
+               *** gatherPOC() searches 5 contact categories: Legal/Permissions, Events, Media/PR, Leadership, General
+               *** Smart skip: On re-scans, skips if org already has Legal or Events contact
+               *** forceAggressive: Option to search all categories regardless of existing contacts
+          ** Contacts auto-saved during any scan operation
 
 -----
 
@@ -945,16 +951,20 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Smart POC Gathering (NEW 2026-01-31):
-          ** gatherPOC() in org-scanner.js checks for restrictions first
-          ** If org has TOU/tech block/JS rendering flags:
-               *** Uses gatherPOCViaGoogleSearch() - Google snippets only
-               *** Respects site restrictions - does NOT scrape
-               *** Searches: "[Org Name] contact email", "[domain] legal email", etc.
-          ** If org has NO flags:
-               *** Uses gatherPOCDirectFetch() - fetches contact pages
-               *** Tries 15 common paths: /contact, /about/contact, /staff, /team, etc.
-          ** Fallback: If direct fetch fails, tries Google Search
+     * Smart POC Gathering (SECURITY UPDATE 2026-02-01):
+          ** 🔒 gatherPOC() in org-scanner.js ALWAYS uses Google Search
+          ** SECURITY: We NEVER scrape org websites for contacts (/contact, /about, /team, etc.)
+          ** First scan (org has 0 contacts):
+               *** Searches all 5 categories: Legal/Permissions, Events, Media/PR, Leadership, General
+               *** Uses up to 5 Google queries (one per category)
+          ** Re-scan (org has Legal or Events contact):
+               *** Skips contact gathering entirely (saves quota)
+               *** Logs: "Skipping contact gathering - already have Legal/Events contact"
+          ** forceAggressive mode:
+               *** Bypasses skip logic
+               *** Searches all 5 categories regardless of existing contacts
+               *** Usage: via adhoc-scanner.js --force-contacts
+          ** gatherPOCDirectFetch() is DEPRECATED (security risk - never use)
 
 -----
 
@@ -976,41 +986,38 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Batch Contact Discovery (contact-discovery.js):
-          ** Script: scrapers/contact-discovery.js
-          ** Run Command: node scrapers/contact-discovery.js --batch <1-4>
-          ** Target: Organizations with status "Mission Approved (Request Not Sent)"
-          ** Method: Google Search API snippets only (no direct site scraping)
-          ** Searches for 3 contact types per org:
-               *** Legal/Permissions (legal department, permissions, licensing)
-               *** Events (events coordinator, events team, programs)
-               *** Media/PR (media contact, press contact, communications)
-          ** Recursive search: If name found but no email, searches for "Name domain email"
+     * Batch Contact Discovery (DEPRECATED 2026-01-31):
+          ** Script: scrapers/contact-discovery.js - DEPRECATED
+          ** Functionality merged into org-scanner.js
+          ** Use org-scanner.js gatherPOC() with forceAggressive option instead
+          ** Original features now in org-scanner.js:
+               *** Searches for 5 contact types per org (was 3)
+               *** Smart skip logic for re-scans
+               *** Google query tracking
 
 -----
 
-     * Priority Batching (contact-discovery.js):
-          ** Batch 1: Clean orgs (no flags) - Processed first
-          ** Batch 2: TOU flag only
-          ** Batch 3: Tech block flag
-          ** Batch 4: Tech rendering flag
-          ** Orgs sorted alphabetically within each batch
+     * Priority Batching (DEPRECATED - was in contact-discovery.js):
+          ** No longer applicable - contact gathering happens during regular scans
+          ** Smart skip logic replaces batching: 
+               *** First scan: searches all 5 categories
+               *** Re-scan: skips if has Legal or Events contact
 
 -----
 
-     * API Quota Management:
+     * API Quota Management (UPDATED 2026-01-31):
           ** Free tier: 100 queries/day
-          ** Worst case: 6 searches per org (3 initial + 3 recursive)
-          ** Safe batch: ~15 orgs/day
-          ** Auto-throttle: Stops at 95 queries, saves progress via scan_logs
+          ** First scan: Up to 5 queries (one per contact category)
+          ** Re-scan: 0 queries (skips if has Legal or Events contact)
+          ** Tracking: googleQueryCount variable, resetGoogleQueryCount(), getGoogleQueryCount()
+          ** Quota-efficient: Smart skip logic conserves queries for new orgs
 
 -----
 
-     * Run Commands:
-          ** Check batch status: node scrapers/contact-discovery.js --status
-          ** Run batch: node scrapers/contact-discovery.js --batch 1
+     * Run Commands (UPDATED 2026-01-31):
+          ** Single org scan (includes 5-category POC search): node scrapers/scan-and-scrape-all-live-orgs.js --org "Org Name" --scan-only
           ** Fix orphan contacts: node scrapers/fix-orphan-contacts.js
-          ** Single org scan (includes POC): node scrapers/scan-and-scrape-all-live-orgs.js --org "Org Name" --scan-only
+          ** Batch discovery: DEPRECATED - use regular scanning instead
 
 
 
@@ -1021,10 +1028,35 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     * Run Commands
+     * Run Commands (UPDATED 2026-02-01)
           ** Single org scan: node scrapers/scan-and-scrape-all-live-orgs.js --org "Org Name" --scan-only
           ** All approved orgs: node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only
           ** Uses org-scanner.js for full scanning capability
+          ** NEW: Ad-hoc scanner CLI: node scrapers/adhoc-scanner.js --org "Org Name"
+
+-----
+
+     * Ad-Hoc Scanner (NEW 2026-02-01):
+          ** Script: scrapers/adhoc-scanner.js
+          ** Purpose: On-demand organization scanning from Admin Interface or command line
+          ** Usage: node scrapers/adhoc-scanner.js --org "Org Name"
+          ** Options:
+               *** --org "Name": Organization name to scan (required)
+               *** --force-contacts: Search all 5 contact categories even if org has contacts
+          ** 🔒 Security: Contact gathering ALWAYS uses Google Search only (never scrapes org websites)
+          ** Output: TOU scan results, tech block detection, JS rendering check, POC contacts found
+          ** Creates scan_log entry with scanType: 'manual'
+
+-----
+
+     * Admin Interface [Scan Org] Button (NEW 2026-02-01):
+          ** ✅ IMPLEMENTED: [🔍 Scan] button added to org cards in Org By Status and Organizations tabs
+          ** Clicking opens modal with:
+               *** Generated command: node scrapers/adhoc-scanner.js --org "Name"
+               *** Option: Force Contact Gathering checkbox (adds --force-contacts flag)
+               *** Copy to Clipboard button
+               *** 🔒 Safety Guarantee displayed: "Contact gathering ALWAYS uses Google Search only"
+          ** User copies command and runs in PowerShell
 
 -----
 
@@ -1034,7 +1066,7 @@ The contents if this chat and everything related to this project is subject to m
           ** Technical Access: Tests for 403/401 blocks
           ** JavaScript Rendering: Detects if site requires JS to load content
           ** Events URL: Discovers/verifies events page location
-          ** POC Information: Extracts contact info from about/contact pages
+          ** POC Information: 🔒 Gathered via Google Search only (never fetches org contact pages)
           ** AI Analysis: Generates organization summary and classification
 
 -----
@@ -1058,7 +1090,10 @@ The contents if this chat and everything related to this project is subject to m
 
 -----
 
-     >>>>> FUTURE REQUIREMENT: Add [Run Scan] button on Admin Interface for each Org
+     * ✅ COMPLETED 2026-02-01: Add [Run Scan] button on Admin Interface for each Org
+          ** [🔍 Scan] button added to org cards in list views
+          ** Opens modal with command generator and copy-to-clipboard
+          ** Uses adhoc-scanner.js for on-demand scanning
 
 
 
@@ -1206,23 +1241,25 @@ The contents if this chat and everything related to this project is subject to m
           ** TOU/Policy Flags (scans ALL legal pages for restriction language)
           ** Technical Block Flags (403/401 errors)
           ** Technical Rendering Flags (JavaScript-rendered content)
-          ** POC Contact Info (emails, phones from contact pages)
+          ** POC Contact Info (🔒 via Google Search only - never fetches contact pages)
           ** Events URL (discovers events page location)
 
 -----
 
-     * Smart POC Gathering (Ethical Compliance) - NEW 2026-01-31:
-          ** gatherPOC() function checks for restrictions BEFORE gathering contacts
-          ** If org has TOU flag, tech block, OR JS rendering flag:
-               *** Uses gatherPOCViaGoogleSearch() - Google snippets ONLY
-               *** Does NOT scrape restricted sites
-               *** Respects their Terms of Use
-               *** Searches: "[Org Name] contact email", "[domain] legal department email"
-          ** If org has NO restrictions:
-               *** Uses gatherPOCDirectFetch() - fetches contact pages directly
-               *** Faster and doesn't use API quota
-               *** Tries 15 common paths: /contact, /about/contact, /staff, /team, etc.
-          ** Fallback: If direct fetch finds nothing → tries Google Search
+     * 🔒 SECURITY POLICY - Contact Gathering (NEW 2026-02-01):
+          ** Contact gathering ALWAYS uses Google Search only
+          ** We NEVER scrape org websites for contacts (/contact, /about, /team, etc.)
+          ** This respects ALL org Terms of Use regardless of detected flags
+          ** Even if no restrictions are detected, we cannot guarantee we haven't missed something
+          ** Google Search is always safe - it only returns publicly indexed information
+          ** gatherPOCDirectFetch() function is DEPRECATED and disabled
+
+-----
+
+     * Smart POC Gathering (SECURITY UPDATE 2026-02-01):
+          ** gatherPOC() function ALWAYS uses Google Search
+          ** 🔒 NEVER fetches contact pages from org websites
+          ** Searches 5 categories: Legal/Permissions, Events, Media/PR, Leadership, General
           ** All methods save contacts to contacts collection with new schema fields
 
 -----
@@ -1254,9 +1291,12 @@ The contents if this chat and everything related to this project is subject to m
 
      * org-scanner.js is the core scanning module
 
-     * org-scanner.js Usage (UPDATED 2026-01-31):
+     * org-scanner.js Usage (SECURITY UPDATE 2026-02-01):
+          ** 🔒 SECURITY POLICY: Contact gathering ALWAYS uses Google Search only
+          ** gatherPOCDirectFetch() is DEPRECATED - never scrapes org websites for contacts
           ** All discovery methods now use org-scanner.js:
                *** Manual Discovery: Run node scrapers/scan-and-scrape-all-live-orgs.js --org "name" --scan-only
+               *** Ad-hoc Scan: Run node scrapers/adhoc-scanner.js --org "name" (NEW 2026-02-01)
                *** Profile-Based Discovery: suggest-organizations.js calls scanner.scanOrganization() after AI suggests
                *** Event-Based Discovery: discover-orgs-by-events.js imports scanner.gatherPOC() for Phase B
                *** Pre-Scrape Scanning: scan-and-scrape-all-live-orgs.js uses org-scanner.js
@@ -1269,7 +1309,7 @@ The contents if this chat and everything related to this project is subject to m
                *** Multi-page policy document scan (scans ALL legal pages)
                *** Context-aware restriction detection
                *** Events URL discovery
-               *** Smart POC gathering (Google Search for flagged, direct for clean)
+               *** 🔒 Smart POC gathering via Google Search only (respects ALL TOU policies)
                *** AI-powered org analysis
                *** Contact saving to contacts collection
 
@@ -1597,8 +1637,8 @@ The contents if this chat and everything related to this project is subject to m
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # IMAGE GENERATION PROGRAM ARCHITECTURE
-     * VALIDATED 2026-01-28: Section accurately describes image generation system
-When an event has been approved, we generate an image to accompany it on the website.
+     * VALIDATED 2026-01-31: Updated to reflect approved-events-only filtering
+When an event has been approved, we generate an image to accompany it on the website. Only APPROVED events trigger icon generation (saves DALL-E API costs).
 
      * Purpose
           ** Generate safe, professional topic icons for event cards automatically
@@ -1672,8 +1712,10 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Uploads valid icons to PocketBase
 
           ** create-topic-icon-records.js
-               *** Scans events collection for unique topic/region/country/org combinations
+               *** Scans APPROVED events only for unique topic/region/country/org combinations
+               *** Skips nominated/rejected events (saves DALL-E costs)
                *** Creates topic_icons records for each unique combination
+               *** Uses config.js to load .env from project root (consistent with other scripts)
                *** Does not generate images (that's done by generate-topic-icons.js)
 
           ** clear-icons.js
@@ -1733,6 +1775,8 @@ When an event has been approved, we generate an image to accompany it on the web
      * Workflow
           ** Step 1: cd to icon-worker folder
           ** Step 2: Run npm run create-records to create topic_icons records for new combinations
+               *** Only scans APPROVED events (nominated/rejected are skipped)
+               *** Saves DALL-E API costs by not generating icons for unapproved events
           ** Step 3: Run npm run generate to generate icons for records missing icon_file
           ** Step 4: Icons are automatically uploaded to PocketBase and linked to events via topic_combination key
 
@@ -1958,16 +2002,18 @@ When an event has been approved, we generate an image to accompany it on the web
 -----
 
      * scrapers Folder Contents
-          ** VALIDATED 2026-01-27
+          ** VALIDATED 2026-02-01
           ** Main Scripts:
                *** scan-and-scrape-all-live-orgs.js - Unified scan + scrape CLI (NEW 2026-01-18)
                *** org-scanner.js - Core scanning module for policy docs, tech blocks, JS rendering, events URL, POC, AI analysis
-               *** contact-discovery.js - Google Search contact discovery for permission outreach (NEW 2026-01-27)
+               *** adhoc-scanner.js - On-demand org scanning CLI with contact discovery (NEW 2026-02-01)
                *** quality-audit.js - Quality audit script for duplicate detection and flag summary (NEW 2026-01-19)
                *** discover-orgs-by-events.js - Event-based organization discovery
                *** suggest-organizations.js - Profile-based organization discovery
                *** enrich-events.js - AI enrichment for event topics
                *** generate-embeddings.js - Creates AI embeddings for semantic search
+          ** DEPRECATED FILES (2026-02-01):
+               *** contact-discovery.js - Functionality merged into org-scanner.js
           ** DELETED FILES (2026-01-18):
                *** scrape-organization.js, scan-organization.js, scrape-all-organizations.js - Replaced by scan-and-scrape-all-live-orgs.js
                *** index.js, base-scraper.js - Functionality merged into unified script
@@ -2005,52 +2051,61 @@ When an event has been approved, we generate an image to accompany it on the web
 
      * Permission & Organization Management (in scrapers/ folder)
 
-          ** contact-discovery.js (NEW 2026-01-27)
-               *** Google Search API contact discovery for permission outreach
-               *** Targets orgs with status "Mission Approved (Request Not Sent)"
-               *** Searches for: Legal/Permissions, Events, Media/PR contacts
-               *** Uses Google Search snippets only (no site scraping)
-               *** Priority batching: Clean → TOU → Tech Block → Tech Rendering
-               *** Auto-throttles at 95 queries to stay under 100 free/day
-               *** Tracks progress via scan_logs with scan_type = "contact-discovery"
-               *** Run: node scrapers/contact-discovery.js --batch <1-4>
-               *** Run status: node scrapers/contact-discovery.js --status
+          ** contact-discovery.js (DEPRECATED 2026-01-31)
+               *** Status: ❌ DEPRECATED - Functionality merged into org-scanner.js
+               *** Was: Google Search API contact discovery for permission outreach
+               *** Now: Use org-scanner.js instead, which searches all 5 contact categories
+               *** File: Deleted from repo (backup available if needed)
+               *** Replacement: org-scanner.js gatherPOC() with forceAggressive option
 
           ** suggest-organizations.js
-               *** VALIDATED 2026-01-27: Currently does NOT call org-scanner.js
+               *** UPDATED 2026-01-31: Now calls org-scanner.js after AI suggests orgs
                *** Profile-based discovery: AI suggests new organizations based on existing approved ones
                *** Uses AI training knowledge to find similar organizations
-               *** ⚠️ KNOWN ISSUE: AI GUESSES at TOU flags (lines 223-227) without actually scanning
+               *** ✅ FIXED: Now uses REAL scan results (not AI guesses) for TOU flags
                *** Sets discovery_method = "profile-based"
-               *** FUTURE: Should call org-scanner.js after AI suggests orgs
+               *** 🔒 Contact gathering via Google Search only (security policy 2026-02-01)
                *** Run: node scrapers/suggest-organizations.js
 
           ** discover-orgs-by-events.js
-               *** VALIDATED 2026-01-27: Has DUPLICATE scanning code, does NOT import org-scanner.js
+               *** UPDATED 2026-01-31: Now imports org-scanner.js for Phase B scanning
                *** Event-based discovery: Discovers organizations by finding similar events online
                *** Uses embeddings to score candidate events against "ideal event profile"
-               *** Contains own extractPocFromHtml(), searchForPocInfo(), savePocContact() (duplicates org-scanner.js)
-               *** Uses Google Search only as FALLBACK when site returns 403/401
+               *** ✅ FIXED: Removed duplicate POC functions, now uses scanner.gatherPOC()
+               *** 🔒 Contact gathering via Google Search only (security policy 2026-02-01)
                *** Runs AI analysis to extract org name and generate summary 
                *** Applies exclusion keyword filtering 
                *** Sets discovery_method = "event-based"
                *** Populates triggering_event_title, triggering_event_score, triggering_event_url
-               *** FUTURE: Should import and use org-scanner.js for Phase B scanning
-               *** Status: Functional but architecture needs cleanup
+               *** Status: ✅ Unified with org-scanner.js
                *** Run: node scrapers/discover-orgs-by-events.js
 
           ** org-scanner.js 
-               *** VALIDATED 2026-01-27: Core scanning module, should be used by all discovery scripts
-               *** Unified scanning module consolidating policy doc, tech block, events URL, POC, and AI analysis
+               *** SECURITY UPDATE 2026-02-01: Contact gathering ALWAYS uses Google Search only
+               *** gatherPOCDirectFetch() DEPRECATED - we NEVER scrape org websites for contacts
+               *** Unified scanning module: policy docs, tech blocks, JS rendering, events URL, POC, AI analysis
                *** Context-aware restriction detection to avoid false positives
                *** Auto-status update: sets "Rejected by Org" when restrictions found on Live orgs
                *** JavaScript/tech rendering detection 
-               *** POC gathering: gatherPOC() fetches 4 hardcoded paths (/contact, /about/contact, /contact-us, /about)
-               *** Used by scan-and-scrape-all-live-orgs.js
-               *** NOT USED BY: discover-orgs-by-events.js, suggest-organizations.js (should be fixed)
-               *** Functions: scanOrganization(), scanTOU(), findAllLegalUrls(), findRestrictions(), gatherPOC(), analyzeWithAI()
-               *** Key Constants: HIGH_CONFIDENCE_RESTRICTION_TERMS, CONTEXT_REQUIRED_TERMS, PROHIBITION_PHRASES, EXCLUDED_CONTEXTS
-               *** Run: node scrapers/org-scanner.js (CLI wrapper coming soon)
+               *** Searches 5 contact categories: Legal/Permissions, Events, Media/PR, Leadership, General
+               *** Smart skip logic - skips re-scans if org already has Legal or Events contact
+               *** forceAggressive option for ad-hoc deep contact gathering
+               *** Google query tracking (resetGoogleQueryCount, getGoogleQueryCount)
+               *** Used by scan-and-scrape-all-live-orgs.js, discover-orgs-by-events.js, suggest-organizations.js, adhoc-scanner.js
+               *** Functions: scanOrganization(), gatherPOC(), gatherPOCViaGoogleSearch(), savePocContact(), analyzeWithAI()
+               *** Key Constants: HIGH_CONFIDENCE_RESTRICTION_TERMS, CONTACT_CATEGORIES, EXCLUDED_CONTEXTS
+               *** Run: node scrapers/org-scanner.js (via scan-and-scrape-all-live-orgs.js)
+
+          ** adhoc-scanner.js (NEW 2026-02-01)
+               *** Purpose: On-demand organization scanning with contact discovery
+               *** 🔒 SECURITY: Contact gathering ALWAYS uses Google Search only
+               *** Usage: node scrapers/adhoc-scanner.js --org "Org Name"
+               *** Options:
+                    **** --org "Name": Organization name to scan (required)
+                    **** --force-contacts: Search all 5 contact categories even if org has contacts
+               *** Output: TOU scan results, tech detection, contact discovery, scan_log creation
+               *** Integration: Used by Admin Interface [Scan Org] button
+               *** Run: node scrapers/adhoc-scanner.js --org "CNAS"
 
 -----
 
@@ -2194,7 +2249,7 @@ When an event has been approved, we generate an image to accompany it on the web
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # GITHUB ACTIONS
 
-     * UPDATED 2026-01-27: Added contact-discovery.yml and org-scanner.yml workflows
+     * UPDATED 2026-02-01: contact-discovery.yml disabled, functionality in org-scanner.js
 
 -----
 
@@ -2209,17 +2264,12 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Workflow: Contact Discovery (Daily) - NEW 2026-01-27
-          ** File: .github/workflows/contact-discovery.yml
-          ** Status: ✅ Active
-          ** Schedule: Runs daily at 3:00 AM EST (08:00 UTC) - after Google quota resets at midnight Pacific
-          ** What it does:
-               *** Sets up Node.js environment
-               *** Installs dependencies
-               *** Creates .env from GitHub Secrets
-               *** Runs contact-discovery.js with auto-batching (tries batch 1, then 2, etc.)
-               *** Stays within 100 free queries/day limit
-          ** Manual trigger: Supports --batch and --limit inputs
+     * Workflow: Contact Discovery (Daily) - DISABLED 2026-01-31
+          ** File: .github/workflows/contact-discovery.yml.disabled
+          ** Status: ❌ DISABLED - Functionality merged into org-scanner.js
+          ** Reason: Contact gathering now happens during regular org scans
+          ** org-scanner.js searches all 5 contact categories automatically
+          ** To re-enable: Rename file back to contact-discovery.yml
 
 -----
 
@@ -2388,9 +2438,9 @@ When an event has been approved, we generate an image to accompany it on the web
           ** Field Purpose/Notes: Type of scan performed. Values:
                *** discovery - Initial scan during org discovery
                *** pre-scrape - Scan before scraping events
-               *** manual - Manual ad-hoc scan
+               *** manual - Manual ad-hoc scan via adhoc-scanner.js or Admin Interface (UPDATED 2026-02-01)
                *** scheduled - Scheduled weekly scan (org-scanner.yml)
-               *** contact-discovery - Google Search contact discovery (contact-discovery.js) - NEW 2026-01-27
+               *** contact-discovery - Google Search contact discovery (DEPRECATED 2026-01-31)
 
           ** Field Name: scan_date
           ** Field Type: DateTime
@@ -3528,8 +3578,14 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Orgs WITH tou_flag: Shows "⚠️ Explicit Permission Required - No auto go-live date"
                *** Orgs WITHOUT tou_flag: Shows calculated date (sent + 7 days) with "implied permission" note
           ** Inline status dropdown for quick changes
-          ** Action buttons: Edit Org, Edit Contacts, Edit Status, See Events
+          ** Action buttons: Edit Org, Edit Contacts, Edit Status, See Events, 🔍 Scan (NEW 2026-02-01)
           ** Status-specific buttons: Approve Mission, Generate Request
+          ** [🔍 Scan] Button (NEW 2026-02-01):
+               *** Opens modal with command generator
+               *** Shows: node scrapers/adhoc-scanner.js --org "Name"
+               *** Option: Force Contact Gathering checkbox
+               *** Copy to Clipboard button
+               *** 🔒 Safety Guarantee: "Contact gathering ALWAYS uses Google Search only"
           ** Live Safety Warning: When changing status to "Live (Scraping Active)", checks for tou_flag, tech_block_flag, permission_type="Denied" and shows confirmation dialog if any are true
 
 -----
@@ -3548,7 +3604,7 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Website
                *** Phone (from Main Contact or non-Leadership contact)
                *** Status dropdown (quick change)
-               *** Action buttons: Edit Org, Edit Contacts, Edit Status, See Events
+               *** Action buttons: Edit Org, Edit Contacts, Edit Status, See Events, 🔍 Scan (NEW 2026-02-01)
           ** Badge indicators for rejection flags:
                *** ⛔ BLOCKED (tech_block_flag)
                *** ⚠️ TOU (tou_flag)
@@ -3683,7 +3739,7 @@ When an event has been approved, we generate an image to accompany it on the web
 # SESSION HANDOFFS - SCANNING AND SCRAPING
 
      * QUICK START PROMPT:
-          ** "I'm working on Event Finder scanning/scraping. Please read ConOp sections: SCANNING - UNIFIED APPROACH PHILOSOPHY, SCANNING - ORG-SCANNER DETAILS, and ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT. [Describe your specific task]"
+          ** "I'm working on Event Finder scanning/scraping. Please read ConOp sections: SCANNING - UNIFIED APPROACH PHILOSOPHY, SCANNING - ORG-SCANNER DETAILS, and ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT. SECURITY: Contact gathering ALWAYS uses Google Search only. [Describe your specific task]"
 
 -----
 
@@ -3691,6 +3747,7 @@ When an event has been approved, we generate an image to accompany it on the web
           ** ✅ ConOp (this document)
           ** ✅ scrapers/scan-and-scrape-all-live-orgs.js
           ** ✅ scrapers/org-scanner.js
+          ** ✅ scrapers/adhoc-scanner.js (NEW 2026-02-01)
           ** ✅ admin-interface-v22.html
           ** ⚪ PocketBase schema doc (if schema questions arise)
 
@@ -3700,6 +3757,7 @@ When an event has been approved, we generate an image to accompany it on the web
           ** SCANNING - UNIFIED APPROACH PHILOSOPHY - DECISION LOGIC
           ** SCANNING - ORG-SCANNER DETAILS
           ** ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT
+          ** ORGANIZATION WORKFLOW 9: ORGANIZATION INFORMATION VALIDATION AND ENHANCEMENT
           ** SCANNING - POLICY-RELEVANT DOCUMENTS
           ** SCANNING - JAVASCRIPT RENDERING DETECTION
           ** SCANNING AND SCRAPING - LOGS
@@ -3711,49 +3769,61 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Run all: node scrapers/scan-and-scrape-all-live-orgs.js --all
                *** Run single: node scrapers/scan-and-scrape-all-live-orgs.js --org "INSA"
                *** Scan only: node scrapers/scan-and-scrape-all-live-orgs.js --org "Name" --scan-only
+          ** adhoc-scanner.js - On-demand scanning CLI (NEW 2026-02-01)
+               *** Run: node scrapers/adhoc-scanner.js --org "Name"
+               *** With forced contacts: node scrapers/adhoc-scanner.js --org "Name" --force-contacts
           ** org-scanner.js - Core scanning module (used by all discovery scripts)
           ** discover-orgs-by-events.js - Now imports from org-scanner.js
           ** suggest-organizations.js - Now uses org-scanner.js after AI suggests
 
 -----
 
-     * Last Session: 2026-01-31
+     * 🔒 SECURITY POLICY (NEW 2026-02-01):
+          ** Contact gathering ALWAYS uses Google Search only
+          ** We NEVER scrape org websites for contacts (/contact, /about, /team, etc.)
+          ** gatherPOCDirectFetch() is DEPRECATED and disabled
+          ** This respects ALL org Terms of Use regardless of detected flags
 
 -----
 
-     * Current Status: ✅ UNIFIED SCANNING COMPLETE
+     * Last Session: 2026-02-01
+
+-----
+
+     * Current Status: ✅ UNIFIED SCANNING COMPLETE + SECURITY HARDENED
           ** Scanner: ✅ org-scanner.js is core module for ALL discovery
-          ** Smart POC: ✅ Uses Google Search for flagged orgs, direct fetch for clean
+          ** Smart POC: ✅ ALWAYS uses Google Search only (security hardened 2026-02-01)
           ** Contact Saving: ✅ All scanners auto-save contacts to contacts collection
+          ** Ad-hoc Scanning: ✅ adhoc-scanner.js CLI added (NEW 2026-02-01)
+          ** Admin Interface: ✅ [🔍 Scan] button on org cards (NEW 2026-02-01)
           ** Scripts Integrated:
                *** ✅ scan-and-scrape-all-live-orgs.js
                *** ✅ discover-orgs-by-events.js (imports org-scanner.js)
                *** ✅ suggest-organizations.js (calls scanner after AI suggests)
-               *** ✅ contact-discovery.js (standalone batch, uses Google Search)
+               *** ✅ adhoc-scanner.js (NEW 2026-02-01)
 
 -----
 
-     * Key Functions in org-scanner.js (NEW 2026-01-31):
-          ** gatherPOC(html, baseUrl, options) - Smart POC gathering with flag checking
-          ** gatherPOCViaGoogleSearch(orgName, domain) - Google snippets for flagged orgs
-          ** gatherPOCDirectFetch(html, baseUrl) - Direct fetch for clean orgs
+     * Key Functions in org-scanner.js (SECURITY UPDATE 2026-02-01):
+          ** gatherPOC(html, baseUrl, options) - Smart POC gathering, ALWAYS uses Google Search
+          ** gatherPOCViaGoogleSearch(orgName, domain) - Google snippets for ALL orgs
+          ** gatherPOCDirectFetch() - ⛔ DEPRECATED - never use (security risk)
           ** savePocContact(orgId, pocInfo, scanSource) - Saves to contacts collection
           ** Exports also include: extractDomainFromEmail, matchDomainToOrg
 
 -----
 
-     * Verified Working (AFCEA test case 2026-01-31):
-          ** TOU restriction found on /copyright page
-          ** Tech rendering detected on events page
-          ** Smart POC: Used Google Search (respecting TOU)
-          ** Contact saved: events@afcea.org
+     * Verified Working (CNAS test case 2026-02-01):
+          ** Contact found via Google Search: 1 contact
+          ** Google queries used: 4 (quota tracking working)
+          ** 🔒 No org website scraping occurred
 
 -----
 
      * Remaining Work:
-          ** 1. 📸 Fix image generation (only approved events) - Phase 2
-          ** 2. 🔧 Test full discovery workflow end-to-end
-          ** 3. 📝 Update ConOp with any new findings
+          ** 1. 🧪 Test adhoc-scanner.js after Google quota resets
+          ** 2. 📊 Add contact deduplication workflow in Admin Interface
+          ** 3. 📝 Test full discovery workflow end-to-end
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -3899,50 +3969,63 @@ When an event has been approved, we generate an image to accompany it on the web
 # SESSION HANDOFFS - CONTACT DISCOVERY AND ENHANCEMENT
 
      * QUICK START PROMPT:
-          ** "I'm working on Event Finder contact discovery. Please read ConOp sections: ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT and SCANNING - UNIFIED APPROACH PHILOSOPHY. Contact saving is now integrated into org-scanner.js. [Describe your specific task]"
+          ** "I'm working on Event Finder contact discovery. Please read ConOp sections: ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT and SCANNING - ORG-SCANNER DETAILS. 🔒 SECURITY: Contact gathering ALWAYS uses Google Search only - we NEVER scrape org websites. [Describe your specific task]"
 
 -----
 
      * FILES TO UPLOAD:
           ** ✅ ConOp (this document)
-          ** ✅ scrapers/org-scanner.js (has gatherPOC(), savePocContact())
-          ** ✅ scrapers/contact-discovery.js (batch discovery)
+          ** ✅ scrapers/org-scanner.js (has ALL contact gathering logic)
+          ** ✅ scrapers/adhoc-scanner.js (NEW 2026-02-01 - on-demand scanning)
           ** ✅ scrapers/fix-orphan-contacts.js (domain matching)
           ** ⚪ admin-interface-v22.html (for Contacts tab reference)
+          ** ❌ scrapers/contact-discovery.js (DEPRECATED - do not upload)
 
 -----
 
      * ConOp Sections to Emphasize:
           ** ORGANIZATION WORKFLOW 8: CONTACT ENHANCEMENT
-          ** SCANNING - UNIFIED APPROACH PHILOSOPHY - DECISION LOGIC
           ** SCANNING - ORG-SCANNER DETAILS
           ** POCKETBASE COLLECTIONS - contacts Collection
 
 -----
 
-     * MAJOR UPDATE (2026-01-31): Unified Contact Saving
-          ** All discovery scripts now auto-save contacts via org-scanner.js
-          ** Smart POC gathering: Google Search for flagged orgs, direct fetch for clean
-          ** New contacts schema with emails array, data_completeness, email_normalized
-          ** Domain-to-org matching for orphan contacts
+     * 🔒 SECURITY POLICY (NEW 2026-02-01):
+          ** Contact gathering ALWAYS uses Google Search only
+          ** We NEVER scrape org websites for contacts (/contact, /about, /team, etc.)
+          ** gatherPOCDirectFetch() is DEPRECATED and disabled
+          ** This respects ALL org Terms of Use regardless of detected flags
+          ** Even if no restrictions detected, we cannot guarantee we haven't missed something
 
 -----
 
-     * Contact Gathering Architecture (UPDATED 2026-01-31):
+     * MAJOR UPDATE (2026-02-01): Security-Hardened Contact Gathering
+          ** gatherPOCDirectFetch() DEPRECATED - we NEVER scrape org websites for contacts
+          ** gatherPOC() now ALWAYS uses Google Search only
+          ** adhoc-scanner.js added for on-demand scanning with contact discovery
+          ** Admin Interface [🔍 Scan] button uses adhoc-scanner.js
 
-          ** UNIFIED via org-scanner.js - Used by ALL discovery scripts:
-               *** gatherPOC(html, baseUrl, options) - Main function, checks flags first
-               *** gatherPOCViaGoogleSearch(orgName, domain) - For flagged orgs
-               *** gatherPOCDirectFetch(html, baseUrl) - For clean orgs (15 paths)
+-----
+
+     * Contact Gathering Architecture (SECURITY UPDATE 2026-02-01):
+
+          ** ALL via org-scanner.js using GOOGLE SEARCH ONLY:
+               *** gatherPOC(html, baseUrl, options) - Main function, ALWAYS uses Google Search
+               *** gatherPOCViaGoogleSearch(orgName, domain, options) - Searches all 5 categories
+               *** gatherPOCDirectFetch() - ⛔ DEPRECATED (security risk - never use)
                *** savePocContact(orgId, pocInfo, scanSource) - Saves to contacts collection
-               *** Email type detection: Legal, Events, Media/PR, General, Personal
-               *** Duplicate checking by email_normalized
+               *** getExistingContactTypes(orgId) - Check what contacts org already has
+               *** CONTACT_CATEGORIES constant - 5 category definitions
 
-          ** Batch Discovery via contact-discovery.js:
-               *** Targets orgs with status "Mission Approved (Request Not Sent)"
-               *** Uses Google Search API with "site:domain" operator
-               *** Searches for 3 contact types (Legal, Events, Media/PR)
-               *** Runs independently of scanning workflow
+          ** Skip Logic (for re-scans):
+               *** If org has Legal/Permissions contact → Skip gathering
+               *** If org has Events contact → Skip gathering
+               *** Use forceAggressive: true to override skip
+
+          ** forceAggressive Mode (for ad-hoc scans):
+               *** Bypasses skip logic
+               *** Searches all 5 categories regardless of existing contacts
+               *** Usage: node scrapers/adhoc-scanner.js --org "Name" --force-contacts
 
           ** Orphan Contact Linking via fix-orphan-contacts.js:
                *** Links contacts without org to matching org by email domain
@@ -3955,34 +4038,45 @@ When an event has been approved, we generate an image to accompany it on the web
           ** phones (JSON array): [{phone: "555-1234", type: "office", is_primary: true}]
           ** email_normalized: Lowercase email for deduplication
           ** data_completeness: complete, partial, email_only, name_only
-          ** source: Where discovered (homepage, website:/path, google_search)
+          ** source: Where discovered (google_search - always now)
           ** is_active: Boolean (default true)
           ** possible_duplicate_of, merged_into: For deduplication workflow
 
 -----
 
-     * Run Commands:
-          ** Batch discovery: node scrapers/contact-discovery.js --batch 1
+     * Google Search Quota Management:
+          ** 100 free queries/day limit
+          ** First scan: Up to 5 queries (one per category)
+          ** Re-scan: 0 queries (skips if has Legal or Events contact)
+          ** Tracking: googleQueryCount, resetGoogleQueryCount(), getGoogleQueryCount()
+
+-----
+
+     * Run Commands (UPDATED 2026-02-01):
+          ** Org scan (includes contacts): node scrapers/scan-and-scrape-all-live-orgs.js --org "Name" --scan-only
+          ** Ad-hoc scan: node scrapers/adhoc-scanner.js --org "Name"
+          ** Ad-hoc with forced contacts: node scrapers/adhoc-scanner.js --org "Name" --force-contacts
           ** Fix orphan contacts: node scrapers/fix-orphan-contacts.js
-          ** Single org scan (includes POC): node scrapers/scan-and-scrape-all-live-orgs.js --org "Name" --scan-only
 
 -----
 
-     * Last Session: 2026-01-31
+     * Last Session: 2026-02-01
 
 -----
 
-     * Current Status: ✅ UNIFIED AND WORKING
-          ** Smart POC gathering integrated into all scanners
-          ** Tested: AFCEA (TOU flag → used Google Search → saved events@afcea.org)
-          ** Admin Interface has contact count badges, filters, auto-suggest
+     * Current Status: ✅ SECURITY HARDENED AND WORKING
+          ** 🔒 Contact gathering ALWAYS uses Google Search only
+          ** gatherPOCDirectFetch() DEPRECATED - never scrapes org websites
+          ** 5 contact categories searched on first scan
+          ** Smart skip on re-scans to conserve quota
+          ** adhoc-scanner.js provides on-demand scanning
+          ** Admin Interface [🔍 Scan] button for easy access
 
 -----
 
      * Remaining Work:
-          ** 1. 🧹 Run fix-orphan-contacts.js to link existing orphan contacts
-          ** 2. 🔧 Test contact-discovery.js with new schema
-          ** 3. 📊 Add contact deduplication workflow in Admin Interface
+          ** 1. 📊 Add contact deduplication workflow in Admin Interface
+          ** 2. 🧪 Test after Google quota resets
 
 
 
@@ -3996,6 +4090,7 @@ When an event has been approved, we generate an image to accompany it on the web
 
      * FILES TO UPLOAD:
           ** ✅ ConOp (this document)
+          ** ✅ icon-worker/src/create-topic-icon-records.js
           ** ✅ icon-worker/src/generate-topic-icons.js
           ** ✅ icon-worker/src/rules.js
           ** ✅ icon-worker/src/policyEngine.js
@@ -4019,14 +4114,18 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Last Session: Not recently worked on
+     * Last Session: 2026-01-31
+          ** Fixed create-topic-icon-records.js to only process APPROVED events
+          ** Updated script to use config.js (consistent with generate-topic-icons.js)
+          ** Saves DALL-E API costs by skipping nominated/rejected events
 
 -----
 
      * Current Status: ✅ FUNCTIONAL
-          ** Icons generate automatically for new topic/region/country/org combinations
-          ** Validation includes OCR text check, panel detection, downscale audit
-          ** Max 6 attempts per icon before flagging for manual review
+          ** ✅ Icons only generated for APPROVED events (saves DALL-E costs)
+          ** ✅ create-topic-icon-records.js uses config.js for .env loading
+          ** ✅ Validation includes OCR text check, panel detection, downscale audit
+          ** ✅ Max 6 attempts per icon before flagging for manual review
 
 -----
 
@@ -4035,7 +4134,7 @@ When an event has been approved, we generate an image to accompany it on the web
 -----
 
      * Next Steps:
-          ** Run icon generation after scraping new events
+          ** Run icon generation after scraping and approving new events
           ** Monitor for failed validations
 
 
@@ -4044,7 +4143,7 @@ When an event has been approved, we generate an image to accompany it on the web
 # SESSION HANDOFFS - ORG DISCOVERY
 
      * QUICK START PROMPT:
-          ** "I'm working on Event Finder organization discovery. Please read ConOp sections: ORGANIZATION WORKFLOW STEP 1B/1C and SCANNING - UNIFIED APPROACH PHILOSOPHY. All discovery scripts now use org-scanner.js. [Describe your specific task]"
+          ** "I'm working on Event Finder organization discovery. Please read ConOp sections: ORGANIZATION WORKFLOW STEP 1B/1C and SCANNING - UNIFIED APPROACH PHILOSOPHY. 🔒 SECURITY: Contact gathering ALWAYS uses Google Search only. [Describe your specific task]"
 
 -----
 
@@ -4052,7 +4151,8 @@ When an event has been approved, we generate an image to accompany it on the web
           ** ✅ ConOp (this document)
           ** ✅ scrapers/discover-orgs-by-events.js (imports org-scanner.js)
           ** ✅ scrapers/suggest-organizations.js (calls org-scanner.js after AI)
-          ** ✅ scrapers/org-scanner.js (core scanning module)
+          ** ✅ scrapers/org-scanner.js (core scanning module - GOOGLE SEARCH ONLY for contacts)
+          ** ✅ scrapers/adhoc-scanner.js (NEW 2026-02-01 - on-demand scanning)
           ** ⚪ scrapers/generate-embeddings.js (for embedding questions)
 
 -----
@@ -4065,51 +4165,57 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * MAJOR UPDATE (2026-01-31): Unified Scanning Complete
-          ** discover-orgs-by-events.js now imports from org-scanner.js
-          ** suggest-organizations.js now calls org-scanner.js after AI suggests
-          ** All duplicate POC code removed from discovery scripts
-          ** Smart POC gathering: Google Search for flagged orgs, direct for clean
+     * 🔒 SECURITY POLICY (NEW 2026-02-01):
+          ** Contact gathering ALWAYS uses Google Search only
+          ** We NEVER scrape org websites for contacts (/contact, /about, /team, etc.)
+          ** gatherPOCDirectFetch() is DEPRECATED and disabled
+          ** This applies to ALL discovery methods
 
 -----
 
-     * Last Session: 2026-01-31
+     * Last Session: 2026-02-01
 
 -----
 
-     * Current Status: ✅ UNIFIED AND FUNCTIONAL
+     * Current Status: ✅ UNIFIED, SECURE, AND FUNCTIONAL
           ** ✅ discover-orgs-by-events.js - imports org-scanner.js for Phase B
           ** ✅ suggest-organizations.js - scans after AI suggests (real flags, not guessed)
           ** ✅ All contact saving uses unified savePocContact()
-          ** ✅ Smart POC respects TOU/tech flags
+          ** 🔒 Smart POC ALWAYS uses Google Search only (security hardened 2026-02-01)
+          ** ✅ adhoc-scanner.js for on-demand scanning (NEW 2026-02-01)
+          ** ✅ Admin Interface [🔍 Scan] button (NEW 2026-02-01)
 
 -----
 
-     * Architecture Debt RESOLVED (2026-01-31):
+     * Architecture Debt RESOLVED (2026-02-01):
           ** ✅ FIXED: discover-orgs-by-events.js duplicate code removed
           ** ✅ FIXED: suggest-organizations.js now does real scans
           ** ✅ FIXED: All scripts use consistent POC gathering logic
+          ** ✅ FIXED: contact-discovery.js consolidated into org-scanner.js
+          ** 🔒 SECURITY: gatherPOCDirectFetch() deprecated (never scrapes org sites)
 
 -----
 
-     * Key Code Changes Made (2026-01-31):
-          ** discover-orgs-by-events.js:
-               *** Added: const scanner = require('./org-scanner')
-               *** Added: await scanner.init() after authentication
-               *** Phase B3 now calls scanner.gatherPOC() with flags
-               *** Removed: extractPocFromHtml(), searchForPocInfo(), savePocContact()
-          ** suggest-organizations.js:
-               *** Added: const scanner = require('./org-scanner')
-               *** Added: await scanner.init() at startup
-               *** After saving each org, calls scanner.scanOrganization()
-               *** Removed: AI-guessed TOU flags (now uses real scan results)
-               *** Added: discovery_method = 'profile-based'
+     * Key Code Changes Made (2026-02-01):
+          ** org-scanner.js:
+               *** SECURITY: gatherPOC() now ALWAYS uses Google Search
+               *** SECURITY: gatherPOCDirectFetch() DEPRECATED (security risk)
+               *** Contact gathering respects ALL TOU policies regardless of flags
+          ** adhoc-scanner.js (NEW):
+               *** On-demand scanning CLI
+               *** Usage: node scrapers/adhoc-scanner.js --org "Name"
+               *** Option: --force-contacts to search all 5 categories
+          ** Admin Interface:
+               *** [🔍 Scan] button added to org cards
+               *** Opens modal with command generator
+               *** Shows security guarantee
 
 -----
 
      * Next Steps:
-          ** 1. 🧪 Test full discovery workflow end-to-end
-          ** 2. 📸 Fix image generation (only approved events) - Phase 2
+          ** 1. 🧪 Test adhoc-scanner.js after Google quota resets
+          ** 2. 📊 Add contact deduplication workflow in Admin Interface
+          ** 3. ✅ DONE 2026-01-31: Fixed image generation (only approved events)
 
 
 
@@ -4144,10 +4250,23 @@ When an event has been approved, we generate an image to accompany it on the web
                *** Correspondence log with timeline
                *** Scan history display with parsed restriction details
                *** Live Safety Warning for restricted orgs
+               *** [🔍 Scan] button on org cards (NEW 2026-02-01)
 
 -----
 
-     * NEW CONTACT FEATURES (2026-01-31):
+     * NEW FEATURES (2026-02-01):
+          ** [🔍 Scan] Button on Org Cards:
+               *** Added to Org By Status and Organizations tabs
+               *** Opens modal with:
+                    **** Generated command: node scrapers/adhoc-scanner.js --org "Name"
+                    **** Force Contact Gathering checkbox
+                    **** Copy to Clipboard button
+                    **** 🔒 Safety Guarantee: "Contact gathering ALWAYS uses Google Search only"
+               *** User copies command and runs in PowerShell
+
+-----
+
+     * PREVIOUS CONTACT FEATURES (2026-01-31):
           ** Organizations Tab:
                *** Contact count badges on org cards (👤 N contacts)
                *** Filter: "With contacts" / "Without contacts" dropdown
@@ -4162,10 +4281,11 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * Last Session: 2026-01-31
-          ** Added contact count badges and filters
-          ** Added email auto-suggest org matching
-          ** Fixed async bug causing stale data when filtering
+     * Last Session: 2026-02-01
+          ** Added [🔍 Scan] button to org cards in list views
+          ** Button opens modal with adhoc-scanner.js command generator
+          ** Added force contacts checkbox option
+          ** Added security guarantee display
 
 -----
 
@@ -4178,7 +4298,6 @@ When an event has been approved, we generate an image to accompany it on the web
 -----
 
      * Next Steps:
-          ** Add [Quick Scan] button for ad-hoc scanning
           ** Add [Run Scraper] button for manual scrape triggers
           ** Improve bulk event approval workflow
           ** Add contact deduplication workflow
@@ -4293,16 +4412,16 @@ When an event has been approved, we generate an image to accompany it on the web
 # SESSION HANDOFFS - ARCHITECTURE IMPROVEMENTS
 
      * QUICK START PROMPT:
-          ** "I'm working on Event Finder architecture improvements. Please read ConOp sections: SCANNING - ORG-SCANNER DETAILS and SCRIPTS. I need to [consolidate duplicate code / fix scanning architecture / etc.]"
+          ** "I'm working on Event Finder architecture improvements. Please read ConOp sections: SCANNING - ORG-SCANNER DETAILS and SCRIPTS. 🔒 SECURITY: Contact gathering ALWAYS uses Google Search only. [Describe your specific task]"
 
 -----
 
      * FILES TO UPLOAD:
           ** ✅ ConOp (this document)
           ** ✅ scrapers/org-scanner.js (core scanning module)
-          ** ✅ scrapers/discover-orgs-by-events.js (has duplicate code)
-          ** ✅ scrapers/suggest-organizations.js (has AI guessing)
-          ** ⚪ scrapers/contact-discovery.js (if contact-related)
+          ** ✅ scrapers/adhoc-scanner.js (on-demand scanning - NEW 2026-02-01)
+          ** ✅ scrapers/discover-orgs-by-events.js
+          ** ✅ scrapers/suggest-organizations.js
 
 -----
 
@@ -4314,96 +4433,102 @@ When an event has been approved, we generate an image to accompany it on the web
 
 -----
 
-     * ⚠️ ARCHITECTURE ISSUES TO ADDRESS:
+     * ✅ ARCHITECTURE ISSUES RESOLVED (2026-02-01):
 
-          ** Issue 1: discover-orgs-by-events.js has DUPLICATE scanning code
-               *** Contains its own extractPocFromHtml(), searchForPocInfo(), savePocContact()
-               *** Does NOT import org-scanner.js despite ConOp stating it should
-               *** Uses Google Search only as fallback when site returns 403/401
-               *** FIX: Import and use org-scanner.js for Phase B scanning
+          ** Issue 1: discover-orgs-by-events.js duplicate code - ✅ RESOLVED
+               *** Now imports org-scanner.js for all scanning
+               *** Removed duplicate extractPocFromHtml(), searchForPocInfo(), savePocContact()
 
-          ** Issue 2: suggest-organizations.js GUESSES at TOU flags
-               *** AI estimates flags on lines 223-227 without actually scanning
-               *** Never calls org-scanner.js
-               *** FIX: Call org-scanner.js after AI suggests orgs
+          ** Issue 2: suggest-organizations.js GUESSED at TOU flags - ✅ RESOLVED
+               *** Now calls org-scanner.js after AI suggests orgs
+               *** Uses real scan results, not AI guesses
 
-          ** Issue 3: Current POC gathering locations (duplicated)
-               *** org-scanner.js: gatherPOC(), extractPocFromHtml() - fetches 4 hardcoded paths
-               *** discover-orgs-by-events.js: Duplicate implementations
-               *** FIX: Consolidate all POC gathering into org-scanner.js
+          ** Issue 3: POC gathering locations duplicated - ✅ RESOLVED
+               *** All POC gathering consolidated into org-scanner.js
+               *** 🔒 SECURITY: gatherPOCDirectFetch() DEPRECATED (never scrapes org sites)
+               *** All contact gathering uses Google Search only
 
-          ** Issue 4: contact-discovery.js name extraction regex too loose
-               *** Catches phrases like "here and get", "us by email at"
-               *** FIX: Implement stricter name validation patterns
+          ** Issue 4: No ad-hoc scanner CLI - ✅ RESOLVED
+               *** adhoc-scanner.js created (NEW 2026-02-01)
+               *** Admin Interface [🔍 Scan] button added
 
-          ** Issue 5: The Hoover Institution org missing website in PocketBase
+          ** Issue 5: The Hoover Institution org missing website
                *** FIX: Manually add website URL
 
 -----
 
-     * Contact Discovery BATCH STATUS (as of 2026-01-27):
-          ** ✅ Batch 1 (Clean): 26/26 complete
-          ** ⏳ Batch 2 (TOU Flag): 0/8 remaining
-          ** ⏳ Batch 3 (Tech Block): 0/6 remaining
-          ** ⏳ Batch 4 (Tech Rendering): 0/10 remaining
-          ** Total: 50 orgs, 26 done, 24 remaining
+     * 🔒 SECURITY POLICY (NEW 2026-02-01):
+          ** Contact gathering ALWAYS uses Google Search only
+          ** We NEVER scrape org websites for contacts
+          ** gatherPOCDirectFetch() is DEPRECATED and disabled
+          ** This addresses the ethical concern about scraping org sites without permission
+
+-----
+
+     * Contact Discovery Status (as of 2026-02-01):
+          ** ✅ Unified in org-scanner.js
+          ** ✅ 5 contact categories searched via Google Search
+          ** ✅ Smart skip on re-scans
+          ** ✅ adhoc-scanner.js for on-demand scanning
+          ** ✅ Admin Interface [🔍 Scan] button
 
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # SESSION HANDOFFS - FUTURE REQUIREMENTS TRACKER
 
+     * This section tracks all ">>>>>>" FUTURE REQUIREMENT markers in the ConOp
 
-     * EVENT APPROVAL (Workflow 5):
+-----
 
-
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-ESSENTIAL FEATURES TO FINISH
-
-🔴 HIGH PRIORITY
->>>>> Run fix-orphan-contacts.js
-     * We built it but never ran it
-     * Links existing orphan contacts to orgs by email domain
-     * Quick win: node scrapers/fix-orphan-contacts.js --dry-run then run for real
-
-🟡 MEDIUM PRIORITY
->>>>> Test Full Discovery Workflow End-to-End
-     * Run discover-orgs-by-events.js to verify it works with org-scanner import
-     * Run suggest-organizations.js to verify scanning after AI suggests
-     * ENsure we do not exceed Google search limits, since we are using it for periodica scans already every day
-     * Ensure we are not scanning multiple times using different scanners
-
-
-
-🟢 LOWER PRIORITY
->>>>> Contact Deduplication Workflow
-     * Admin Interface tool to merge duplicate contacts
-     * Uses possible_duplicate_of and merged_into fields
-
->>>>> Ad-hoc Scanning from Admin Interface
-     * [Quick Scan] button on org profile page
-
->>>>> MANUAL DISCOVERY (Workflow 1A):
+     * MANUAL DISCOVERY (Workflow 1A):
           ** >>>>> IMPLEMENT ORG-SCANNER to perform scanning when there is a Manual Discovery
           ** >>>>> ADD [Scan and Nominate] button in Admin Interface
           ** >>>>> USE ORG-SCANNER AND RECURSIVE SEARCHING at this stage
-          ** New Orgs, once scanned go into Status Nominated (Pending Mission Review)
 
->>>>> Make sure we get complete name of Org, followed by acronym, and we do not record the acronym as the org when the Org has a full name.
+-----
 
->>>>> Standardize Org names
+     * PROFILE-BASED DISCOVERY (Workflow 1B):
+          ** ✅ DONE 2026-01-31: Integrate org-scanner.js to verify AI suggestions
+          ** >>>>> Consider deprecating in favor of EVENT-BASED DISCOVERY
 
->>>>> Standardize contact info.  
+-----
 
->>>>> Build Event approval function.  
+     * ORGANIZATION VALIDATION (Workflow 9):
+          ** ✅ DONE 2026-02-01: Add [Run Scan] button on Admin Interface for each Org
+               *** [🔍 Scan] button added to org cards in list views
+               *** Uses adhoc-scanner.js for on-demand scanning
 
->>>>> EVENT DELETION CAPABILITY (currently events persist)
+-----
 
->>>>> EVENT PUBLISHING (Workflow 7):
+     * EVENT APPROVAL (Workflow 5):
+          ** >>>>> NEED BULK EVENT APPROVAL WORKFLOW
+          ** >>>>> NEED EVENT DELETION CAPABILITY (currently events persist)
+
+-----
+
+     * EVENT PUBLISHING (Workflow 7):
           ** >>>>> NEED BULK CURATION TOOLS (hide multiple events)
           ** >>>>> NEED EVENT EXPIRATION HANDLING (auto-hide past events?)
           ** >>>>> NEED EVENT DELETION WORKFLOW
 
->>>>> VERCEL DEPLOYMENT:
+-----
+
+     * VERCEL DEPLOYMENT:
           ** >>>>> Migrate website to new URL: https://BalanceFWD.com
 
+
+ESSENTIAL FEATURES TO FINISH
+     * ✅ DONE 2026-01-31: Get all scanners and scrapers to use Org-Scanner to discover, nominate gather Orgs, events, pre-scrape check. Identify flags.    
+     * ✅ DONE 2026-02-01: Use GOOGLE search to gather contacts - ALWAYS (security policy)
+          * 🔒 SECURITY: We NEVER scrape org websites for contacts
+          * gatherPOCDirectFetch() is DEPRECATED
+          * Ensures we respect ALL Terms of Use regardless of detected flags
+          * Google Search quota managed with smart skip logic
+     * ✅ DONE 2026-02-01: Ad-hoc scanner CLI (adhoc-scanner.js) and Admin Interface [🔍 Scan] button
+     * De-dupe Orgs
+          * Make sure we get complete name of Org, followed by acronym, and we do not record the acronym as the org when the Org has a full name.
+     * Standardize Org names
+     * Standardize contact info.  
+     * Build Event approval function.  
+     * ✅ DONE 2026-01-31: Only generating images from DALL-E when an event has been approved.

@@ -1,22 +1,26 @@
-name: Weekly Organization Scanner
+name: Event-Based Org Discovery (Weekly)
 
-# Runs Saturday at 10:00 PM EST (03:00 UTC Sunday)
-# Re-scans all orgs (except "Rejected by Mission") for TOU policy changes
+# Runs Wednesday at 10:00 PM EST (03:00 UTC Thursday)
 # Uses org-scanner.js with Google Search only for contacts
-# Estimated Google queries: ~0 (skip logic - existing orgs already have contacts)
+# Estimated Google queries: 30-50 (event searches + 5 per new org found)
+# Prerequisites: Event embeddings should be fresh (run generate-embeddings.js if needed)
 
 on:
   schedule:
-    - cron: '0 3 * * 0'  # Sunday 03:00 UTC = Saturday 10:00 PM EST
+    - cron: '0 3 * * 4'  # Thursday 03:00 UTC = Wednesday 10:00 PM EST
   workflow_dispatch:
     inputs:
-      limit:
-        description: 'Limit number of orgs to scan (for testing)'
+      max_queries:
+        description: 'Max search queries to run (default: 5)'
         required: false
-        default: ''
+        default: '5'
+      max_nominations:
+        description: 'Max orgs to nominate (default: 10)'
+        required: false
+        default: '10'
 
 jobs:
-  scan-organizations:
+  discover-orgs-by-events:
     runs-on: ubuntu-latest
     
     steps:
@@ -40,13 +44,8 @@ jobs:
           echo "GOOGLE_SEARCH_API_KEY=${{ secrets.GOOGLE_SEARCH_API_KEY }}" >> .env
           echo "GOOGLE_SEARCH_ENGINE_ID=${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}" >> .env
 
-      - name: Run Weekly Organization Scanner
-        run: |
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only --limit ${{ github.event.inputs.limit }}
-          else
-            node scrapers/scan-and-scrape-all-live-orgs.js --approved --scan-only
-          fi
+      - name: Run Event-Based Org Discovery
+        run: node scrapers/discover-orgs-by-events.js
         env:
           NODE_ENV: production
 
