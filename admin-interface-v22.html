@@ -4413,7 +4413,7 @@ Regards,`;
             // Action buttons
             html += `<div class="card-actions">
                 <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'overview')">✏️ Edit Org</button>
-                <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Edit Contacts</button>
+                <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Contacts (${contacts.length})</button>
                 <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
                 <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 Events (${eventCount})</button>
                 <button class="btn btn-small btn-warning" onclick="openScanModalForOrg('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🔍 Scan</button>`;
@@ -4663,7 +4663,7 @@ Regards,`;
                     </div>
                     <div class="card-actions">
                         <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'overview')">✏️ Edit Org</button>
-                        <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Edit Contacts</button>
+                        <button class="btn btn-small btn-secondary" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Contacts (${orgContacts.length})</button>
                         <button class="btn btn-small btn-info" onclick="openOrgProfile('${org.id}', 'statusHistory')">📜 Edit Status</button>
                         <button class="btn btn-small" onclick="openOrgProfile('${org.id}', 'profileEvents')">📅 See Events</button>
                         <button class="btn btn-small btn-warning" onclick="openScanModalForOrg('${org.id}', '${escapeHtml(org.name).replace(/'/g, "\\'")}')">🔍 Scan</button>
@@ -5130,7 +5130,15 @@ Regards,`;
                 const data = await response.json();
                 let events = data.items || [];
                 
-                console.log('   Events found (before org filter):', events.length);
+                console.log('   Events found (before filters):', events.length);
+                
+                // Always exclude events from rejected orgs
+                const rejectedOrgStatuses = ['Rejected by Mission', 'Rejected by Org'];
+                events = events.filter(e => {
+                    const orgStatus = e.expand?.organization?.status;
+                    return !rejectedOrgStatuses.includes(orgStatus);
+                });
+                console.log('   Events after excluding rejected orgs:', events.length);
                 
                 // Client-side filter for org status (nominated-ready vs nominated-restricted)
                 if (statusFilter === 'nominated-ready') {
