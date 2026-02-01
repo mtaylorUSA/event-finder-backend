@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Finder Admin v22</title>
+    <title>Event Finder Admin v23</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
@@ -1127,6 +1127,7 @@
                         <p class="org-status" id="profileOrgStatus">Status</p>
                     </div>
                     <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-info" onclick="openScanOrgModal()" id="scanOrgBtn">🔍 Scan Org</button>
                         <button class="btn btn-secondary" onclick="closeOrgProfile()">← Back to List</button>
                         <button class="btn btn-danger" onclick="deleteOrganization()" id="deleteOrgBtn">🗑️ Delete Org</button>
                     </div>
@@ -1646,6 +1647,63 @@
         </div>
     </div>
 
+    <!-- Scan Org Modal -->
+    <div id="scanOrgModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔍 Scan Organization</h2>
+                <button class="modal-close" onclick="closeModal('scanOrgModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-box">
+                    <p><strong>📋 What this does:</strong></p>
+                    <p>• Scans TOU/Privacy pages for scraping restrictions</p>
+                    <p>• Checks for technical blocks (403/401 errors)</p>
+                    <p>• Detects JavaScript-rendered sites</p>
+                    <p>• Discovers events page URL</p>
+                    <p>• Gathers POC contact information (up to 5 categories)</p>
+                    <p>• Updates organization record with findings</p>
+                </div>
+
+                <div class="section-box" style="margin-top: 20px;">
+                    <h4>🖥️ Run in PowerShell</h4>
+                    <p style="margin-bottom: 15px; color: #666;">Copy this command and paste it in your PowerShell terminal:</p>
+                    
+                    <div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; position: relative;">
+                        <code id="scanCommandText">node scrapers/adhoc-scanner.js --org "Organization Name"</code>
+                        <button onclick="copyScanCommand()" style="position: absolute; top: 10px; right: 10px; background: #667eea; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px;">📋 Copy</button>
+                    </div>
+                    <p id="scanCommandCopied" style="color: #28a745; margin-top: 10px; display: none;">✅ Command copied to clipboard!</p>
+                </div>
+
+                <div class="section-box" style="margin-top: 20px;">
+                    <h4>⚙️ Scan Options</h4>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="scanForceContacts" onchange="updateScanCommand()">
+                            <strong>Force Contact Gathering</strong> - Search all 5 contact categories (uses Google API quota)
+                        </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="scanContactsOnly" onchange="updateScanCommand()">
+                            <strong>Contacts Only</strong> - Skip TOU/tech scans, just gather contacts (faster)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="info-box warning" style="margin-top: 20px;">
+                    <p><strong>⚠️ Google API Quota:</strong> Contact gathering uses up to 5 Google queries per scan. Daily free limit is 100 queries.</p>
+                </div>
+
+                <div class="card-actions" style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="copyScanCommand()">📋 Copy Command</button>
+                    <button class="btn btn-secondary" onclick="closeModal('scanOrgModal')">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const POCKETBASE_URL = 'https://event-discovery-backend-production.up.railway.app';
         let authToken = null;
@@ -1757,6 +1815,8 @@
                 
                 // Show delete button for existing orgs
                 document.getElementById('deleteOrgBtn').style.display = 'inline-block';
+                // Show scan button for existing orgs
+                document.getElementById('scanOrgBtn').style.display = 'inline-block';
 
                 populateOverviewTab(currentOrg);
                 switchProfileTab(targetTab);
@@ -1804,6 +1864,8 @@
             
             // Hide delete button for new orgs
             document.getElementById('deleteOrgBtn').style.display = 'none';
+            // Hide scan button for new orgs (no website to scan yet)
+            document.getElementById('scanOrgBtn').style.display = 'none';
 
             populateOverviewTab(currentOrg);
             switchProfileTab('overview');
@@ -5191,6 +5253,87 @@ Regards,`;
 
         function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
         function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SCAN ORG MODAL FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        /**
+         * Open the Scan Org modal and populate with current org name
+         */
+        function openScanOrgModal() {
+            if (!currentOrg) {
+                alert('❌ No organization selected');
+                return;
+            }
+            
+            // Reset checkboxes
+            document.getElementById('scanForceContacts').checked = false;
+            document.getElementById('scanContactsOnly').checked = false;
+            document.getElementById('scanCommandCopied').style.display = 'none';
+            
+            // Update command with org name
+            updateScanCommand();
+            
+            // Open modal
+            openModal('scanOrgModal');
+        }
+        
+        /**
+         * Update the scan command based on selected options
+         */
+        function updateScanCommand() {
+            const orgName = currentOrg ? currentOrg.name : 'Organization Name';
+            const forceContacts = document.getElementById('scanForceContacts').checked;
+            const contactsOnly = document.getElementById('scanContactsOnly').checked;
+            
+            // Build command
+            let command = `node scrapers/adhoc-scanner.js --org "${orgName}"`;
+            
+            if (contactsOnly) {
+                command += ' --contacts-only';
+                // Disable force contacts if contacts-only is selected (it's implied)
+                document.getElementById('scanForceContacts').disabled = true;
+            } else {
+                document.getElementById('scanForceContacts').disabled = false;
+                if (forceContacts) {
+                    command += ' --force-contacts';
+                }
+            }
+            
+            document.getElementById('scanCommandText').textContent = command;
+            document.getElementById('scanCommandCopied').style.display = 'none';
+        }
+        
+        /**
+         * Copy the scan command to clipboard
+         */
+        async function copyScanCommand() {
+            const command = document.getElementById('scanCommandText').textContent;
+            
+            try {
+                await navigator.clipboard.writeText(command);
+                document.getElementById('scanCommandCopied').style.display = 'block';
+                
+                // Hide the message after 3 seconds
+                setTimeout(() => {
+                    document.getElementById('scanCommandCopied').style.display = 'none';
+                }, 3000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = command;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                document.getElementById('scanCommandCopied').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('scanCommandCopied').style.display = 'none';
+                }, 3000);
+            }
+        }
 
         function showMessage(elementId, message, type) {
             const el = document.getElementById(elementId);
