@@ -22,6 +22,14 @@ jobs:
       - name: Install icon-worker dependencies
         run: cd icon-worker && npm install
       
+      - name: Enrich events with AI topics
+        env:
+          POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
+          POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
+          POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scrapers/enrich-events.js
+      
       - name: Create topic_icons records for approved events
         env:
           POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
