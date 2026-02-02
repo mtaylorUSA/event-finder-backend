@@ -27,6 +27,8 @@ jobs:
           POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
           POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
           POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_IMAGE_MODEL: dall-e-3
         run: cd icon-worker && node src/create-topic-icon-records.js
       
       - name: Generate icons via DALL-E 3
