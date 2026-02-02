@@ -5298,8 +5298,17 @@ Regards,`;
                 }
 
                 container.innerHTML = events.map(e => {
-                    const orgName = e.expand?.organization?.name || 'Unknown';
+                    const org = e.expand?.organization;
+                    const orgName = org?.name || 'Unknown';
                     const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    
+                    // Build org flags badges
+                    let orgFlags = '';
+                    if (org) {
+                        if (org.tou_flag) orgFlags += '<span class="badge badge-tou-flag" title="Terms of Use restrictions found">🚫 TOU</span> ';
+                        if (org.tech_block_flag) orgFlags += '<span class="badge badge-tech-block" title="Technical block (403/401)">🔒 Tech Block</span> ';
+                        if (org.tech_rendering_flag) orgFlags += '<span class="badge badge-js-render" title="Requires JavaScript rendering">⚙️ JS Render</span> ';
+                    }
                     
                     // Event status dropdown
                     const eventStatus = e.event_status || 'nominated';
@@ -5359,7 +5368,7 @@ Regards,`;
                                 </div>
                                 <div class="event-details">
                                     <h3>${escapeHtml(e.title)}</h3>
-                                    <p><strong>Organization:</strong> ${escapeHtml(orgName)}</p>
+                                    <p><strong>Organization:</strong> ${escapeHtml(orgName)} ${orgFlags}</p>
                                     <p><strong>Date:</strong> ${startDate}</p>
                                     ${e.location ? `<p><strong>Location:</strong> ${escapeHtml(e.location)}</p>` : ''}
                                     ${e.url ? `<p><a href="${escapeHtml(e.url)}" target="_blank">View Event →</a></p>` : ''}

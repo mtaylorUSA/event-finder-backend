@@ -1,7 +1,7 @@
 // =============================================================================
 // CREATE-TOPIC-ICON-RECORDS.JS
 // Scans events collection and creates topic_icons records for unique combinations
-// NOTE: Only processes APPROVED events to avoid wasting DALL-E API costs
+// NOTE: Only processes APPROVED + FUTURE events to avoid wasting DALL-E API costs
 // NOTE: .env is loaded by config.js from PROJECT ROOT (not icon-worker folder)
 // =============================================================================
 
@@ -43,15 +43,18 @@ async function fetchApprovedEvents(token) {
   let page = 1;
   const perPage = 200;
 
+  // Get today's date in ISO format for filtering future events
+  const today = new Date().toISOString().split('T')[0];
+
   while (true) {
-    // Only fetch events where event_status = "approved"
-    const filter = encodeURIComponent('event_status = "approved"');
+    // Only fetch events where event_status = "approved" AND start_date >= today
+    const filter = encodeURIComponent(`event_status = "approved" && start_date >= "${today}"`);
     const url = `${POCKETBASE_URL}/api/collections/events/records?page=${page}&perPage=${perPage}&filter=${filter}`;
     const res = await fetch(url, { headers: { Authorization: token } });
 
     if (!res.ok) {
       const t = await res.text();
-      throw new Error(`Failed to fetch approved events: ${res.status} ${t}`);
+      throw new Error(`Failed to fetch approved future events: ${res.status} ${t}`);
     }
 
     const json = await res.json();
@@ -143,10 +146,10 @@ async function main() {
   const token = await pbAdminLogin();
   console.log("✅ Logged in successfully.\n");
 
-  // Fetch only approved events (saves DALL-E costs by not generating icons for nominated/rejected events)
-  console.log("📡 Fetching approved events...");
+  // Fetch only approved FUTURE events (saves DALL-E costs by not generating icons for past/nominated/rejected events)
+  console.log("📡 Fetching approved future events...");
   const events = await fetchApprovedEvents(token);
-  console.log(`✅ Found ${events.length} approved events.\n`);
+  console.log(`✅ Found ${events.length} approved future events.\n`);
 
   // Fetch existing topic_icons
   console.log("📡 Fetching existing topic_icons...");

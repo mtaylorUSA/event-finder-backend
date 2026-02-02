@@ -28,12 +28,12 @@ async function generateEmbeddings() {
     }
 
     try {
-        // Fetch all events
-        console.log('\n📡 Fetching events...');
-        const eventsResponse = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500`);
+        // Fetch only APPROVED events (saves API costs, avoids polluting search with rejected events)
+        console.log('\n📡 Fetching approved events...');
+        const eventsResponse = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&filter=(event_status='approved')`);
         const eventsData = await eventsResponse.json();
         const events = eventsData.items || [];
-        console.log(`✅ Found ${events.length} total events`);
+        console.log(`✅ Found ${events.length} approved events`);
 
         // Fetch existing embeddings
         console.log('\n📡 Fetching existing embeddings...');
