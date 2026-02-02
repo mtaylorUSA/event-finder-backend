@@ -1447,8 +1447,6 @@
                     }
                 });
                 console.log(`Loaded ${Object.keys(topicIconMap).length} topic icons`);
-                // DEBUG: Show first 3 icon keys
-                console.log('Sample ICON keys:', Object.keys(topicIconMap).slice(0, 3));
             } catch (error) {
                 console.error('Error loading topic icons:', error);
             }
@@ -1909,24 +1907,21 @@
         // ICON DISPLAY - Uses DALL-E images from topic_icons via topic_combination lookup
         // ============================================================================
         
-        let iconDebugCount = 0; // Track how many we've logged
-        
         function buildIconDisplay(event, topicInfo) {
-            // Build topic_combination key (same format as Admin Interface)
+            // Build topic_combination key (new 4-part format)
             const topics = (event.topics || []).slice().sort();
             const regions = (event.regions || []).slice().sort();
             const countries = (event.countries || []).slice().sort();
             const transOrgs = (event.transnational_orgs || []).slice().sort();
-            const topicCombination = `${topics.join(',')}|${regions.join(',')}|${countries.join(',')}|${transOrgs.join(',')}`;
             
-            // DEBUG: Log first 3 event keys
-            if (iconDebugCount < 3) {
-                console.log(`EVENT key [${iconDebugCount}]: "${topicCombination}"`);
-                iconDebugCount++;
-            }
+            // New 4-part format: "Topics|Regions|Countries|TransnationalOrgs"
+            const newFormatKey = `${topics.join(',')}|${regions.join(',')}|${countries.join(',')}|${transOrgs.join(',')}`;
             
-            // Look up icon in the map
-            const iconInfo = topicIconMap[topicCombination];
+            // Old format: just topics (for backwards compatibility with existing icons)
+            const oldFormatKey = topics.join(',');
+            
+            // Try new format first, then old format
+            let iconInfo = topicIconMap[newFormatKey] || topicIconMap[oldFormatKey];
             
             if (iconInfo) {
                 const imageUrl = `${POCKETBASE_URL}/api/files/topic_icons/${iconInfo.id}/${iconInfo.file}`;
