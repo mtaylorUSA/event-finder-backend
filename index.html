@@ -1432,7 +1432,8 @@
 
         async function loadEvents() {
             try {
-                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date`);
+                // FIXED: Only fetch approved events + expand icon relation for images
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date&filter=(event_status='approved')&expand=icon`);
                 const data = await response.json();
                 
                 allEvents = (data.items || []).map(event => ({
@@ -1772,11 +1773,12 @@
                 // Get registration URL
                 const registerUrl = event.registration_url || event.url || '';
 
+                // Build image display - use actual DALL-E icon if available
+                const iconHtml = buildIconDisplay(event, topicInfo);
+
                 return `
                     <div class="event-card">
-                        <div class="event-card-image ${topicInfo.class}">
-                            <span>${topicInfo.emoji}</span>
-                        </div>
+                        ${iconHtml}
                         <div class="event-card-content">
                             <div class="event-title">${escapeHtml(event.title)}</div>
                             ${description ? `
@@ -1877,6 +1879,30 @@
             }
             
             return 'Location TBD';
+        }
+
+        // ============================================================================
+        // ICON DISPLAY - Uses DALL-E images from topic_icons if available
+        // ============================================================================
+        
+        function buildIconDisplay(event, topicInfo) {
+            // Check if event has an expanded icon with an actual image file
+            if (event.expand && event.expand.icon && event.expand.icon.icon_file) {
+                const icon = event.expand.icon;
+                const imageUrl = `${POCKETBASE_URL}/api/files/topic_icons/${icon.id}/${icon.icon_file}`;
+                return `
+                    <div class="event-card-image" style="padding: 0; overflow: hidden;">
+                        <img src="${imageUrl}" alt="Event icon" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div class=\\'event-card-image ${topicInfo.class}\\'><span>${topicInfo.emoji}</span></div>'">
+                    </div>
+                `;
+            }
+            
+            // Fallback to gradient placeholder with emoji
+            return `
+                <div class="event-card-image ${topicInfo.class}">
+                    <span>${topicInfo.emoji}</span>
+                </div>
+            `;
         }
 
         // Check if text is a valid City, ST location
