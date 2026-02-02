@@ -1347,6 +1347,7 @@
         let filteredEvents = [];
         let organizations = {};
         let orgsWithEvents = new Set();
+        let topicIconMap = {}; // Map of topic_combination -> {id, file}
         let selectedTopics = [];
         let selectedRegions = [];
         let selectedOrgs = [];
@@ -1364,6 +1365,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             setDefaultDates();
             await loadOrganizations();
+            await loadTopicIcons();  // Load icons map BEFORE events
             await loadEvents();
             initializeFilterOptions();
             
@@ -1430,10 +1432,30 @@
             }
         }
 
+        async function loadTopicIcons() {
+            try {
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/topic_icons/records?perPage=500`);
+                const data = await response.json();
+                
+                // Build map keyed by topic_combination
+                (data.items || []).forEach(icon => {
+                    if (icon.topic_combination && icon.icon_file) {
+                        topicIconMap[icon.topic_combination] = {
+                            id: icon.id,
+                            file: icon.icon_file
+                        };
+                    }
+                });
+                console.log(`Loaded ${Object.keys(topicIconMap).length} topic icons`);
+            } catch (error) {
+                console.error('Error loading topic icons:', error);
+            }
+        }
+
         async function loadEvents() {
             try {
-                // FIXED: Only fetch approved events + expand icon relation for images
-                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date&filter=(event_status='approved')&expand=icon`);
+                // FIXED: Only fetch approved events
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date&filter=(event_status='approved')`);
                 const data = await response.json();
                 
                 allEvents = (data.items || []).map(event => ({
@@ -1882,14 +1904,22 @@
         }
 
         // ============================================================================
-        // ICON DISPLAY - Uses DALL-E images from topic_icons if available
+        // ICON DISPLAY - Uses DALL-E images from topic_icons via topic_combination lookup
         // ============================================================================
         
         function buildIconDisplay(event, topicInfo) {
-            // Check if event has an expanded icon with an actual image file
-            if (event.expand && event.expand.icon && event.expand.icon.icon_file) {
-                const icon = event.expand.icon;
-                const imageUrl = `${POCKETBASE_URL}/api/files/topic_icons/${icon.id}/${icon.icon_file}`;
+            // Build topic_combination key (same format as Admin Interface)
+            const topics = (event.topics || []).slice().sort();
+            const regions = (event.regions || []).slice().sort();
+            const countries = (event.countries || []).slice().sort();
+            const transOrgs = (event.transnational_orgs || []).slice().sort();
+            const topicCombination = `${topics.join(',')}|${regions.join(',')}|${countries.join(',')}|${transOrgs.join(',')}`;
+            
+            // Look up icon in the map
+            const iconInfo = topicIconMap[topicCombination];
+            
+            if (iconInfo) {
+                const imageUrl = `${POCKETBASE_URL}/api/files/topic_icons/${iconInfo.id}/${iconInfo.file}`;
                 return `
                     <div class="event-card-image" style="padding: 0; overflow: hidden;">
                         <img src="${imageUrl}" alt="Event icon" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div class=\\'event-card-image ${topicInfo.class}\\'><span>${topicInfo.emoji}</span></div>'">
