@@ -1,0 +1,44 @@
+name: Generate Topic Icons Daily
+on:
+  schedule:
+    # Run daily at 12:00 AM EST (05:00 UTC) - 30 min after scrape-events.yml
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Allow manual triggering
+jobs:
+  generate-icons:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install root dependencies
+        run: npm install
+      
+      - name: Install icon-worker dependencies
+        run: cd icon-worker && npm install
+      
+      - name: Create topic_icons records for approved events
+        env:
+          POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
+          POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
+          POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+        run: cd icon-worker && node src/create-topic-icon-records.js
+      
+      - name: Generate icons via DALL-E 3
+        env:
+          POCKETBASE_URL: ${{ secrets.POCKETBASE_URL }}
+          POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
+          POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_IMAGE_MODEL: dall-e-3
+          MAX_ITEMS: 25
+          MAX_ATTEMPTS: 6
+          ENABLE_DOWNSCALE_AUDIT: true
+          DOWNSCALE_MIN_FOREGROUND_RATIO: 0.03
+          DOWNSCALE_MIN_STDDEV: 18
+        run: cd icon-worker && node src/generate-topic-icons.js
