@@ -487,7 +487,7 @@
         }
 
         /* ============================================
-           EVENT CARDS - FIXED: Square icons 80x80
+           EVENT CARDS
            ============================================ */
         .events-list {
             display: flex;
@@ -520,6 +520,7 @@
             font-size: 1.8rem;
             border-right: 1px solid var(--gray-200);
             background: var(--gray-50);
+            overflow: hidden;
         }
 
         /* Topic-based backgrounds */
@@ -954,7 +955,7 @@
         }
 
         /* ============================================
-           RESPONSIVE - FIXED: 50x50 square on left
+           RESPONSIVE
            ============================================ */
         @media (max-width: 850px) {
             .mobile-menu-btn {
@@ -1065,9 +1066,9 @@
             .event-card-image {
                 width: 50px;
                 height: 50px;
-                font-size: 1.4rem;
                 border-right: 1px solid var(--gray-200);
                 border-bottom: none;
+                font-size: 1.4rem;
             }
 
             .event-detail {
@@ -1100,14 +1101,14 @@
          HEADER - With search bar beside title
          ============================================ -->
     <header class="header">
-        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Open filters">☰</button>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Open filters">Γÿ░</button>
         <div class="header-brand" onclick="goHome()" title="Home - Clear all filters">
             <img src="logo.png" alt="Event Finder Logo" class="header-brand-logo">
             <h1>Event Finder</h1>
         </div>
         <div class="header-search">
             <div class="header-search-box">
-                <span class="header-search-icon">🔍</span>
+                <span class="header-search-icon">≡ƒöì</span>
                 <input type="text" id="searchInput" placeholder="Search events by title or description...">
             </div>
         </div>
@@ -1124,7 +1125,7 @@
         <aside class="sidebar" id="sidebar">
             <!-- Mobile close button -->
             <div class="sidebar-close-btn">
-                <button onclick="closeMobileMenu()" title="Close filters">✕</button>
+                <button onclick="closeMobileMenu()" title="Close filters">Γ£ò</button>
             </div>
             <!-- Event Format Filter -->
             <div class="filter-section">
@@ -1177,7 +1178,7 @@
             <!-- Buttons Section - All identical styling -->
             <div class="filter-section">
                 <button class="sidebar-btn" onclick="applyFilters()">
-                    <span class="sidebar-btn-icon">🔍</span>
+                    <span class="sidebar-btn-icon">≡ƒöì</span>
                     <span>View Results</span>
                 </button>
                 <button class="sidebar-btn" id="moreFiltersBtn" onclick="openFilterModal()">
@@ -1188,7 +1189,7 @@
                     <span class="filter-count-badge" id="filterCountBadge" style="display: none;">0</span>
                 </button>
                 <button class="sidebar-btn" onclick="clearAllFilters()">
-                    <span class="sidebar-btn-icon">🚫</span>
+                    <span class="sidebar-btn-icon">≡ƒÜ½</span>
                     <span>Clear Filters</span>
                 </button>
             </div>
@@ -1196,7 +1197,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="main-content">
-            <!-- Active Filters Display - Each on own line with × remove button -->
+            <!-- Active Filters Display - Each on own line with ├ù remove button -->
             <div class="active-filters-bar" id="activeFiltersBar">
                 <!-- Filter rows inserted here -->
             </div>
@@ -1205,8 +1206,8 @@
             <div class="results-info">
                 <span class="results-count">Showing <strong id="showingCount">0</strong> of <strong id="totalCount">0</strong> events</span>
                 <div class="view-toggle">
-                    <button id="listViewBtn" class="active" onclick="setView('list')">📋 List</button>
-                    <button id="calendarViewBtn" onclick="setView('calendar')">📅 Calendar</button>
+                    <button id="listViewBtn" class="active" onclick="setView('list')">≡ƒôï List</button>
+                    <button id="calendarViewBtn" onclick="setView('calendar')">≡ƒôà Calendar</button>
                 </div>
             </div>
 
@@ -1224,9 +1225,9 @@
             <div class="calendar-container" id="calendarContainer">
                 <div class="calendar-header">
                     <div class="calendar-nav">
-                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">◀ Prev</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">ΓùÇ Prev</button>
                         <button class="calendar-nav-btn" onclick="goToToday()">Today</button>
-                        <button class="calendar-nav-btn" onclick="changeMonth(1)">Next ▶</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(1)">Next Γû╢</button>
                     </div>
                     <div class="calendar-title" id="calendarTitle">December 2025</div>
                 </div>
@@ -1299,7 +1300,7 @@
             const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.add('mobile-open');
             overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
         }
         
         function closeMobileMenu() {
@@ -1307,24 +1308,24 @@
             const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.remove('mobile-open');
             overlay.classList.remove('active');
-            document.body.style.overflow = '';
+            document.body.style.overflow = ''; // Restore scrolling
         }
         
         // Topics
         const TOPICS = [
-            { value: 'AI & Emerging Tech', label: 'AI & Emerging Tech', emoji: '🤖', class: 'ai-emerging-tech' },
-            { value: 'Careers & Professional Development', label: 'Careers', emoji: '💼', class: 'careers' },
-            { value: 'Climate & Security', label: 'Climate & Security', emoji: '🌍', class: 'climate-security' },
-            { value: 'Counterterrorism', label: 'Counterterrorism', emoji: '🎯', class: 'counterterrorism' },
-            { value: 'Cybersecurity', label: 'Cybersecurity', emoji: '🔒', class: 'cybersecurity' },
-            { value: 'Defense Policy', label: 'Defense Policy', emoji: '🛡️', class: 'defense-policy' },
-            { value: 'Diplomacy & Statecraft', label: 'Diplomacy', emoji: '🤝', class: 'diplomacy-statecraft' },
-            { value: 'Economic Security', label: 'Economic Security', emoji: '💰', class: 'economic-security' },
-            { value: 'Homeland Security', label: 'Homeland Security', emoji: '🏠', class: 'homeland-security' },
-            { value: 'Intelligence', label: 'Intelligence', emoji: '🕵️', class: 'intelligence' },
-            { value: 'Military Operations', label: 'Military Ops', emoji: '⚔️', class: 'military-operations' },
-            { value: 'Nuclear/WMD', label: 'Nuclear/WMD', emoji: '☢️', class: 'nuclear-wmd' },
-            { value: 'Space & Satellites', label: 'Space', emoji: '🛰️', class: 'space-satellites' }
+            { value: 'AI & Emerging Tech', label: 'AI & Emerging Tech', emoji: '≡ƒñû', class: 'ai-emerging-tech' },
+            { value: 'Careers & Professional Development', label: 'Careers', emoji: '≡ƒÆ╝', class: 'careers' },
+            { value: 'Climate & Security', label: 'Climate & Security', emoji: '≡ƒîì', class: 'climate-security' },
+            { value: 'Counterterrorism', label: 'Counterterrorism', emoji: '≡ƒÄ»', class: 'counterterrorism' },
+            { value: 'Cybersecurity', label: 'Cybersecurity', emoji: '≡ƒöÆ', class: 'cybersecurity' },
+            { value: 'Defense Policy', label: 'Defense Policy', emoji: '≡ƒ¢í∩╕Å', class: 'defense-policy' },
+            { value: 'Diplomacy & Statecraft', label: 'Diplomacy', emoji: '≡ƒñ¥', class: 'diplomacy-statecraft' },
+            { value: 'Economic Security', label: 'Economic Security', emoji: '≡ƒÆ░', class: 'economic-security' },
+            { value: 'Homeland Security', label: 'Homeland Security', emoji: '≡ƒÅá', class: 'homeland-security' },
+            { value: 'Intelligence', label: 'Intelligence', emoji: '≡ƒò╡∩╕Å', class: 'intelligence' },
+            { value: 'Military Operations', label: 'Military Ops', emoji: 'ΓÜö∩╕Å', class: 'military-operations' },
+            { value: 'Nuclear/WMD', label: 'Nuclear/WMD', emoji: 'Γÿó∩╕Å', class: 'nuclear-wmd' },
+            { value: 'Space & Satellites', label: 'Space', emoji: '≡ƒ¢░∩╕Å', class: 'space-satellites' }
         ];
 
         // Regions
@@ -1349,7 +1350,7 @@
         let filteredEvents = [];
         let organizations = {};
         let orgsWithEvents = new Set();
-        let topicIconMap = {};
+        let topicIconMap = {}; // Map of topic_combination -> {id, file}
         let selectedTopics = [];
         let selectedRegions = [];
         let selectedOrgs = [];
@@ -1367,10 +1368,11 @@
         document.addEventListener('DOMContentLoaded', async () => {
             setDefaultDates();
             await loadOrganizations();
-            await loadTopicIcons();
+            await loadTopicIcons();  // Load icons map BEFORE events
             await loadEvents();
             initializeFilterOptions();
             
+            // Add event listeners
             document.getElementById('searchInput').addEventListener('input', debounce(() => {
                 currentPage = 1;
                 applyFilters();
@@ -1399,26 +1401,28 @@
         }
 
         function initializeFilterOptions() {
+            // Topics
             const topicContainer = document.getElementById('topicOptions');
-            topicContainer.innerHTML = TOPICS.map(t => \`
+            topicContainer.innerHTML = TOPICS.map(t => `
                 <div class="checkbox-item">
-                    <input type="checkbox" id="topic-\${t.value.replace(/[^a-z]/gi, '')}" value="\${t.value}" onchange="updateTopicSelection()">
-                    <label for="topic-\${t.value.replace(/[^a-z]/gi, '')}">\${t.label}</label>
+                    <input type="checkbox" id="topic-${t.value.replace(/[^a-z]/gi, '')}" value="${t.value}" onchange="updateTopicSelection()">
+                    <label for="topic-${t.value.replace(/[^a-z]/gi, '')}">${t.label}</label>
                 </div>
-            \`).join('');
+            `).join('');
 
+            // Regions
             const regionContainer = document.getElementById('regionOptions');
-            regionContainer.innerHTML = REGIONS.map(r => \`
+            regionContainer.innerHTML = REGIONS.map(r => `
                 <div class="checkbox-item">
-                    <input type="checkbox" id="region-\${r.value.replace(/[^a-z]/gi, '')}" value="\${r.value}" onchange="updateRegionSelection()">
-                    <label for="region-\${r.value.replace(/[^a-z]/gi, '')}">\${r.label}</label>
+                    <input type="checkbox" id="region-${r.value.replace(/[^a-z]/gi, '')}" value="${r.value}" onchange="updateRegionSelection()">
+                    <label for="region-${r.value.replace(/[^a-z]/gi, '')}">${r.label}</label>
                 </div>
-            \`).join('');
+            `).join('');
         }
 
         async function loadOrganizations() {
             try {
-                const response = await fetch(\`\${POCKETBASE_URL}/api/collections/organizations/records?perPage=500\`);
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`);
                 const data = await response.json();
                 
                 if (data && data.items && Array.isArray(data.items)) {
@@ -1433,9 +1437,10 @@
 
         async function loadTopicIcons() {
             try {
-                const response = await fetch(\`\${POCKETBASE_URL}/api/collections/topic_icons/records?perPage=500\`);
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/topic_icons/records?perPage=500`);
                 const data = await response.json();
                 
+                // Build map keyed by topic_combination
                 (data.items || []).forEach(icon => {
                     if (icon.topic_combination && icon.icon_file) {
                         topicIconMap[icon.topic_combination] = {
@@ -1444,7 +1449,7 @@
                         };
                     }
                 });
-                console.log(\`Loaded \${Object.keys(topicIconMap).length} topic icons\`);
+                console.log(`Loaded ${Object.keys(topicIconMap).length} topic icons`);
             } catch (error) {
                 console.error('Error loading topic icons:', error);
             }
@@ -1452,7 +1457,8 @@
 
         async function loadEvents() {
             try {
-                const response = await fetch(\`\${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date&filter=(event_status='approved')\`);
+                // FIXED: Only fetch approved events
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&sort=start_date&filter=(event_status='approved')`);
                 const data = await response.json();
                 
                 allEvents = (data.items || []).map(event => ({
@@ -1461,11 +1467,14 @@
                     endDate: event.end_date ? new Date(event.end_date) : null
                 }));
 
+                // Track which orgs have events
                 allEvents.forEach(e => {
                     if (e.organization) orgsWithEvents.add(e.organization);
                 });
 
+                // Populate org filter
                 populateOrgFilter();
+                
                 applyFilters();
             } catch (error) {
                 console.error('Error loading events:', error);
@@ -1479,13 +1488,17 @@
                 .filter(org => org)
                 .sort((a, b) => a.name.localeCompare(b.name));
 
-            orgContainer.innerHTML = orgsArray.map(org => \`
+            orgContainer.innerHTML = orgsArray.map(org => `
                 <div class="checkbox-item">
-                    <input type="checkbox" id="org-\${org.id}" value="\${org.id}" onchange="updateOrgSelection()">
-                    <label for="org-\${org.id}">\${org.name}</label>
+                    <input type="checkbox" id="org-${org.id}" value="${org.id}" onchange="updateOrgSelection()">
+                    <label for="org-${org.id}">${org.name}</label>
                 </div>
-            \`).join('');
+            `).join('');
         }
+
+        // ============================================================================
+        // FILTER SELECTION HANDLERS
+        // ============================================================================
 
         function updateTopicSelection() {
             selectedTopics = [];
@@ -1515,37 +1528,50 @@
             applyFilters();
         }
 
+        // ============================================================================
+        // FILTERING - SEARCH FIXED FOR "AI"
+        // ============================================================================
+        
         function applyFilters() {
             const searchTerm = document.getElementById('searchInput').value.trim();
             const searchLower = searchTerm.toLowerCase();
             
+            // Get date values
             const dateFromValue = document.getElementById('dateFrom').value;
             const dateToValue = document.getElementById('dateTo').value;
             dateFrom = dateFromValue ? new Date(dateFromValue) : null;
             dateTo = dateToValue ? new Date(dateToValue + 'T23:59:59') : null;
 
+            // Get format filters
             const showVirtual = document.getElementById('format-virtual').checked;
             const showInPerson = document.getElementById('format-inperson').checked;
 
             filteredEvents = allEvents.filter(event => {
                 
+                // SEARCH - only search title and description (not org, topics, regions, location)
                 if (searchTerm.length > 0) {
+                    // Only search title and description for relevance
                     const searchableText = [
                         event.title || '',
                         event.description || ''
                     ].join(' ').toLowerCase();
                     
+                    // Handle multi-word search - ANY word can match (OR logic)
                     const searchWords = searchLower.split(/\s+/).filter(w => w.length > 0);
                     
                     let anyWordMatched = false;
                     for (const word of searchWords) {
+                        // For short words (3 chars or less), use word boundary matching
+                        // This prevents "ai" from matching "training", "maintain", etc.
                         if (word.length <= 3) {
+                            // Create regex with word boundaries
                             const wordRegex = new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
                             if (wordRegex.test(searchableText)) {
                                 anyWordMatched = true;
                                 break;
                             }
                         } else {
+                            // For longer words, simple substring match is fine
                             if (searchableText.indexOf(word) !== -1) {
                                 anyWordMatched = true;
                                 break;
@@ -1553,14 +1579,17 @@
                         }
                     }
                     
+                    // If no words matched, exclude this event
                     if (!anyWordMatched) {
                         return false;
                     }
                 }
 
+                // Date range filter
                 if (dateFrom && event.startDate && event.startDate < dateFrom) return false;
                 if (dateTo && event.startDate && event.startDate > dateTo) return false;
 
+                // Format filter (Virtual / In-Person)
                 const eventType = (event.event_type || '').toLowerCase();
                 const isVirtual = eventType.indexOf('virtual') !== -1 || eventType.indexOf('webinar') !== -1 || eventType.indexOf('online') !== -1;
                 const isInPerson = eventType.indexOf('in-person') !== -1 || eventType.indexOf('in person') !== -1 || eventType.indexOf('onsite') !== -1;
@@ -1574,18 +1603,21 @@
                     if (!isInPerson && !isHybrid) return false;
                 }
 
+                // Topic filter
                 if (selectedTopics.length > 0) {
                     const eventTopics = event.topics || [];
                     const hasMatchingTopic = selectedTopics.some(t => eventTopics.indexOf(t) !== -1);
                     if (!hasMatchingTopic) return false;
                 }
 
+                // Region filter
                 if (selectedRegions.length > 0) {
                     const eventRegions = event.regions || [];
                     const hasMatchingRegion = selectedRegions.some(r => eventRegions.indexOf(r) !== -1);
                     if (!hasMatchingRegion) return false;
                 }
 
+                // Organization filter
                 if (selectedOrgs.length > 0) {
                     if (selectedOrgs.indexOf(event.organization) === -1) return false;
                 }
@@ -1609,36 +1641,40 @@
             const container = document.getElementById('activeFiltersBar');
             const rows = [];
 
+            // Search term
             const searchTerm = document.getElementById('searchInput').value.trim();
             if (searchTerm) {
-                rows.push(\`<div class="active-filter-row">
-                    <span class="active-filter-label">Search: "\${escapeHtml(searchTerm)}"</span>
-                    <button class="active-filter-remove" onclick="clearSearch()" title="Remove">×</button>
-                </div>\`);
+                rows.push(`<div class="active-filter-row">
+                    <span class="active-filter-label">Search: "${escapeHtml(searchTerm)}"</span>
+                    <button class="active-filter-remove" onclick="clearSearch()" title="Remove">├ù</button>
+                </div>`);
             }
 
+            // Topics
             selectedTopics.forEach(t => {
                 const topic = TOPICS.find(tp => tp.value === t);
-                rows.push(\`<div class="active-filter-row">
-                    <span class="active-filter-label">Topic: \${topic?.label || t}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('topic', '\${escapeAttr(t)}')" title="Remove">×</button>
-                </div>\`);
+                rows.push(`<div class="active-filter-row">
+                    <span class="active-filter-label">Topic: ${topic?.label || t}</span>
+                    <button class="active-filter-remove" onclick="removeFilter('topic', '${escapeAttr(t)}')" title="Remove">├ù</button>
+                </div>`);
             });
 
+            // Regions
             selectedRegions.forEach(r => {
                 const region = REGIONS.find(rg => rg.value === r);
-                rows.push(\`<div class="active-filter-row">
-                    <span class="active-filter-label">Region: \${region?.label || r}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('region', '\${escapeAttr(r)}')" title="Remove">×</button>
-                </div>\`);
+                rows.push(`<div class="active-filter-row">
+                    <span class="active-filter-label">Region: ${region?.label || r}</span>
+                    <button class="active-filter-remove" onclick="removeFilter('region', '${escapeAttr(r)}')" title="Remove">├ù</button>
+                </div>`);
             });
 
+            // Organizations
             selectedOrgs.forEach(o => {
                 const org = organizations[o];
-                rows.push(\`<div class="active-filter-row">
-                    <span class="active-filter-label">Org: \${org?.name || o}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('org', '\${escapeAttr(o)}')" title="Remove">×</button>
-                </div>\`);
+                rows.push(`<div class="active-filter-row">
+                    <span class="active-filter-label">Org: ${org?.name || o}</span>
+                    <button class="active-filter-remove" onclick="removeFilter('org', '${escapeAttr(o)}')" title="Remove">├ù</button>
+                </div>`);
             });
 
             if (rows.length > 0) {
@@ -1673,15 +1709,15 @@
         function removeFilter(type, value) {
             if (type === 'topic') {
                 selectedTopics = selectedTopics.filter(t => t !== value);
-                const cb = document.querySelector(\`#topicOptions input[value="\${value}"]\`);
+                const cb = document.querySelector(`#topicOptions input[value="${value}"]`);
                 if (cb) cb.checked = false;
             } else if (type === 'region') {
                 selectedRegions = selectedRegions.filter(r => r !== value);
-                const cb = document.querySelector(\`#regionOptions input[value="\${value}"]\`);
+                const cb = document.querySelector(`#regionOptions input[value="${value}"]`);
                 if (cb) cb.checked = false;
             } else if (type === 'org') {
                 selectedOrgs = selectedOrgs.filter(o => o !== value);
-                const cb = document.querySelector(\`#orgOptions input[value="\${value}"]\`);
+                const cb = document.querySelector(`#orgOptions input[value="${value}"]`);
                 if (cb) cb.checked = false;
             }
             currentPage = 1;
@@ -1718,26 +1754,31 @@
             document.querySelectorAll('#filterModal input[type="checkbox"]').forEach(cb => cb.checked = false);
         }
 
+        // ============================================================================
+        // RENDERING
+        // ============================================================================
+        
         function renderEvents() {
             const container = document.getElementById('eventsList');
             
             if (filteredEvents.length === 0) {
-                container.innerHTML = \`
+                container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📅</div>
+                        <div class="empty-state-icon">≡ƒôà</div>
                         <h3>No events found</h3>
                         <p>Try adjusting your filters or search terms</p>
                     </div>
-                \`;
+                `;
                 document.getElementById('showingCount').textContent = '0';
                 return;
             }
 
+            // Calculate pagination
             const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
             const endIndex = startIndex + EVENTS_PER_PAGE;
             const pageEvents = filteredEvents.slice(startIndex, endIndex);
             
-            document.getElementById('showingCount').textContent = \`\${startIndex + 1}-\${Math.min(endIndex, filteredEvents.length)}\`;
+            document.getElementById('showingCount').textContent = `${startIndex + 1}-${Math.min(endIndex, filteredEvents.length)}`;
 
             container.innerHTML = pageEvents.map(event => {
                 const topicInfo = getTopicInfo(event.topics);
@@ -1745,41 +1786,54 @@
                 const orgName = org?.name || 'Unknown Organization';
                 const orgWebsite = org?.website || '#';
                 
+                // Build date display - handles multi-day events
                 let dateDisplay = buildDateDisplay(event);
+                
+                // Build location display - FIXED: extracts from title if location field is bad
                 let locationDisplay = buildLocationDisplay(event);
+
+                // Get description - strip HTML
                 const description = stripHtml(event.description || '');
+
+                // Get registration URL
                 const registerUrl = event.registration_url || event.url || '';
+
+                // Build image display - use actual DALL-E icon if available
                 const iconHtml = buildIconDisplay(event, topicInfo);
 
-                return \`
+                return `
                     <div class="event-card">
-                        \${iconHtml}
+                        ${iconHtml}
                         <div class="event-card-content">
-                            <div class="event-title">\${escapeHtml(event.title)}</div>
-                            \${description ? \`
+                            <div class="event-title">${escapeHtml(event.title)}</div>
+                            ${description ? `
                             <div class="event-detail">
                                 <span class="event-detail-label">Description:</span>
-                                <span class="event-detail-value description">\${escapeHtml(description)}</span>
-                            </div>\` : ''}
+                                <span class="event-detail-value description">${escapeHtml(description)}</span>
+                            </div>` : ''}
                             <div class="event-detail">
                                 <span class="event-detail-label">Dates:</span>
-                                <span class="event-detail-value">\${dateDisplay}</span>
+                                <span class="event-detail-value">${dateDisplay}</span>
                             </div>
                             <div class="event-detail">
                                 <span class="event-detail-label">Organization:</span>
-                                <span class="event-detail-value"><a href="\${orgWebsite}" target="_blank">\${escapeHtml(orgName)}</a></span>
+                                <span class="event-detail-value"><a href="${orgWebsite}" target="_blank">${escapeHtml(orgName)}</a></span>
                             </div>
                             <div class="event-detail">
                                 <span class="event-detail-label">Location:</span>
-                                <span class="event-detail-value">\${escapeHtml(locationDisplay)}</span>
+                                <span class="event-detail-value">${escapeHtml(locationDisplay)}</span>
                             </div>
-                            \${registerUrl ? \`<a href="\${registerUrl}" target="_blank" class="event-register-link">More details and registration</a>\` : ''}
+                            ${registerUrl ? `<a href="${registerUrl}" target="_blank" class="event-register-link">More details and registration</a>` : ''}
                         </div>
                     </div>
-                \`;
+                `;
             }).join('');
         }
 
+        // ============================================================================
+        // DATE DISPLAY - DATES ONLY (no times)
+        // ============================================================================
+        
         function buildDateDisplay(event) {
             const startDate = event.start_date ? new Date(event.start_date) : null;
             const endDate = event.end_date ? new Date(event.end_date) : null;
@@ -1788,49 +1842,63 @@
                 return 'Date TBD';
             }
             
+            // Check if multi-day event
             if (endDate) {
                 const startDay = startDate.toDateString();
                 const endDay = endDate.toDateString();
                 
                 if (startDay !== endDay) {
+                    // Multi-day event
                     if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
-                        return \`\${startDate.toLocaleDateString('en-US', { month: 'long' })} \${startDate.getDate()}-\${endDate.getDate()}, \${startDate.getFullYear()}\`;
+                        // Same month: "December 9-10, 2025"
+                        return `${startDate.toLocaleDateString('en-US', { month: 'long' })} ${startDate.getDate()}-${endDate.getDate()}, ${startDate.getFullYear()}`;
                     } else if (startDate.getFullYear() === endDate.getFullYear()) {
-                        return \`\${startDate.toLocaleDateString('en-US', { month: 'long' })} \${startDate.getDate()}, \${startDate.getFullYear()} to \${endDate.toLocaleDateString('en-US', { month: 'long' })} \${endDate.getDate()}, \${endDate.getFullYear()}\`;
+                        // Same year, different months: "December 30, 2025 to January 2, 2025"
+                        return `${startDate.toLocaleDateString('en-US', { month: 'long' })} ${startDate.getDate()}, ${startDate.getFullYear()} to ${endDate.toLocaleDateString('en-US', { month: 'long' })} ${endDate.getDate()}, ${endDate.getFullYear()}`;
                     } else {
-                        return \`\${startDate.toLocaleDateString('en-US', { month: 'long' })} \${startDate.getDate()}, \${startDate.getFullYear()} to \${endDate.toLocaleDateString('en-US', { month: 'long' })} \${endDate.getDate()}, \${endDate.getFullYear()}\`;
+                        // Different years: "December 30, 2025 to January 2, 2026"
+                        return `${startDate.toLocaleDateString('en-US', { month: 'long' })} ${startDate.getDate()}, ${startDate.getFullYear()} to ${endDate.toLocaleDateString('en-US', { month: 'long' })} ${endDate.getDate()}, ${endDate.getFullYear()}`;
                     }
                 }
             }
             
+            // Single day event - "December 18, 2025"
             return startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         }
 
+        // ============================================================================
+        // LOCATION DISPLAY - FIXED: Extracts City, ST from title if location field is bad
+        // ============================================================================
+        
         function buildLocationDisplay(event) {
             const rawLocation = (event.location || '').trim();
             const eventType = (event.event_type || '').toLowerCase();
             const title = event.title || '';
             
+            // Check if virtual
             if (eventType.indexOf('virtual') !== -1 || eventType.indexOf('webinar') !== -1 || eventType.indexOf('online') !== -1) {
                 return 'Virtual';
             }
             
+            // First try to get location from the location field
             const fromField = extractCityStateFromText(rawLocation);
             if (fromField) {
                 if (eventType.indexOf('hybrid') !== -1) {
-                    return \`Hybrid - \${fromField}\`;
+                    return `Hybrid - ${fromField}`;
                 }
                 return fromField;
             }
             
+            // If location field is bad (in-person, tbd, etc.), try to extract from title
             const fromTitle = extractCityStateFromTitle(title);
             if (fromTitle) {
                 if (eventType.indexOf('hybrid') !== -1) {
-                    return \`Hybrid - \${fromTitle}\`;
+                    return `Hybrid - ${fromTitle}`;
                 }
                 return fromTitle;
             }
             
+            // If hybrid with no location
             if (eventType.indexOf('hybrid') !== -1) {
                 return 'Hybrid';
             }
@@ -1838,38 +1906,50 @@
             return 'Location TBD';
         }
 
+        // ============================================================================
+        // ICON DISPLAY - Uses DALL-E images from topic_icons via topic_combination lookup
+        // ============================================================================
+        
         function buildIconDisplay(event, topicInfo) {
+            // Build topic_combination key (new 4-part format)
             const topics = (event.topics || []).slice().sort();
             const regions = (event.regions || []).slice().sort();
             const countries = (event.countries || []).slice().sort();
             const transOrgs = (event.transnational_orgs || []).slice().sort();
             
-            const newFormatKey = \`\${topics.join(',')}|\${regions.join(',')}|\${countries.join(',')}|\${transOrgs.join(',')}\`;
+            // New 4-part format: "Topics|Regions|Countries|TransnationalOrgs"
+            const newFormatKey = `${topics.join(',')}|${regions.join(',')}|${countries.join(',')}|${transOrgs.join(',')}`;
+            
+            // Old format: just topics (for backwards compatibility with existing icons)
             const oldFormatKey = topics.join(',');
             
+            // Try new format first, then old format
             let iconInfo = topicIconMap[newFormatKey] || topicIconMap[oldFormatKey];
             
             if (iconInfo) {
-                const imageUrl = \`\${POCKETBASE_URL}/api/files/topic_icons/\${iconInfo.id}/\${iconInfo.file}\`;
-                return \`
+                const imageUrl = `${POCKETBASE_URL}/api/files/topic_icons/${iconInfo.id}/${iconInfo.file}`;
+                return `
                     <div class="event-card-image" style="padding: 0; overflow: hidden;">
-                        <img src="\${imageUrl}" alt="Event icon" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div class=\\'event-card-image \${topicInfo.class}\\'><span>\${topicInfo.emoji}</span></div>'">
+                        <img src="${imageUrl}" alt="Event icon" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div class=\\'event-card-image ${topicInfo.class}\\'><span>${topicInfo.emoji}</span></div>'">
                     </div>
-                \`;
+                `;
             }
             
-            return \`
-                <div class="event-card-image \${topicInfo.class}">
-                    <span>\${topicInfo.emoji}</span>
+            // Fallback to gradient placeholder with emoji
+            return `
+                <div class="event-card-image ${topicInfo.class}">
+                    <span>${topicInfo.emoji}</span>
                 </div>
-            \`;
+            `;
         }
 
+        // Check if text is a valid City, ST location
         function extractCityStateFromText(text) {
             if (!text) return null;
             
             const lower = text.toLowerCase().trim();
             
+            // List of non-location values to reject
             const badValues = [
                 'tbd', 'to be determined', 'n/a', 'na', 'none', 'online',
                 'in-person', 'in person', 'inperson', 'in-person event',
@@ -1878,39 +1958,47 @@
                 'various', 'multiple locations', 'united states', 'usa', 'us'
             ];
             
+            // Check exact match with bad values
             if (badValues.indexOf(lower) !== -1) {
                 return null;
             }
             
+            // Also check if it STARTS with "in-person" or similar
             if (lower.indexOf('in-person') === 0 || lower.indexOf('in person') === 0) {
-                const afterDash = text.match(/[-–]\s*(.+)$/);
+                // But might be "In-person - Arlington, VA" - try to extract the location part
+                const afterDash = text.match(/[-ΓÇô]\s*(.+)$/);
                 if (afterDash) {
                     return extractCityStateFromText(afterDash[1]);
                 }
                 return null;
             }
             
+            // Clean up text
             let cleaned = text
-                .replace(/^in-person\s*[-–:]\s*/i, '')
-                .replace(/^hybrid\s*[-–:]\s*/i, '')
-                .replace(/^location\s*[-–:]\s*/i, '')
+                .replace(/^in-person\s*[-ΓÇô:]\s*/i, '')
+                .replace(/^hybrid\s*[-ΓÇô:]\s*/i, '')
+                .replace(/^location\s*[-ΓÇô:]\s*/i, '')
                 .replace(/^at\s+/i, '')
                 .trim();
             
+            // Look for "City, ST" pattern (2-letter state code)
             const cityStateMatch = cleaned.match(/^(.+?),\s*([A-Z]{2})$/i);
             if (cityStateMatch) {
                 const state = cityStateMatch[2].toUpperCase();
                 if (US_STATES.indexOf(state) !== -1) {
-                    return \`\${cityStateMatch[1].trim()}, \${state}\`;
+                    return `${cityStateMatch[1].trim()}, ${state}`;
                 }
             }
             
+            // Look for state abbreviation at the end (without comma)
             const stateAtEnd = cleaned.match(/\s([A-Z]{2})$/);
             if (stateAtEnd && US_STATES.indexOf(stateAtEnd[1]) !== -1) {
                 return cleaned;
             }
             
+            // If it has a comma and reasonable length, might be a location
             if (cleaned.indexOf(',') !== -1 && cleaned.length >= 5 && cleaned.length <= 60) {
+                // Double-check it's not a bad value
                 if (badValues.indexOf(cleaned.toLowerCase()) === -1) {
                     return cleaned;
                 }
@@ -1919,30 +2007,38 @@
             return null;
         }
 
+        // Extract "City, ST" from event title
         function extractCityStateFromTitle(title) {
             if (!title) return null;
             
-            const dashMatch = title.match(/\s[-–—]\s*([A-Za-z\s\.]+),\s*([A-Z]{2})\s*$/);
+            // Pattern 1: "Event Name - City, ST" (with various dash types)
+            // Match: " - Arlington, VA" or " ΓÇô Arlington, VA"
+            const dashMatch = title.match(/\s[-ΓÇôΓÇö]\s*([A-Za-z\s\.]+),\s*([A-Z]{2})\s*$/);
             if (dashMatch) {
                 const city = dashMatch[1].trim();
                 const state = dashMatch[2].toUpperCase();
                 if (US_STATES.indexOf(state) !== -1 && city.length >= 2 && city.length <= 30) {
-                    return \`\${city}, \${state}\`;
+                    return `${city}, ${state}`;
                 }
             }
             
+            // Pattern 2: Look for "City, ST" anywhere in title
+            // Be more careful here to avoid false matches
             for (let i = 0; i < US_STATES.length; i++) {
                 const state = US_STATES[i];
-                const pattern = new RegExp(\`([A-Z][a-zA-Z\\.\\s]{1,24}),\\s*\${state}(?:\\s|$|,|\\)|-)\\`, 'g');
+                // Match "City, ST" where City is 2-25 chars, starts with capital
+                const pattern = new RegExp(`([A-Z][a-zA-Z\\.\\s]{1,24}),\\s*${state}(?:\\s|$|,|\\)|-)`, 'g');
                 const matches = title.match(pattern);
                 if (matches && matches.length > 0) {
+                    // Get the last match (most likely to be at end of title)
                     const lastMatch = matches[matches.length - 1];
+                    // Clean up the match
                     const cleanMatch = lastMatch.replace(/[,\)\-\s]+$/, '').trim();
                     const parts = cleanMatch.split(',');
                     if (parts.length >= 2) {
                         const city = parts[0].trim();
                         if (city.length >= 2 && city.length <= 25) {
-                            return \`\${city}, \${state}\`;
+                            return `${city}, ${state}`;
                         }
                     }
                 }
@@ -1962,10 +2058,10 @@
 
         function getTopicInfo(topics) {
             if (!topics || topics.length === 0) {
-                return { emoji: '📅', class: 'default' };
+                return { emoji: '≡ƒôà', class: 'default' };
             }
             const topic = TOPICS.find(t => t.value === topics[0]);
-            return topic ? { emoji: topic.emoji, class: topic.class } : { emoji: '📅', class: 'default' };
+            return topic ? { emoji: topic.emoji, class: topic.class } : { emoji: '≡ƒôà', class: 'default' };
         }
 
         function stripHtml(html) {
@@ -1974,6 +2070,10 @@
             return div.textContent || div.innerText || '';
         }
 
+        // ============================================================================
+        // PAGINATION - At bottom with page numbers
+        // ============================================================================
+        
         function renderPagination() {
             const container = document.getElementById('pagination');
             const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
@@ -1985,8 +2085,10 @@
 
             let html = '';
             
-            html += \`<button class="pagination-btn" onclick="goToPage(\${currentPage - 1})" \${currentPage === 1 ? 'disabled' : ''}>← Prev</button>\`;
+            // Previous button
+            html += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>ΓåÉ Prev</button>`;
             
+            // Page numbers
             const maxVisiblePages = 5;
             let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
             let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -1996,24 +2098,25 @@
             }
             
             if (startPage > 1) {
-                html += \`<button class="pagination-btn" onclick="goToPage(1)">1</button>\`;
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
                 if (startPage > 2) {
-                    html += \`<span class="pagination-info">...</span>\`;
+                    html += `<span class="pagination-info">...</span>`;
                 }
             }
             
             for (let i = startPage; i <= endPage; i++) {
-                html += \`<button class="pagination-btn \${i === currentPage ? 'active' : ''}" onclick="goToPage(\${i})">\${i}</button>\`;
+                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
             }
             
             if (endPage < totalPages) {
                 if (endPage < totalPages - 1) {
-                    html += \`<span class="pagination-info">...</span>\`;
+                    html += `<span class="pagination-info">...</span>`;
                 }
-                html += \`<button class="pagination-btn" onclick="goToPage(\${totalPages})">\${totalPages}</button>\`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
             }
             
-            html += \`<button class="pagination-btn" onclick="goToPage(\${currentPage + 1})" \${currentPage === totalPages ? 'disabled' : ''}>Next →</button>\`;
+            // Next button
+            html += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next ΓåÆ</button>`;
             
             container.innerHTML = html;
         }
@@ -2026,9 +2129,14 @@
             renderEvents();
             renderPagination();
             
+            // Scroll to top of events
             document.getElementById('eventsList').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
+        // ============================================================================
+        // VIEW TOGGLE
+        // ============================================================================
+        
         function setView(view) {
             currentView = view;
             const listBtn = document.getElementById('listViewBtn');
@@ -2053,25 +2161,31 @@
             }
         }
 
+        // ============================================================================
+        // CALENDAR VIEW
+        // ============================================================================
+        
         function renderCalendar() {
             const title = document.getElementById('calendarTitle');
             const grid = document.getElementById('calendarGrid');
             
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                               'July', 'August', 'September', 'October', 'November', 'December'];
-            title.textContent = \`\${monthNames[currentMonth]} \${currentYear}\`;
+            title.textContent = `${monthNames[currentMonth]} ${currentYear}`;
 
             const firstDay = new Date(currentYear, currentMonth, 1);
             const lastDay = new Date(currentYear, currentMonth + 1, 0);
             const startDayOfWeek = firstDay.getDay();
             const totalDays = lastDay.getDate();
 
+            // Get events for this month
             const monthEvents = filteredEvents.filter(e => {
                 if (!e.startDate) return false;
                 return e.startDate.getMonth() === currentMonth && 
                        e.startDate.getFullYear() === currentYear;
             });
 
+            // Group events by date
             const eventsByDate = {};
             monthEvents.forEach(e => {
                 const dateKey = e.startDate.getDate();
@@ -2079,7 +2193,7 @@
                 eventsByDate[dateKey].push(e);
             });
 
-            let html = \`
+            let html = `
                 <div class="calendar-day-header">Sun</div>
                 <div class="calendar-day-header">Mon</div>
                 <div class="calendar-day-header">Tue</div>
@@ -2087,15 +2201,17 @@
                 <div class="calendar-day-header">Thu</div>
                 <div class="calendar-day-header">Fri</div>
                 <div class="calendar-day-header">Sat</div>
-            \`;
+            `;
 
+            // Previous month days
             const prevMonth = new Date(currentYear, currentMonth, 0);
             for (let i = startDayOfWeek - 1; i >= 0; i--) {
-                html += \`<div class="calendar-day other-month">
-                    <div class="calendar-date">\${prevMonth.getDate() - i}</div>
-                </div>\`;
+                html += `<div class="calendar-day other-month">
+                    <div class="calendar-date">${prevMonth.getDate() - i}</div>
+                </div>`;
             }
 
+            // Current month days
             const today = new Date();
             for (let day = 1; day <= totalDays; day++) {
                 const isToday = day === today.getDate() && 
@@ -2106,22 +2222,23 @@
                 const displayEvents = dayEvents.slice(0, 2);
                 const moreCount = dayEvents.length - 2;
 
-                html += \`
-                    <div class="calendar-day \${isToday ? 'today' : ''}">
-                        <div class="calendar-date">\${day}</div>
-                        \${displayEvents.map(e => 
-                            \`<div class="calendar-event" title="\${escapeHtml(e.title)}">\${escapeHtml(e.title.substring(0, 10))}\${e.title.length > 10 ? '...' : ''}</div>\`
+                html += `
+                    <div class="calendar-day ${isToday ? 'today' : ''}">
+                        <div class="calendar-date">${day}</div>
+                        ${displayEvents.map(e => 
+                            `<div class="calendar-event" title="${escapeHtml(e.title)}">${escapeHtml(e.title.substring(0, 10))}${e.title.length > 10 ? '...' : ''}</div>`
                         ).join('')}
-                        \${moreCount > 0 ? \`<div class="calendar-more">+\${moreCount} more</div>\` : ''}
+                        ${moreCount > 0 ? `<div class="calendar-more">+${moreCount} more</div>` : ''}
                     </div>
-                \`;
+                `;
             }
 
+            // Next month days
             const remainingCells = 42 - (startDayOfWeek + totalDays);
             for (let day = 1; day <= remainingCells && remainingCells < 7; day++) {
-                html += \`<div class="calendar-day other-month">
-                    <div class="calendar-date">\${day}</div>
-                </div>\`;
+                html += `<div class="calendar-day other-month">
+                    <div class="calendar-date">${day}</div>
+                </div>`;
             }
 
             grid.innerHTML = html;
@@ -2146,6 +2263,10 @@
             renderCalendar();
         }
 
+        // ============================================================================
+        // MODALS
+        // ============================================================================
+        
         function openFilterModal() {
             document.getElementById('filterModal').classList.add('active');
         }
@@ -2160,6 +2281,10 @@
             closeFilterModal();
         }
 
+        // ============================================================================
+        // UTILITIES
+        // ============================================================================
+        
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -2172,6 +2297,7 @@
             return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
         }
 
+        // Close modals on escape or backdrop click
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeFilterModal();
