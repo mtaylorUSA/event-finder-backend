@@ -1,0 +1,29 @@
+Create an abstract, full-bleed artwork for a national security event.
+
+THEME: Diplomacy & Statecraft, Military & Conflict
+
+PRIMARY VISUAL: clasped geometric forms with subtle treaty scroll waves integration
+COLOR PALETTE: royal purple, #7c3aed, diplomatic blue, gold, #a855f7
+ARTISTIC STYLE: Dynamic with implied movement
+
+COMPOSITION: Compose with elements radiating outward from an off-center focal point, creating dynamic energy
+
+GEOGRAPHIC CONTEXT:
+- Incorporate colors inspired by: Libya: simplified national-flag colors (no text)
+
+TECHNICAL REQUIREMENTS:
+- Full-bleed 1024x1024 artwork extending to all edges
+- NO white space, NO margins, NO padding
+- NO button frame, NO badge border, NO rounded rectangle
+- Rich gradients or textures filling entire canvas
+- Must remain visually interesting at 80x130 pixel display size
+
+CRITICAL REQUIREMENTS:
+- Absolutely NO text, words, letters, numbers, labels, or watermarks of any kind
+- Absolutely NO US politicians (current or former)
+- Absolutely NO US political party symbols or imagery (no elephant, no donkey)
+- No realistic human faces
+- No official government seals (FBI, CIA, NSA, DHS, DoD, etc.)
+- No specific military unit insignia or patches
+- Single cohesive unified image only
+- No divided layouts or segmented frames

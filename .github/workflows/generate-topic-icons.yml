@@ -4,6 +4,28 @@ on:
     # Run daily at 12:00 AM EST (05:00 UTC) - 30 min after scrape-events.yml
     - cron: '0 5 * * *'
   workflow_dispatch: # Allow manual triggering
+    inputs:
+      dalle_style:
+        description: 'DALL-E style (vivid=dramatic, natural=realistic)'
+        required: false
+        default: 'vivid'
+        type: choice
+        options:
+          - vivid
+          - natural
+      dalle_quality:
+        description: 'DALL-E quality (hd costs 2x but more detail)'
+        required: false
+        default: 'standard'
+        type: choice
+        options:
+          - standard
+          - hd
+      max_items:
+        description: 'Max icons to generate (default: 25)'
+        required: false
+        default: '25'
+
 jobs:
   generate-icons:
     runs-on: ubuntu-latest
@@ -46,7 +68,10 @@ jobs:
           POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_IMAGE_MODEL: dall-e-3
-          MAX_ITEMS: 25
+          # NEW: Style and quality settings for variety
+          DALLE_STYLE: ${{ github.event.inputs.dalle_style || 'vivid' }}
+          DALLE_QUALITY: ${{ github.event.inputs.dalle_quality || 'standard' }}
+          MAX_ITEMS: ${{ github.event.inputs.max_items || '25' }}
           MAX_ATTEMPTS: 6
           ENABLE_DOWNSCALE_AUDIT: true
           DOWNSCALE_MIN_FOREGROUND_RATIO: 0.03

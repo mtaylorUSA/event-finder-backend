@@ -1,6 +1,8 @@
 // =============================================================================
 // OPENAIIMAGES.JS
 // OpenAI DALL·E 3 API wrapper with network retry logic
+// Version: 2.0
+// IMPROVEMENTS: Vivid style for more dramatic results, configurable quality
 // =============================================================================
 
 function isDalleModel(model) {
@@ -47,22 +49,38 @@ function isRetryableError(error) {
  * Generate an image and return base64 (b64_json).
  * Includes retry logic with exponential backoff for network failures.
  *
- * For `dall-e-3` / `dall-e-2`:
- * - Use `response_format: "b64_json"`
- * - `quality`: "standard" or "hd" (dall-e-3 only)
- * - `style`: "natural" or "vivid" (dall-e-3 only)
- *
- * For GPT image models (e.g., gpt-image-1):
- * - They return base64 by default and support `output_format`
+ * DALL-E 3 Options:
+ * - quality: "standard" ($0.040/image) or "hd" ($0.080/image) - more detail
+ * - style: "natural" (realistic) or "vivid" (dramatic, hyper-real) 
  * 
- * Retry behavior:
- * - Up to 3 retries for network/transient errors
- * - Exponential backoff: 5s, 10s, 20s between retries
- * - Non-retryable errors (4xx client errors) fail immediately
+ * RECOMMENDATION: Use "vivid" for more distinctive, varied icons
+ *
+ * @param {Object} options
+ * @param {string} options.apiKey - OpenAI API key
+ * @param {string} options.model - Model name (dall-e-3 recommended)
+ * @param {string} options.prompt - Image generation prompt
+ * @param {string} options.size - Image size (default: 1024x1024)
+ * @param {string} options.quality - "standard" or "hd" (default: standard)
+ * @param {string} options.style - "natural" or "vivid" (default: vivid)
  */
-export async function generateImageB64({ apiKey, model, prompt, size = "1024x1024" }) {
+export async function generateImageB64({ 
+  apiKey, 
+  model, 
+  prompt, 
+  size = "1024x1024",
+  quality = "standard",  // Can be overridden to "hd" for more detail
+  style = "vivid"        // CHANGED: Default to "vivid" for more dramatic results
+}) {
   const MAX_RETRIES = 3;
   const BASE_DELAY_MS = 5000; // 5 seconds
+  
+  // Validate style parameter
+  const validStyles = ["natural", "vivid"];
+  const finalStyle = validStyles.includes(style) ? style : "vivid";
+  
+  // Validate quality parameter
+  const validQualities = ["standard", "hd"];
+  const finalQuality = validQualities.includes(quality) ? quality : "standard";
   
   const payload = isDalleModel(model)
     ? {
@@ -70,8 +88,8 @@ export async function generateImageB64({ apiKey, model, prompt, size = "1024x102
         prompt,
         size,
         response_format: "b64_json",
-        quality: "standard",
-        style: "natural",
+        quality: finalQuality,
+        style: finalStyle,
         n: 1
       }
     : {
@@ -82,6 +100,9 @@ export async function generateImageB64({ apiKey, model, prompt, size = "1024x102
         quality: "auto",
         n: 1
       };
+
+  // Log the style being used (helpful for debugging)
+  console.log(`    [API] 🎨 DALL-E settings: style=${finalStyle}, quality=${finalQuality}`);
 
   let lastError = null;
   

@@ -29,7 +29,16 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-02-01
+ * Last Updated: 2026-02-03
+ * - 🌍 NEW: Foreign Organization Location Check (Step 5.5)
+ *   - checkOrgLocation() uses Google Search + AI to determine if org is US or foreign
+ *   - Auto-rejects foreign orgs to "Rejected by Mission" status
+ *   - Sets foreign_org_flag, headquarters_country, location_check_notes fields
+ *   - WHAT COUNTS AS FOREIGN: Foreign governments, non-US HQ, US subsidiaries of foreign parents
+ * - NEW: Database fields: foreign_org_flag (Bool), headquarters_country, location_check_notes
+ * - NEW: check-foreign-orgs.js one-time script for existing organizations
+ * 
+ * 2026-02-01
  * - 🐛 BUGFIX: findAllLegalUrls() now filters out third-party policy pages
  *   - Was scanning policies.google.com instead of org's own policies (CNAS bug)
  *   - Added THIRD_PARTY_POLICY_DOMAINS blocklist (Google, Microsoft, Facebook, etc.)
@@ -3623,6 +3632,209 @@ function generateScanSummary(result, flagsChanged) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// FOREIGN ORGANIZATION LOCATION CHECK (NEW 2026-02-03)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Check if an organization is US-based or foreign
+ * Uses Google Search + AI analysis to determine headquarters location
+ * 
+ * What counts as FOREIGN:
+ * - Foreign governments and government agencies
+ * - All non-US headquartered organizations
+ * - US subsidiaries of foreign parent companies
+ * - International organizations headquartered outside US (NATO, UN, etc.)
+ * 
+ * @param {string} orgName - Organization name
+ * @param {string} website - Organization website URL
+ * @returns {object} Location check result
+ */
+async function checkOrgLocation(orgName, website) {
+    console.log('');
+    console.log('   ────────────────────────────────────────────────────────────');
+    console.log('   🌍 Step 5.5: Foreign Organization Location Check');
+    console.log('   ────────────────────────────────────────────────────────────');
+    
+    const result = {
+        isForeign: false,
+        confidence: 'unknown',  // 'high', 'medium', 'low', 'unknown'
+        headquartersCountry: '',
+        notes: '',
+        needsHumanReview: false
+    };
+    
+    if (!orgName) {
+        result.notes = 'No organization name provided';
+        result.needsHumanReview = true;
+        console.log('      ⚠️ No organization name - skipping location check');
+        return result;
+    }
+    
+    try {
+        // ───────────────────────────────────────────────────────────────────
+        // Step 1: Google Search for location information
+        // ───────────────────────────────────────────────────────────────────
+        
+        console.log(`      🔍 Searching for location: "${orgName}"...`);
+        
+        if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+            console.log('      ⚠️ Google Search API not configured - skipping');
+            result.notes = 'Google Search API not configured';
+            result.needsHumanReview = true;
+            return result;
+        }
+        
+        const searchQueries = [
+            `"${orgName}" headquarters location country`,
+            `"${orgName}" based in`
+        ];
+        
+        let searchSnippets = [];
+        
+        for (const query of searchQueries) {
+            try {
+                const url = new URL('https://www.googleapis.com/customsearch/v1');
+                url.searchParams.set('key', GOOGLE_SEARCH_API_KEY);
+                url.searchParams.set('cx', GOOGLE_SEARCH_ENGINE_ID);
+                url.searchParams.set('q', query);
+                url.searchParams.set('num', '5');
+                
+                const response = await fetch(url.toString());
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const items = data.items || [];
+                    
+                    for (const item of items.slice(0, 3)) {
+                        searchSnippets.push({
+                            title: item.title || '',
+                            snippet: item.snippet || ''
+                        });
+                    }
+                    googleQueryCount++;  // Track Google API usage
+                } else {
+                    console.log(`      ⚠️ Search returned ${response.status}`);
+                }
+                
+                await sleep(1500);  // Rate limiting
+                
+            } catch (searchError) {
+                console.log(`      ⚠️ Search error: ${searchError.message}`);
+            }
+        }
+        
+        if (searchSnippets.length === 0) {
+            console.log('      ⚠️ No search results found');
+            result.notes = 'No search results found for location verification';
+            result.needsHumanReview = true;
+            return result;
+        }
+        
+        console.log(`      ✅ Found ${searchSnippets.length} search results`);
+        
+        // ───────────────────────────────────────────────────────────────────
+        // Step 2: AI Analysis of search results
+        // ───────────────────────────────────────────────────────────────────
+        
+        console.log('      🤖 Analyzing location with AI...');
+        
+        if (!OPENAI_API_KEY) {
+            console.log('      ⚠️ OpenAI API not configured - skipping AI analysis');
+            result.notes = 'OpenAI API not configured';
+            result.needsHumanReview = true;
+            return result;
+        }
+        
+        const snippetText = searchSnippets.map((s, i) => 
+            `[${i + 1}] ${s.title}\n${s.snippet}`
+        ).join('\n\n');
+        
+        const prompt = `Analyze if this organization is US-based or foreign.
+
+ORGANIZATION: ${orgName}
+WEBSITE: ${website || 'N/A'}
+
+SEARCH RESULTS:
+${snippetText}
+
+RULES - What counts as FOREIGN:
+- Foreign governments and government agencies = FOREIGN
+- Organizations headquartered outside the United States = FOREIGN
+- US subsidiaries of foreign parent companies = FOREIGN (parent determines status)
+- International organizations headquartered outside US = FOREIGN
+  (Examples: NATO in Brussels, but note UN HQ is in NYC)
+- If uncertain, default to US-based but set needsHumanReview=true
+
+RESPOND IN THIS EXACT JSON FORMAT ONLY (no markdown, no explanation):
+{
+  "isForeign": true or false,
+  "country": "Country name where headquartered",
+  "confidence": "high" or "medium" or "low",
+  "reasoning": "One sentence explanation",
+  "needsHumanReview": true or false
+}`;
+
+        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: 'You respond only with valid JSON. No markdown code blocks.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.3,
+                max_tokens: 300
+            })
+        });
+        
+        if (!aiResponse.ok) {
+            throw new Error(`AI API error: ${aiResponse.status}`);
+        }
+        
+        const aiData = await aiResponse.json();
+        let content = aiData.choices[0].message.content.trim();
+        
+        // Clean up response (remove any markdown formatting)
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        const aiResult = JSON.parse(content);
+        
+        result.isForeign = aiResult.isForeign === true;
+        result.headquartersCountry = aiResult.country || 'Unknown';
+        result.confidence = aiResult.confidence || 'low';
+        result.notes = aiResult.reasoning || '';
+        result.needsHumanReview = aiResult.needsHumanReview === true;
+        
+        // ───────────────────────────────────────────────────────────────────
+        // Step 3: Log results
+        // ───────────────────────────────────────────────────────────────────
+        
+        if (result.isForeign) {
+            console.log(`      🌍 FOREIGN ORG: ${result.headquartersCountry}`);
+            console.log(`      📊 Confidence: ${result.confidence}`);
+            console.log(`      📝 Reason: ${result.notes}`);
+        } else if (result.needsHumanReview) {
+            console.log(`      ❓ UNCERTAIN - Needs human review`);
+            console.log(`      📊 Best guess: ${result.headquartersCountry || 'Unknown'}`);
+        } else {
+            console.log(`      🇺🇸 US-BASED: ${result.headquartersCountry || 'United States'}`);
+            console.log(`      📊 Confidence: ${result.confidence}`);
+        }
+        
+    } catch (error) {
+        console.log(`      ❌ Location check error: ${error.message}`);
+        result.notes = `Location check failed: ${error.message}`;
+        result.needsHumanReview = true;
+    }
+    
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN SCAN FUNCTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -4059,6 +4271,27 @@ async function scanOrganization(org, options = {}) {
     }
     
     // ───────────────────────────────────────────────────────────────────────
+    // Step 5.5: Foreign Organization Location Check (NEW 2026-02-03)
+    // ───────────────────────────────────────────────────────────────────────
+    
+    if (!options.skipLocationCheck) {
+        const locationResult = await checkOrgLocation(org.name, org.website);
+        
+        result.foreignOrgFlag = locationResult.isForeign;
+        result.headquartersCountry = locationResult.headquartersCountry;
+        result.locationCheckNotes = locationResult.notes;
+        result.locationNeedsReview = locationResult.needsHumanReview;
+        
+        // Auto-reject foreign organizations (high/medium confidence only)
+        if (locationResult.isForeign && locationResult.confidence !== 'low' && !locationResult.needsHumanReview) {
+            console.log('      🌍 Foreign org will be auto-rejected to "Rejected by Mission"');
+            result.autoRejectedAsForeign = true;
+        }
+        
+        await sleep(1500);
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────
     // Step 6: Update Database (if requested)
     // ───────────────────────────────────────────────────────────────────────
     
@@ -4189,6 +4422,36 @@ async function scanOrganization(org, options = {}) {
             result.fieldsUpdated.push('events_url');
         }
         
+        // ═══════════════════════════════════════════════════════════════════
+        // Foreign org location fields (NEW 2026-02-03)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        if (result.foreignOrgFlag !== undefined && result.foreignOrgFlag !== org.foreign_org_flag) {
+            updates.foreign_org_flag = result.foreignOrgFlag;
+            result.fieldsUpdated.push('foreign_org_flag');
+        }
+        if (result.headquartersCountry) {
+            updates.headquarters_country = result.headquartersCountry;
+            result.fieldsUpdated.push('headquarters_country');
+        }
+        if (result.locationCheckNotes) {
+            // Prefix with "NEEDS HUMAN REVIEW:" if flagged for review
+            const locationNotes = result.locationNeedsReview 
+                ? `NEEDS HUMAN REVIEW: ${result.locationCheckNotes}`
+                : result.locationCheckNotes;
+            updates.location_check_notes = locationNotes;
+            result.fieldsUpdated.push('location_check_notes');
+        }
+        
+        // Auto-reject foreign orgs to "Rejected by Mission"
+        if (result.autoRejectedAsForeign && !result.statusChanged) {
+            updates.status = 'Rejected by Mission';
+            result.fieldsUpdated.push('status');
+            result.statusChanged = true;
+            result.previousStatus = org.status;
+            result.newStatus = 'Rejected by Mission';
+        }
+        
         // AI fields (only update if empty)
         if (result.aiSummary && !org.ai_reasoning) {
             updates.ai_reasoning = result.aiSummary;
@@ -4235,6 +4498,13 @@ async function scanOrganization(org, options = {}) {
     console.log(`   Tech Block: ${result.techBlockFlag ? '⛔ YES' : '✅ No'}`);
     console.log(`   TOU Flag: ${result.touFlag ? '⚠️ YES' : '✅ No'}`);
     console.log(`   No Legal Pages: ${result.noLegalPagesFlag ? '⚠️ YES (manual review needed)' : '✅ No'}`);  // NEW 2026-02-01
+    console.log(`   Foreign Org: ${result.foreignOrgFlag ? '🌍 YES (' + (result.headquartersCountry || 'foreign') + ')' : '🇺🇸 No'}`);  // NEW 2026-02-03
+    if (result.locationNeedsReview) {
+        console.log(`   Location Review: ❓ Needs human review`);
+    }
+    if (result.autoRejectedAsForeign) {
+        console.log(`   🌍 Auto-rejected: Foreign organization → "Rejected by Mission"`);
+    }
     console.log(`   Tech Rendering Flag: ${result.techRenderingFlag ? `⚙️ YES (${result.jsRenderConfidence} confidence)` : '✅ No'}`);
     console.log(`   TOU URL: ${result.touUrl || 'Not found'}`);
     console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
@@ -4277,6 +4547,9 @@ module.exports = {
     
     // Main scan function
     scanOrganization,
+    
+    // Foreign Organization Detection (NEW 2026-02-03)
+    checkOrgLocation,
     
     // Individual scan components (for use by other scripts)
     scanTOU,

@@ -4,7 +4,9 @@ import { fileURLToPath } from "url";
 
 // =============================================================================
 // CONFIG.JS - Environment variable loader
+// Version: 2.0
 // Loads .env from the PROJECT ROOT (not icon-worker folder)
+// NEW: Added DALLE_STYLE and DALLE_QUALITY configuration
 // =============================================================================
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,15 +28,43 @@ export function getConfig() {
 
   const enableDownscaleAudit = String(process.env.ENABLE_DOWNSCALE_AUDIT || "true").toLowerCase() === "true";
 
+  // Validate DALLE_STYLE
+  const dalleStyle = process.env.DALLE_STYLE || "vivid";
+  if (!["natural", "vivid"].includes(dalleStyle)) {
+    console.warn(`⚠️ Invalid DALLE_STYLE "${dalleStyle}", defaulting to "vivid"`);
+  }
+
+  // Validate DALLE_QUALITY
+  const dalleQuality = process.env.DALLE_QUALITY || "standard";
+  if (!["standard", "hd"].includes(dalleQuality)) {
+    console.warn(`⚠️ Invalid DALLE_QUALITY "${dalleQuality}", defaulting to "standard"`);
+  }
+
   return {
+    // PocketBase connection
     POCKETBASE_URL: process.env.POCKETBASE_URL,
     POCKETBASE_ADMIN_EMAIL: process.env.POCKETBASE_ADMIN_EMAIL,
     POCKETBASE_ADMIN_PASSWORD: process.env.POCKETBASE_ADMIN_PASSWORD,
+    
+    // OpenAI settings
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_IMAGE_MODEL: process.env.OPENAI_IMAGE_MODEL || "dall-e-3",
+    
+    // NEW: DALL-E style settings
+    // "vivid" = more dramatic, hyper-real (RECOMMENDED for variety)
+    // "natural" = more realistic, subdued
+    DALLE_STYLE: ["natural", "vivid"].includes(dalleStyle) ? dalleStyle : "vivid",
+    
+    // NEW: DALL-E quality settings  
+    // "standard" = $0.040/image (default)
+    // "hd" = $0.080/image (more detail, better for complex scenes)
+    DALLE_QUALITY: ["standard", "hd"].includes(dalleQuality) ? dalleQuality : "standard",
+    
+    // Processing limits
     MAX_ITEMS: Number(process.env.MAX_ITEMS || 25),
     MAX_ATTEMPTS: Number(process.env.MAX_ATTEMPTS || 6),
 
+    // Downscale audit settings
     ENABLE_DOWNSCALE_AUDIT: enableDownscaleAudit,
     DOWNSCALE_MIN_FOREGROUND_RATIO: Number(process.env.DOWNSCALE_MIN_FOREGROUND_RATIO || 0.03),
     DOWNSCALE_MIN_STDDEV: Number(process.env.DOWNSCALE_MIN_STDDEV || 18)

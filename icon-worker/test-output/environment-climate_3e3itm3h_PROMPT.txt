@@ -1,0 +1,29 @@
+Create an abstract, full-bleed artwork for a national security event.
+
+THEME: Environment & Climate
+
+PRIMARY VISUAL: layered terrain contours with subtle sun and wind convergence integration
+COLOR PALETTE: emerald, #10b981, forest green, #059669, ocean blue
+ARTISTIC STYLE: Textured with organic grain
+
+COMPOSITION: Compose with strong diagonal flow from bottom-left to top-right, elements sweeping across the canvas
+
+GEOGRAPHIC CONTEXT:
+- Subtle geographic reference: African continent silhouette
+
+TECHNICAL REQUIREMENTS:
+- Full-bleed 1024x1024 artwork extending to all edges
+- NO white space, NO margins, NO padding
+- NO button frame, NO badge border, NO rounded rectangle
+- Rich gradients or textures filling entire canvas
+- Must remain visually interesting at 80x130 pixel display size
+
+CRITICAL REQUIREMENTS:
+- Absolutely NO text, words, letters, numbers, labels, or watermarks of any kind
+- Absolutely NO US politicians (current or former)
+- Absolutely NO US political party symbols or imagery (no elephant, no donkey)
+- No realistic human faces
+- No official government seals (FBI, CIA, NSA, DHS, DoD, etc.)
+- No specific military unit insignia or patches
+- Single cohesive unified image only
+- No divided layouts or segmented frames
