@@ -1117,14 +1117,14 @@
          HEADER - With search bar beside title
          ============================================ -->
     <header class="header">
-        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Open filters">Γÿ░</button>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()" title="Open filters">&#9776;</button>
         <div class="header-brand" onclick="goHome()" title="Home - Clear all filters">
             <img src="logo.png" alt="Event Finder Logo" class="header-brand-logo">
             <h1>Event Finder</h1>
         </div>
         <div class="header-search">
             <div class="header-search-box">
-                <span class="header-search-icon">≡ƒöì</span>
+                <span class="header-search-icon">&#128269;</span>
                 <input type="text" id="searchInput" placeholder="Search events by title or description...">
             </div>
         </div>
@@ -1141,7 +1141,7 @@
         <aside class="sidebar" id="sidebar">
             <!-- Mobile close button -->
             <div class="sidebar-close-btn">
-                <button onclick="closeMobileMenu()" title="Close filters">Γ£ò</button>
+                <button onclick="closeMobileMenu()" title="Close filters">&#10005;</button>
             </div>
             <!-- Event Format Filter -->
             <div class="filter-section">
@@ -1194,7 +1194,7 @@
             <!-- Buttons Section - All identical styling -->
             <div class="filter-section">
                 <button class="sidebar-btn" onclick="applyFilters()">
-                    <span class="sidebar-btn-icon">≡ƒöì</span>
+                    <span class="sidebar-btn-icon">&#128269;</span>
                     <span>View Results</span>
                 </button>
                 <button class="sidebar-btn" id="moreFiltersBtn" onclick="openFilterModal()">
@@ -1205,7 +1205,7 @@
                     <span class="filter-count-badge" id="filterCountBadge" style="display: none;">0</span>
                 </button>
                 <button class="sidebar-btn" onclick="clearAllFilters()">
-                    <span class="sidebar-btn-icon">≡ƒÜ½</span>
+                    <span class="sidebar-btn-icon">&#128465;</span>
                     <span>Clear Filters</span>
                 </button>
             </div>
@@ -1222,8 +1222,8 @@
             <div class="results-info">
                 <span class="results-count">Showing <strong id="showingCount">0</strong> of <strong id="totalCount">0</strong> events</span>
                 <div class="view-toggle">
-                    <button id="listViewBtn" class="active" onclick="setView('list')">≡ƒôï List</button>
-                    <button id="calendarViewBtn" onclick="setView('calendar')">≡ƒôà Calendar</button>
+                    <button id="listViewBtn" class="active" onclick="setView('list')">&#128203; List</button>
+                    <button id="calendarViewBtn" onclick="setView('calendar')">&#128197; Calendar</button>
                 </div>
             </div>
 
@@ -1241,9 +1241,9 @@
             <div class="calendar-container" id="calendarContainer">
                 <div class="calendar-header">
                     <div class="calendar-nav">
-                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">ΓùÇ Prev</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">&larr; Prev</button>
                         <button class="calendar-nav-btn" onclick="goToToday()">Today</button>
-                        <button class="calendar-nav-btn" onclick="changeMonth(1)">Next Γû╢</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(1)">Next &rarr;</button>
                     </div>
                     <div class="calendar-title" id="calendarTitle">December 2025</div>
                 </div>
@@ -1329,19 +1329,19 @@
         
         // Topics
         const TOPICS = [
-            { value: 'AI & Emerging Tech', label: 'AI & Emerging Tech', emoji: '≡ƒñû', class: 'ai-emerging-tech' },
-            { value: 'Careers & Professional Development', label: 'Careers', emoji: '≡ƒÆ╝', class: 'careers' },
-            { value: 'Climate & Security', label: 'Climate & Security', emoji: '≡ƒîì', class: 'climate-security' },
-            { value: 'Counterterrorism', label: 'Counterterrorism', emoji: '≡ƒÄ»', class: 'counterterrorism' },
-            { value: 'Cybersecurity', label: 'Cybersecurity', emoji: '≡ƒöÆ', class: 'cybersecurity' },
-            { value: 'Defense Policy', label: 'Defense Policy', emoji: '≡ƒ¢í∩╕Å', class: 'defense-policy' },
-            { value: 'Diplomacy & Statecraft', label: 'Diplomacy', emoji: '≡ƒñ¥', class: 'diplomacy-statecraft' },
-            { value: 'Economic Security', label: 'Economic Security', emoji: '≡ƒÆ░', class: 'economic-security' },
-            { value: 'Homeland Security', label: 'Homeland Security', emoji: '≡ƒÅá', class: 'homeland-security' },
-            { value: 'Intelligence', label: 'Intelligence', emoji: '≡ƒò╡∩╕Å', class: 'intelligence' },
-            { value: 'Military Operations', label: 'Military Ops', emoji: 'ΓÜö∩╕Å', class: 'military-operations' },
-            { value: 'Nuclear/WMD', label: 'Nuclear/WMD', emoji: 'Γÿó∩╕Å', class: 'nuclear-wmd' },
-            { value: 'Space & Satellites', label: 'Space', emoji: '≡ƒ¢░∩╕Å', class: 'space-satellites' }
+            { value: 'AI & Emerging Tech', label: 'AI & Emerging Tech', emoji: '\u{1F916}', class: 'ai-emerging-tech' },
+            { value: 'Careers & Professional Development', label: 'Careers', emoji: '\u{1F4BC}', class: 'careers' },
+            { value: 'Climate & Security', label: 'Climate & Security', emoji: '\u{1F30D}', class: 'climate-security' },
+            { value: 'Counterterrorism', label: 'Counterterrorism', emoji: '\u{1F3AF}', class: 'counterterrorism' },
+            { value: 'Cybersecurity', label: 'Cybersecurity', emoji: '\u{1F512}', class: 'cybersecurity' },
+            { value: 'Defense Policy', label: 'Defense Policy', emoji: '\u{1F6E1}', class: 'defense-policy' },
+            { value: 'Diplomacy & Statecraft', label: 'Diplomacy', emoji: '\u{1F91D}', class: 'diplomacy-statecraft' },
+            { value: 'Economic Security', label: 'Economic Security', emoji: '\u{1F4B0}', class: 'economic-security' },
+            { value: 'Homeland Security', label: 'Homeland Security', emoji: '\u{1F3E0}', class: 'homeland-security' },
+            { value: 'Intelligence', label: 'Intelligence', emoji: '\u{1F575}', class: 'intelligence' },
+            { value: 'Military Operations', label: 'Military Ops', emoji: '\u{2694}', class: 'military-operations' },
+            { value: 'Nuclear/WMD', label: 'Nuclear/WMD', emoji: '\u{2622}', class: 'nuclear-wmd' },
+            { value: 'Space & Satellites', label: 'Space', emoji: '\u{1F6F0}', class: 'space-satellites' }
         ];
 
         // Regions
@@ -1780,7 +1780,7 @@
             if (filteredEvents.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">≡ƒôà</div>
+                        <div class="empty-state-icon">&#128197;</div>
                         <h3>No events found</h3>
                         <p>Try adjusting your filters or search terms</p>
                     </div>
@@ -2074,10 +2074,10 @@
 
         function getTopicInfo(topics) {
             if (!topics || topics.length === 0) {
-                return { emoji: '≡ƒôà', class: 'default' };
+                return { emoji: '\u{1F4C5}', class: 'default' };
             }
             const topic = TOPICS.find(t => t.value === topics[0]);
-            return topic ? { emoji: topic.emoji, class: topic.class } : { emoji: '≡ƒôà', class: 'default' };
+            return topic ? { emoji: topic.emoji, class: topic.class } : { emoji: '\u{1F4C5}', class: 'default' };
         }
 
         function stripHtml(html) {
@@ -2102,7 +2102,7 @@
             let html = '';
             
             // Previous button
-            html += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>ΓåÉ Prev</button>`;
+            html += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&larr; Prev</button>`;
             
             // Page numbers
             const maxVisiblePages = 5;
@@ -2132,7 +2132,7 @@
             }
             
             // Next button
-            html += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next ΓåÆ</button>`;
+            html += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button>`;
             
             container.innerHTML = html;
         }
