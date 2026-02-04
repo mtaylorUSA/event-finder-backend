@@ -510,9 +510,14 @@
         }
 
         .event-card-image {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
+            min-width: 90px;
+            max-width: 90px;
+            min-height: 90px;
+            max-height: 90px;
             flex-shrink: 0;
+            flex-grow: 0;
             align-self: flex-start;
             display: flex;
             align-items: center;
@@ -521,6 +526,13 @@
             border-right: 1px solid var(--gray-200);
             background: var(--gray-50);
             overflow: hidden;
+        }
+
+        .event-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         /* Topic-based backgrounds */
@@ -1066,9 +1078,13 @@
             .event-card-image {
                 width: 50px;
                 height: 50px;
+                min-width: 50px;
+                max-width: 50px;
+                min-height: 50px;
+                max-height: 50px;
                 border-right: 1px solid var(--gray-200);
                 border-bottom: none;
-                font-size: 1.4rem;
+                font-size: 1.2rem;
             }
 
             .event-detail {
@@ -1197,7 +1213,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="main-content">
-            <!-- Active Filters Display - Each on own line with &times; remove button -->
+            <!-- Active Filters Display - Each on own line with ├ù remove button -->
             <div class="active-filters-bar" id="activeFiltersBar">
                 <!-- Filter rows inserted here -->
             </div>
@@ -1646,7 +1662,7 @@
             if (searchTerm) {
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Search: "${escapeHtml(searchTerm)}"</span>
-                    <button class="active-filter-remove" onclick="clearSearch()" title="Remove">&times;</button>
+                    <button class="active-filter-remove" onclick="clearSearch()" title="Remove">├ù</button>
                 </div>`);
             }
 
@@ -1655,7 +1671,7 @@
                 const topic = TOPICS.find(tp => tp.value === t);
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Topic: ${topic?.label || t}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('topic', '${escapeAttr(t)}')" title="Remove">&times;</button>
+                    <button class="active-filter-remove" onclick="removeFilter('topic', '${escapeAttr(t)}')" title="Remove">├ù</button>
                 </div>`);
             });
 
@@ -1664,7 +1680,7 @@
                 const region = REGIONS.find(rg => rg.value === r);
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Region: ${region?.label || r}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('region', '${escapeAttr(r)}')" title="Remove">&times;</button>
+                    <button class="active-filter-remove" onclick="removeFilter('region', '${escapeAttr(r)}')" title="Remove">├ù</button>
                 </div>`);
             });
 
@@ -1673,7 +1689,7 @@
                 const org = organizations[o];
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Org: ${org?.name || o}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('org', '${escapeAttr(o)}')" title="Remove">&times;</button>
+                    <button class="active-filter-remove" onclick="removeFilter('org', '${escapeAttr(o)}')" title="Remove">├ù</button>
                 </div>`);
             });
 
@@ -1929,8 +1945,8 @@
             if (iconInfo) {
                 const imageUrl = `${POCKETBASE_URL}/api/files/topic_icons/${iconInfo.id}/${iconInfo.file}`;
                 return `
-                    <div class="event-card-image" style="padding: 0; overflow: hidden;">
-                        <img src="${imageUrl}" alt="Event icon" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<div class=\\'event-card-image ${topicInfo.class}\\'><span>${topicInfo.emoji}</span></div>'">
+                    <div class="event-card-image">
+                        <img src="${imageUrl}" alt="Event icon" onerror="this.parentElement.innerHTML='<div class=\\'event-card-image ${topicInfo.class}\\'><span>${topicInfo.emoji}</span></div>'">
                     </div>
                 `;
             }
