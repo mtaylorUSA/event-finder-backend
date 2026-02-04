@@ -1197,7 +1197,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="main-content">
-            <!-- Active Filters Display - Each on own line with ├ù remove button -->
+            <!-- Active Filters Display - Each on own line with &times; remove button -->
             <div class="active-filters-bar" id="activeFiltersBar">
                 <!-- Filter rows inserted here -->
             </div>
@@ -1646,7 +1646,7 @@
             if (searchTerm) {
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Search: "${escapeHtml(searchTerm)}"</span>
-                    <button class="active-filter-remove" onclick="clearSearch()" title="Remove">├ù</button>
+                    <button class="active-filter-remove" onclick="clearSearch()" title="Remove">&times;</button>
                 </div>`);
             }
 
@@ -1655,7 +1655,7 @@
                 const topic = TOPICS.find(tp => tp.value === t);
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Topic: ${topic?.label || t}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('topic', '${escapeAttr(t)}')" title="Remove">├ù</button>
+                    <button class="active-filter-remove" onclick="removeFilter('topic', '${escapeAttr(t)}')" title="Remove">&times;</button>
                 </div>`);
             });
 
@@ -1664,7 +1664,7 @@
                 const region = REGIONS.find(rg => rg.value === r);
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Region: ${region?.label || r}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('region', '${escapeAttr(r)}')" title="Remove">├ù</button>
+                    <button class="active-filter-remove" onclick="removeFilter('region', '${escapeAttr(r)}')" title="Remove">&times;</button>
                 </div>`);
             });
 
@@ -1673,7 +1673,7 @@
                 const org = organizations[o];
                 rows.push(`<div class="active-filter-row">
                     <span class="active-filter-label">Org: ${org?.name || o}</span>
-                    <button class="active-filter-remove" onclick="removeFilter('org', '${escapeAttr(o)}')" title="Remove">├ù</button>
+                    <button class="active-filter-remove" onclick="removeFilter('org', '${escapeAttr(o)}')" title="Remove">&times;</button>
                 </div>`);
             });
 
