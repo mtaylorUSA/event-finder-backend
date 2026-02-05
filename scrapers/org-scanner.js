@@ -29,7 +29,25 @@
  *   await scanner.init();
  *   const result = await scanner.scanOrganization(org);
  * 
- * Last Updated: 2026-02-03
+ * Last Updated: 2026-02-05
+ * - 🔒 ETHICAL: Replaced analyzeWithAI() with getOrgInfoViaGoogle()
+ *   - analyzeWithAI() read org homepage HTML (crossed scanner/scraper boundary)
+ *   - getOrgInfoViaGoogle() uses Google Search snippets ONLY (same pattern as checkOrgLocation)
+ *   - Org name, type, and description now sourced ethically from Google
+ *   - analyzeWithAI() renamed to analyzeWithAI_DEPRECATED (redirects to Google version)
+ * - NEW: Google descriptions saved to `description` field (overwrites old data)
+ * - NEW: result.googleDescription field tracks Google-sourced descriptions
+ * - PRINCIPLE: Scanners only pull FLAGS and POC from org websites. Everything else from Google.
+ * 
+ * 2026-02-04
+ * - 🔒 NEW: Contact Domain Validation (prevents vendor/junk contacts)
+ *   - BLACKLISTED_EMAIL_DOMAINS - silently skips event vendors, hotels, junk domains
+ *   - PERSONAL_EMAIL_DOMAINS - flags but allows personal emails
+ *   - validateContactDomain() - checks if email domain matches or is related to org
+ *   - checkDomainRelationship() - uses Google + AI to verify parent/subsidiary relationships
+ *   - gatherPOCViaGoogleSearch() updated to validate contacts before saving
+ * 
+ * 2026-02-03
  * - 🌍 NEW: Foreign Organization Location Check (Step 5.5)
  *   - checkOrgLocation() uses Google Search + AI to determine if org is US or foreign
  *   - Auto-rejects foreign orgs to "Rejected by Mission" status
@@ -177,6 +195,70 @@ const CONTACT_CATEGORIES = [
         searchTerms: ['contact email', 'info email', 'general inquiries'],
         emailPrefixes: ['info', 'contact', 'general', 'hello', 'inquiries', 'admin']
     }
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTACT DOMAIN VALIDATION (NEW 2026-02-04)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * BLACKLISTED EMAIL DOMAINS (NEW 2026-02-04)
+ * Contacts from these domains are silently skipped.
+ * These are event vendors, hotels, and junk/placeholder domains.
+ */
+const BLACKLISTED_EMAIL_DOMAINS = [
+    // Event vendors / third-party support
+    'eventpowersupport.com',
+    'eventbrite.com',
+    'telestrategies.com',
+    'saemediagroup.com',
+    'cvent.com',
+    'bizzabo.com',
+    'hopin.com',
+    'whova.com',
+    'splashthat.com',
+    
+    // Hotels (not actual org contacts)
+    'sheratonsandkey.com',
+    'marriott.com',
+    'hilton.com',
+    'hyatt.com',
+    'ihg.com',
+    'wyndham.com',
+    'choicehotels.com',
+    'bestwestern.com',
+    'radisson.com',
+    'omnihotels.com',
+    
+    // Junk/placeholder domains
+    'email.com',
+    'example.com',
+    'test.com',
+    'domain.com',
+    'yourcompany.com',
+    'company.com'
+];
+
+/**
+ * PERSONAL EMAIL DOMAINS (NEW 2026-02-04)
+ * Personal emails are flagged but may still be saved (some small orgs use them)
+ */
+const PERSONAL_EMAIL_DOMAINS = [
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'aol.com',
+    'icloud.com',
+    'me.com',
+    'mac.com',
+    'protonmail.com',
+    'proton.me',
+    'live.com',
+    'msn.com',
+    'comcast.net',
+    'verizon.net',
+    'att.net'
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2542,6 +2624,258 @@ async function findEventsUrl(org, homepageHtml = null) {
 // POC GATHERING
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ───────────────────────────────────────────────────────────────────────────────
+// DOMAIN VALIDATION FUNCTIONS (NEW 2026-02-04)
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Check if email domain is blacklisted (vendor, hotel, junk)
+ * NEW - 2026-02-04
+ * 
+ * @param {string} email - Email address
+ * @returns {boolean} True if blacklisted (should be skipped)
+ */
+function isBlacklistedEmailDomain(email) {
+    if (!email) return false;
+    const domain = email.toLowerCase().split('@')[1];
+    if (!domain) return false;
+    return BLACKLISTED_EMAIL_DOMAINS.includes(domain);
+}
+
+/**
+ * Check if email domain is a personal email provider
+ * NEW - 2026-02-04
+ * 
+ * @param {string} email - Email address
+ * @returns {boolean} True if personal email
+ */
+function isPersonalEmailDomain(email) {
+    if (!email) return false;
+    const domain = email.toLowerCase().split('@')[1];
+    if (!domain) return false;
+    return PERSONAL_EMAIL_DOMAINS.includes(domain);
+}
+
+/**
+ * Extract base domain for comparison (handles subdomains)
+ * NEW - 2026-02-04
+ * "events.csis.org" → "csis.org"
+ * "hks.harvard.edu" → "harvard.edu"
+ * 
+ * @param {string} domain - Full domain
+ * @returns {string|null} Base domain
+ */
+function getBaseDomain(domain) {
+    if (!domain) return null;
+    
+    const parts = domain.toLowerCase().split('.');
+    
+    // Handle special TLDs like .co.uk, .org.uk
+    const specialTlds = ['co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'org.au', 'edu.au'];
+    for (const tld of specialTlds) {
+        if (domain.endsWith('.' + tld)) {
+            return parts.slice(-3).join('.');
+        }
+    }
+    
+    // Standard case: return last 2 parts
+    if (parts.length >= 2) {
+        return parts.slice(-2).join('.');
+    }
+    
+    return domain;
+}
+
+/**
+ * Check if email domain matches org website domain
+ * NEW - 2026-02-04
+ * 
+ * @param {string} emailDomain - Domain from email
+ * @param {string} orgDomain - Domain from org website
+ * @returns {boolean} True if domains match (or are related subdomains)
+ */
+function doDomainsMatch(emailDomain, orgDomain) {
+    if (!emailDomain || !orgDomain) return false;
+    
+    const baseEmailDomain = getBaseDomain(emailDomain);
+    const baseOrgDomain = getBaseDomain(orgDomain);
+    
+    return baseEmailDomain === baseOrgDomain;
+}
+
+/**
+ * Check if email domain is related to org via Google Search + AI
+ * NEW - 2026-02-04
+ * 
+ * Uses 1 Google query + 1 AI call to determine if domains are related
+ * (e.g., executivemosaic.com owns potomacofficersclub.com)
+ * 
+ * @param {string} emailDomain - Domain from discovered email
+ * @param {string} orgDomain - Domain from organization website
+ * @param {string} orgName - Organization name (for context)
+ * @returns {Promise<{isRelated: boolean, relationship: string}>}
+ */
+async function checkDomainRelationship(emailDomain, orgDomain, orgName) {
+    // Skip if no API keys
+    if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID || !OPENAI_API_KEY) {
+        console.log('         ⚠️ API keys not configured - cannot verify relationship');
+        return { isRelated: false, relationship: 'unknown' };
+    }
+    
+    console.log(`         🔍 Checking if ${emailDomain} is related to ${orgDomain}...`);
+    
+    try {
+        // Search Google for relationship between domains
+        const query = `"${emailDomain}" "${orgDomain}" OR "${emailDomain}" "${orgName}" relationship parent owns subsidiary`;
+        
+        const url = new URL('https://www.googleapis.com/customsearch/v1');
+        url.searchParams.set('key', GOOGLE_SEARCH_API_KEY);
+        url.searchParams.set('cx', GOOGLE_SEARCH_ENGINE_ID);
+        url.searchParams.set('q', query);
+        url.searchParams.set('num', '5');
+        
+        googleQueryCount++;
+        console.log(`         📡 Query #${googleQueryCount} [Relationship]: "${query.substring(0, 60)}..."`);
+        
+        const response = await fetchModule(url.toString());
+        
+        if (!response.ok) {
+            console.log('         ⚠️ Google Search failed');
+            return { isRelated: false, relationship: 'search_failed' };
+        }
+        
+        const data = await response.json();
+        const items = data.items || [];
+        
+        // Combine snippets for AI analysis
+        const snippets = items.map(item => item.snippet || '').join('\n').substring(0, 2000);
+        
+        if (!snippets.trim()) {
+            console.log('         ℹ️ No search results found');
+            return { isRelated: false, relationship: 'no_results' };
+        }
+        
+        // Use AI to determine relationship
+        const aiPrompt = `Based on these search results, determine if "${emailDomain}" and "${orgDomain}" (${orgName}) are related organizations.
+
+SEARCH RESULTS:
+${snippets}
+
+QUESTION: Is ${emailDomain} related to ${orgDomain}? For example:
+- Same organization with different domains
+- Parent company / subsidiary relationship  
+- One organization owns/operates the other
+- Same leadership or ownership
+
+Respond with ONLY valid JSON:
+{
+  "isRelated": true or false,
+  "relationship": "brief explanation (e.g., 'Executive Mosaic owns Potomac Officers Club')" or "not related"
+}`;
+
+        const aiResponse = await fetchModule('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: aiPrompt }],
+                max_tokens: 150,
+                temperature: 0.1
+            })
+        });
+        
+        if (!aiResponse.ok) {
+            console.log('         ⚠️ AI analysis failed');
+            return { isRelated: false, relationship: 'ai_failed' };
+        }
+        
+        const aiData = await aiResponse.json();
+        const content = aiData.choices?.[0]?.message?.content || '';
+        
+        // Parse JSON response
+        try {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const result = JSON.parse(jsonMatch[0]);
+                
+                if (result.isRelated) {
+                    console.log(`         ✅ Related: ${result.relationship}`);
+                } else {
+                    console.log(`         ❌ Not related`);
+                }
+                
+                return {
+                    isRelated: result.isRelated === true,
+                    relationship: result.relationship || 'unknown'
+                };
+            }
+        } catch (parseError) {
+            console.log('         ⚠️ Could not parse AI response');
+        }
+        
+        return { isRelated: false, relationship: 'parse_failed' };
+        
+    } catch (error) {
+        console.log(`         ⚠️ Relationship check error: ${error.message}`);
+        return { isRelated: false, relationship: 'error' };
+    }
+}
+
+/**
+ * Validate a discovered contact email against org domain
+ * NEW - 2026-02-04
+ * 
+ * Returns true if contact should be saved, false if should be skipped
+ * 
+ * @param {string} email - Discovered email
+ * @param {string} orgDomain - Organization website domain
+ * @param {string} orgName - Organization name
+ * @returns {Promise<{valid: boolean, reason: string}>}
+ */
+async function validateContactDomain(email, orgDomain, orgName) {
+    if (!email) {
+        return { valid: false, reason: 'no_email' };
+    }
+    
+    const emailDomain = email.toLowerCase().split('@')[1];
+    if (!emailDomain) {
+        return { valid: false, reason: 'invalid_email' };
+    }
+    
+    // Check blacklist first (silently skip)
+    if (isBlacklistedEmailDomain(email)) {
+        return { valid: false, reason: 'blacklisted' };
+    }
+    
+    // Check if domains match directly
+    if (doDomainsMatch(emailDomain, orgDomain)) {
+        return { valid: true, reason: 'domain_match' };
+    }
+    
+    // Personal emails - flag but allow (some small orgs use them)
+    if (isPersonalEmailDomain(email)) {
+        console.log(`         ⚠️ Personal email detected: ${email}`);
+        return { valid: true, reason: 'personal_email' };
+    }
+    
+    // Domain mismatch - check if related via Google + AI
+    const relationshipCheck = await checkDomainRelationship(emailDomain, orgDomain, orgName);
+    
+    if (relationshipCheck.isRelated) {
+        return { valid: true, reason: `related: ${relationshipCheck.relationship}` };
+    }
+    
+    // Not related - reject
+    return { valid: false, reason: 'domain_mismatch' };
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// POC EXTRACTION AND SEARCH
+// ───────────────────────────────────────────────────────────────────────────────
+
 /**
  * Extract POC info from HTML
  */
@@ -2673,7 +3007,7 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
                 for (const email of emailMatches) {
                     const emailLower = email.toLowerCase();
                     
-                    // Skip obvious false positives
+                    // Skip obvious false positives and already seen
                     if (emailLower.includes('example.com') || 
                         emailLower.includes('domain.com') ||
                         emailLower.includes('email.com') ||
@@ -2681,6 +3015,30 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
                         seenEmails.has(emailLower)) {
                         continue;
                     }
+                    
+                    // ═══════════════════════════════════════════════════════════════
+                    // NEW 2026-02-04: Domain validation before saving
+                    // ═══════════════════════════════════════════════════════════════
+                    
+                    // Check blacklist (silently skip)
+                    if (isBlacklistedEmailDomain(email)) {
+                        console.log(`      ⏭️ Skipping blacklisted domain: ${email}`);
+                        continue;
+                    }
+                    
+                    // Validate domain relationship
+                    const validation = await validateContactDomain(email, domain, orgName);
+                    
+                    if (!validation.valid) {
+                        if (validation.reason === 'domain_mismatch') {
+                            console.log(`      ❌ Rejected (domain mismatch): ${email}`);
+                        }
+                        continue;
+                    }
+                    
+                    // ═══════════════════════════════════════════════════════════════
+                    // Contact passed validation - proceed with saving
+                    // ═══════════════════════════════════════════════════════════════
                     
                     // Prefer emails matching category prefixes
                     const matchesPrefix = category.emailPrefixes.some(prefix => 
@@ -2719,13 +3077,14 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
                             phone: phone,
                             source: 'google_search',
                             contactType: category.contactType,
-                            categoryType: category.type
+                            categoryType: category.type,
+                            validationReason: validation.reason  // NEW: track why it was accepted
                         };
                         
                         foundContacts.push(contact);
                         foundForCategory = true;
                         
-                        console.log(`      ✅ Found ${category.type}: ${email}`);
+                        console.log(`      ✅ Found ${category.type}: ${email} (${validation.reason})`);
                         break;
                     }
                 }
@@ -2742,7 +3101,7 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
         }
     }
     
-    console.log(`      📊 Found ${foundContacts.length} contacts via Google Search`);
+    console.log(`      📊 Found ${foundContacts.length} validated contacts via Google Search`);
     return foundContacts;
 }
 
@@ -3310,16 +3669,126 @@ function matchDomainToOrg(emailDomain, organizations) {
 /**
  * Use AI to analyze organization and extract name + summary
  */
-async function analyzeWithAI(html, domain, triggeringEventTitle = null) {
-    if (!OPENAI_API_KEY) {
-        console.log('      ⚠️ No OpenAI API key - skipping AI analysis');
-        return { orgName: domain, orgType: '', summary: '' };
+/**
+ * getOrgInfoViaGoogle() - NEW 2026-02-05
+ * 
+ * 🔒 ETHICAL: Gets org name, type, and description via Google Search snippets ONLY.
+ * Never reads org website content. Follows same pattern as checkOrgLocation().
+ * 
+ * Replaces analyzeWithAI() which read homepage HTML (crossed scanner/scraper boundary).
+ * 
+ * @param {string} orgName - Organization name (or domain if name unknown)
+ * @param {string} website - Organization website URL (for context, NOT fetched)
+ * @param {string} triggeringEventTitle - Optional event title that triggered discovery
+ * @returns {Object} { orgName, orgType, description, source }
+ */
+async function getOrgInfoViaGoogle(orgName, website, triggeringEventTitle = null) {
+    console.log('');
+    console.log('   ────────────────────────────────────────────────────────────');
+    console.log('   🔍 Step 5: Organization Info via Google Search');
+    console.log('   ────────────────────────────────────────────────────────────');
+    
+    // Extract domain from website for search context
+    let domain = '';
+    try {
+        domain = website ? new URL(website.startsWith('http') ? website : `https://${website}`).hostname.replace(/^www\./, '') : '';
+    } catch (e) {
+        domain = website || '';
     }
     
-    console.log('   🤖 Analyzing with AI...');
-    
-    const textContent = extractText(html).substring(0, 4000);
     const isEduDomain = domain.endsWith('.edu');
+    const searchName = orgName || domain;
+    
+    const result = {
+        orgName: searchName,
+        orgType: '',
+        description: '',
+        source: 'google-search'
+    };
+    
+    if (!searchName) {
+        console.log('      ⚠️ No organization name or website - skipping');
+        return result;
+    }
+    
+    // ───────────────────────────────────────────────────────────────────
+    // Step 1: Google Search for organization information
+    // ───────────────────────────────────────────────────────────────────
+    
+    console.log(`      🔍 Searching Google for: "${searchName}"...`);
+    
+    if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+        console.log('      ⚠️ Google Search API not configured - skipping');
+        return result;
+    }
+    
+    const searchQueries = [
+        `"${searchName}" mission about organization`,
+        `"${searchName}" nonprofit think tank government agency`
+    ];
+    
+    // If we only have a domain (no org name), add a domain-specific query
+    if (!orgName && domain) {
+        searchQueries[0] = `"${domain}" organization about`;
+        searchQueries[1] = `"${domain}" mission nonprofit think tank`;
+    }
+    
+    let searchSnippets = [];
+    
+    for (const query of searchQueries) {
+        try {
+            const url = new URL('https://www.googleapis.com/customsearch/v1');
+            url.searchParams.set('key', GOOGLE_SEARCH_API_KEY);
+            url.searchParams.set('cx', GOOGLE_SEARCH_ENGINE_ID);
+            url.searchParams.set('q', query);
+            url.searchParams.set('num', '5');
+            
+            const response = await fetchModule(url.toString());
+            
+            if (response.ok) {
+                const data = await response.json();
+                const items = data.items || [];
+                
+                for (const item of items.slice(0, 3)) {
+                    searchSnippets.push({
+                        title: item.title || '',
+                        snippet: item.snippet || ''
+                    });
+                }
+                googleQueryCount++;
+            } else {
+                console.log(`      ⚠️ Search returned ${response.status}`);
+            }
+            
+            await sleep(1500);
+            
+        } catch (searchError) {
+            console.log(`      ⚠️ Search error: ${searchError.message}`);
+        }
+    }
+    
+    if (searchSnippets.length === 0) {
+        console.log('      ⚠️ No search results found');
+        return result;
+    }
+    
+    console.log(`      ✅ Found ${searchSnippets.length} search results`);
+    
+    // ───────────────────────────────────────────────────────────────────
+    // Step 2: AI Analysis of search snippets (NOT website content)
+    // ───────────────────────────────────────────────────────────────────
+    
+    console.log('      🤖 Analyzing search results with AI...');
+    
+    if (!OPENAI_API_KEY) {
+        console.log('      ⚠️ OpenAI API not configured - using raw snippets');
+        result.description = searchSnippets.map(s => s.snippet).join(' ').substring(0, 500);
+        return result;
+    }
+    
+    const snippetText = searchSnippets.map((s, i) => 
+        `[${i + 1}] ${s.title}\n${s.snippet}`
+    ).join('\n\n');
     
     let eduInstructions = '';
     if (isEduDomain) {
@@ -3331,27 +3800,28 @@ IMPORTANT - THIS IS A UNIVERSITY (.edu domain):
     }
     
     const triggeringInfo = triggeringEventTitle 
-        ? `\nTRIGGERING EVENT FOUND: ${triggeringEventTitle}` 
+        ? `\nTRIGGERING EVENT: This org was discovered because it hosts "${triggeringEventTitle}".`
         : '';
     
-    const prompt = `Analyze this organization's website content and extract information.
+    const prompt = `Based on these Google search results, extract organization information.
 
-WEBSITE DOMAIN: ${domain}${triggeringInfo}
+ORGANIZATION: ${searchName}
+DOMAIN: ${domain}${triggeringInfo}
 ${eduInstructions}
 
-WEBSITE CONTENT:
-${textContent}
+SEARCH RESULTS:
+${snippetText}
 
 TASK: Extract:
-1. ORGANIZATION NAME: Full name with acronym if exists. Never return just acronyms or generic titles.
-2. ORGANIZATION TYPE: think tank, trade association, government agency, nonprofit, university center, professional association, research institute, foundation, conference organizer, other
-3. SUMMARY: 2-3 sentences about what this organization does.
+1. ORGANIZATION NAME: Full official name with acronym if exists (e.g., "Center for Strategic and International Studies (CSIS)"). Never return just acronyms or generic titles like "Home" or "Welcome".
+2. ORGANIZATION TYPE: One of: think tank, trade association, government agency, nonprofit, university center, university department, professional association, research institute, foundation, conference organizer, media organization, other
+3. DESCRIPTION: 2-3 sentences about what this organization does, its focus areas, and what types of events it hosts. Be specific about their mission and topic areas.
 
 Return ONLY valid JSON:
 {
   "org_name": "Full Organization Name (ACRONYM)",
   "org_type": "organization type",
-  "summary": "2-3 sentence summary."
+  "description": "2-3 sentence description."
 }`;
 
     try {
@@ -3364,7 +3834,7 @@ Return ONLY valid JSON:
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
-                    { role: 'system', content: 'You extract organization information from website content. Return only valid JSON.' },
+                    { role: 'system', content: 'You extract organization information from Google search snippets. Return only valid JSON. Be specific about mission and topic areas.' },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.3,
@@ -3383,28 +3853,45 @@ Return ONLY valid JSON:
         const parsed = JSON.parse(content);
         
         // Validate org name isn't garbage
-        let orgName = parsed.org_name || domain;
+        let finalOrgName = parsed.org_name || searchName;
         const badPatterns = ['home', 'welcome', 'events', 'index', 'main', 'page'];
-        if (badPatterns.some(p => orgName.toLowerCase() === p)) {
-            orgName = domain;
+        if (badPatterns.some(p => finalOrgName.toLowerCase() === p)) {
+            finalOrgName = searchName;
         }
         
-        console.log(`      ✅ AI extracted: "${orgName}"`);
+        result.orgName = finalOrgName;
+        result.orgType = parsed.org_type || '';
+        result.description = parsed.description || '';
         
-        return {
-            orgName,
-            orgType: parsed.org_type || '',
-            summary: parsed.summary || ''
-        };
+        console.log(`      ✅ Google info: "${finalOrgName}" (${result.orgType})`);
+        console.log(`      📝 Description: "${result.description.substring(0, 80)}..."`);
+        
+        return result;
         
     } catch (error) {
-        console.log(`      ⚠️ AI analysis failed: ${error.message}`);
-        return {
-            orgName: domain,
-            orgType: '',
-            summary: ''
-        };
+        console.log(`      ⚠️ AI analysis of search results failed: ${error.message}`);
+        // Fallback: use raw snippets as description
+        result.description = searchSnippets.map(s => s.snippet).join(' ').substring(0, 500);
+        return result;
     }
+}
+
+
+/**
+ * analyzeWithAI_DEPRECATED() - ⛔ DEPRECATED 2026-02-05
+ * 
+ * ⛔ DO NOT USE - This function reads org website HTML content, which crosses
+ * the scanner/scraper boundary. Replaced by getOrgInfoViaGoogle().
+ * 
+ * Kept for reference only. Will log a warning if called.
+ */
+async function analyzeWithAI_DEPRECATED(html, domain, triggeringEventTitle = null) {
+    console.log('      ⛔ WARNING: analyzeWithAI_DEPRECATED was called!');
+    console.log('      ⛔ This function reads org website content (ethical violation).');
+    console.log('      ⛔ Use getOrgInfoViaGoogle() instead.');
+    
+    // Redirect to Google-based function
+    return getOrgInfoViaGoogle(null, domain, triggeringEventTitle);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -4256,18 +4743,21 @@ async function scanOrganization(org, options = {}) {
     }
     
     // ───────────────────────────────────────────────────────────────────────
-    // Step 5: AI Analysis
+    // Step 5: Organization Info via Google Search (UPDATED 2026-02-05)
+    // 🔒 ETHICAL: Uses Google Search snippets ONLY - never reads org website content
+    // Replaces analyzeWithAI() which read homepage HTML
     // ───────────────────────────────────────────────────────────────────────
     
-    if (!skipAI && result.homepageFetched) {
-        const aiResult = await analyzeWithAI(
-            result.homepageHtml,
-            org.source_id || new URL(baseUrl).hostname,
+    if (!skipAI) {
+        const googleInfoResult = await getOrgInfoViaGoogle(
+            org.name,
+            org.website || `https://${org.source_id}`,
             org.triggering_event_title
         );
-        result.aiOrgName = aiResult.orgName;
-        result.aiOrgType = aiResult.orgType;
-        result.aiSummary = aiResult.summary;
+        result.aiOrgName = googleInfoResult.orgName;
+        result.aiOrgType = googleInfoResult.orgType;
+        result.aiSummary = googleInfoResult.description;
+        result.googleDescription = googleInfoResult.description;
     }
     
     // ───────────────────────────────────────────────────────────────────────
@@ -4462,6 +4952,13 @@ async function scanOrganization(org, options = {}) {
             result.fieldsUpdated.push('org_type');
         }
         
+        // Google-sourced description (NEW 2026-02-05)
+        // 🔒 ETHICAL: Always overwrite - Google descriptions are authoritative
+        if (result.googleDescription) {
+            updates.description = result.googleDescription;
+            result.fieldsUpdated.push('description');
+        }
+        
         if (Object.keys(updates).length > 0) {
             const updateResult = await updateOrganization(org.id, updates);
             if (updateResult) {
@@ -4559,9 +5056,10 @@ module.exports = {
     extractEventsUrlFromTriggeringUrl,
     validateEventsUrl,
     gatherPOC,
-    gatherPOCViaGoogleSearch,  // UPDATED 2026-01-31: Now searches all 5 categories
+    gatherPOCViaGoogleSearch,  // UPDATED 2026-02-04: Now validates contact domains
     gatherPOCDirectFetch: gatherPOCDirectFetch_DEPRECATED,  // ⛔ DEPRECATED 2026-02-01: Security risk
-    analyzeWithAI,
+    getOrgInfoViaGoogle,  // NEW 2026-02-05: Google-based org info (replaces analyzeWithAI)
+    analyzeWithAI: analyzeWithAI_DEPRECATED,  // ⛔ DEPRECATED 2026-02-05: Reads org website content
     findRestrictions,
     
     // Contact gathering helpers - NEW 2026-01-31
@@ -4582,6 +5080,14 @@ module.exports = {
     extractDomainFromWebsite,
     extractCoreDomain,
     matchDomainToOrg,
+    
+    // Domain validation functions - NEW 2026-02-04
+    isBlacklistedEmailDomain,
+    isPersonalEmailDomain,
+    getBaseDomain,
+    doDomainsMatch,
+    checkDomainRelationship,
+    validateContactDomain,
     
     // JavaScript Rendering Detection (NEW - 2026-01-16)
     detectJavaScriptRendering,
@@ -4623,5 +5129,9 @@ module.exports = {
     TECH_RENDERING_INDICATORS,      // NEW - 2026-01-16
     MIN_CONTENT_LENGTH,        // NEW - 2026-01-16
     USER_AGENT,
-    CONTEXT_WINDOW
+    CONTEXT_WINDOW,
+    
+    // Domain validation constants - NEW 2026-02-04
+    BLACKLISTED_EMAIL_DOMAINS,
+    PERSONAL_EMAIL_DOMAINS
 };

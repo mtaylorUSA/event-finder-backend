@@ -10,7 +10,16 @@
  *
  * Usage: node suggest-organizations.js
  *
- * Last Updated: 2026-01-31
+ * Last Updated: 2026-02-05
+ * - 🐛 BUGFIX: Fixed status filter mismatch (was 'Mission Rejected', now 'Rejected by Mission')
+ * - 🐛 BUGFIX: AI now receives ONLY approved orgs as context (was receiving all orgs including rejected)
+ * - 📝 IMPROVED: Prompt now includes specific topic areas, geographic focus, event types
+ * - 📝 IMPROVED: Prompt now includes rejected org names in DO NOT SUGGEST list
+ * - 📝 IMPROVED: AI context now uses description OR ai_reasoning (not just description)
+ * - 🧹 REMOVED: tou_analysis and tou_flag from prompt (deprecated - org-scanner handles TOU)
+ * - ⬆️ UPGRADED: MAX_SUGGESTIONS from 10 to 20 (more net-new nominations per run)
+ *
+ * 2026-01-31
  * - NOW IMPORTS org-scanner.js for actual scanning (not AI guessing)
  * - After AI suggests, scans each org for real TOU/tech flags
  * - Saves contacts with smart POC gathering
@@ -33,8 +42,8 @@ const POCKETBASE_ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD;
 // OpenAI model for suggestions
 const OPENAI_MODEL = 'gpt-4o-mini';
 
-// Maximum suggestions per run
-const MAX_SUGGESTIONS = 10;
+// Maximum suggestions per run (UPDATED 2026-02-05: increased from 10 for better yield)
+const MAX_SUGGESTIONS = 20;
 
 // ============================================================================
 // MAIN FUNCTION (with dynamic import for Node.js v18+)
@@ -188,48 +197,62 @@ async function main() {
   // OPENAI SUGGESTION GENERATION
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async function generateSuggestions(existingOrgs) {
+  async function generateSuggestions(approvedOrgs, allOrgs, rejectedOrgs) {
     console.log('🤖 Asking OpenAI for organization suggestions...\n');
 
-    // Filter to only approved/active orgs for context (exclude rejected)
-    const approvedOrgs = existingOrgs.filter(org => 
-      org.status !== 'Mission Rejected' && org.status !== 'Permission Rejected'
-    );
-
-    // Build context from existing organizations
+    // Build context from APPROVED organizations only (best examples)
     const orgContext = approvedOrgs.map(org => ({
       name: org.name,
       type: org.org_type || 'Unknown',
-      description: org.description || ''
+      description: org.description || org.ai_reasoning || ''
     }));
 
-    const prompt = `You are an expert in national security, defense, and intelligence community organizations.
+    // Build list of ALL existing org names (for DO NOT SUGGEST)
+    const allOrgNames = allOrgs.map(org => org.name).filter(Boolean);
 
-EXISTING ORGANIZATIONS IN DATABASE:
+    // Build list of rejected org names (so AI understands what we DON'T want)
+    const rejectedOrgNames = rejectedOrgs.map(org => org.name).filter(Boolean);
+
+    const prompt = `You are an expert in the U.S. national security, defense, intelligence, and cybersecurity ecosystem.
+
+APPROVED ORGANIZATIONS (these are what GOOD suggestions look like):
 ${JSON.stringify(orgContext, null, 2)}
 
 TASK:
-Suggest ${MAX_SUGGESTIONS} NEW organizations that would be good additions to this national security events database. Focus on:
-- Government agencies (federal, state)
-- Nonprofits and think tanks
-- Academic institutions with national security programs
-- Professional associations in defense/intel/cyber
+Suggest ${MAX_SUGGESTIONS} NEW organizations that host public events relevant to this national security events database.
+
+TOPIC AREAS WE COVER:
+- Cybersecurity (policy, operations, threat intelligence, critical infrastructure)
+- Defense Policy & Intelligence (military strategy, IC community, geopolitics)
+- Emerging Technology (AI/ML, quantum, autonomous systems, space)
+- Government Technology & Digital Transformation
+- Homeland Security & Emergency Management
+- International Security & Arms Control
+- Counterterrorism & Counterintelligence
+
+WHAT MAKES A GOOD SUGGESTION:
+- Hosts public conferences, summits, forums, or symposiums (NOT webinars, NOT training)
+- Focus on the topic areas above
+- Based in the United States (Washington DC area is ideal, but national scope is fine)
+- Types: Think tanks, nonprofits, professional associations, government agencies, academic centers with security programs
+- Has an events page on their website
 
 DO NOT SUGGEST:
-- For-profit companies (no contractors, no tech companies like OpenAI, Microsoft, etc.)
-- Organizations already in the list above
-- Foreign government agencies
+- For-profit companies (no contractors, no tech vendors like OpenAI, Microsoft, Palantir, etc.)
+- Foreign government agencies or foreign-headquartered organizations
 - Organizations without public events
+- Organizations that primarily offer training, certifications, or bootcamps
+- Academic institutions unless they have a specific national security center/program
+- Any organization already in our database: ${allOrgNames.join(', ')}
+${rejectedOrgNames.length > 0 ? `- Previously rejected (not relevant to our mission): ${rejectedOrgNames.join(', ')}` : ''}
 
 For each suggestion, provide:
 1. name - Official organization name
 2. website - Official website URL
-3. description - Brief mission description (max 200 chars)
+3. description - 2-3 sentences about their mission and what types of events they host. Be specific about topic areas.
 4. org_type - One of: Government, Nonprofit, Think Tank, Academic, Professional Association
-5. events_url - Direct URL to their events page (if findable, otherwise empty)
-6. tou_analysis - Brief analysis of whether their TOU allows scraping (check for: prohibited, robots.txt restrictions, API available, RSS feeds, or no restrictions mentioned)
-7. tou_flag - true if TOU MAY prohibit scraping, false if likely OK or unclear
-8. reasoning - Why this org fits the national security events mission
+5. events_url - Direct URL to their events page (if you know it, otherwise empty string)
+6. reasoning - Why this org fits our mission and what gap it fills
 
 RESPOND WITH VALID JSON ONLY - an array of objects with the fields above. No markdown, no explanation, just the JSON array.`;
 
@@ -380,7 +403,11 @@ RESPOND WITH VALID JSON ONLY - an array of objects with the fields above. No mar
     }
 
     // Step 2: Generate suggestions from OpenAI
-    const suggestions = await generateSuggestions(existingOrgs);
+    // Pass ONLY approved orgs for AI context, plus rejected names to avoid re-suggesting
+    const rejectedOrgs = existingOrgs.filter(org => 
+      org.status === 'Rejected by Mission' || org.status === 'Rejected by Org'
+    );
+    const suggestions = await generateSuggestions(approvedOrgs, existingOrgs, rejectedOrgs);
 
     // Step 3: Filter out duplicates and save
     console.log('🔎 Checking for duplicates and saving...\n');
