@@ -2178,11 +2178,32 @@
             }
         }
 
-        function addContactForCurrentOrg() {
-            document.getElementById('contactOrg').innerHTML = `<option value="${currentOrgId}" selected>${escapeHtml(currentOrg.name)}</option>`;
-            document.getElementById('addContactForm').reset();
-            document.getElementById('contactOrg').value = currentOrgId;
-            openModal('addContactModal');
+        async function addContactForCurrentOrg() {
+            // If org is new and not yet saved, warn user to save first
+            if (!currentOrgId) {
+                alert('⚠️ Please save this organization first (Overview tab → Save Overview) before adding contacts.');
+                return;
+            }
+
+            try {
+                // Load ALL orgs into dropdown (so user can pick a different org if needed)
+                const response = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records?sort=name&perPage=500`, { headers: { 'Authorization': authToken } });
+                const data = await response.json();
+                contactModalOrgs = data.items || [];
+
+                document.getElementById('contactOrg').innerHTML = '<option value="">-- Select Organization --</option>' +
+                    contactModalOrgs.map(o => `<option value="${o.id}" data-website="${escapeHtml(o.website || '')}">${escapeHtml(o.name)}</option>`).join('');
+
+                document.getElementById('addContactForm').reset();
+                document.getElementById('emailOrgSuggestion').style.display = 'none';
+
+                // Pre-select the current org
+                document.getElementById('contactOrg').value = currentOrgId;
+
+                openModal('addContactModal');
+            } catch (error) {
+                alert('Error loading organizations: ' + error.message);
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
