@@ -35,6 +35,16 @@
  *   - Added retail/hospitality exclusions
  *   - Added university event exclusions (orientation, open house)
  * 
+ * Version: 2026-02-05
+ *   - 🔒 ETHICAL: Replaced analyzeOrgWithAI() with scanner.getOrgInfoViaGoogle()
+ *     - analyzeOrgWithAI() read homepage HTML (crossed scanner/scraper boundary)
+ *     - Now uses Google Search snippets ONLY for org name, type, and description
+ *   - DEPRECATED: analyzeOrgWithAI(), searchForOrgInfo(), extractMetaDescription()
+ *   - B4 now uses scanner.getOrgInfoViaGoogle() (consistent with org-scanner.js)
+ *   - All error/blocked paths updated to use Google-based org info
+ *   - description field now populated from Google (not meta tags)
+ *   - PRINCIPLE: Homepage HTML used ONLY for TOU scanning + POC gathering
+ *
  * Version: 2026-01-31
  *   - NOW IMPORTS org-scanner.js for POC gathering (no more duplicate code)
  *   - Smart POC: Uses Google Search for flagged orgs, direct fetch for clean orgs
@@ -762,12 +772,13 @@ async function performInitialOrgScan(fetch, candidate) {
             result.touFlag = true;  // Implied restriction
             result.touNotes = `Technical block: ${response.status} ${response.statusText} response from homepage`;
             
-            // Search web for org info when blocked
-            console.log(`      🔍 Searching web for organization info...`);
-            const webOrgInfo = await searchForOrgInfo(fetch, candidate.domain, candidate.title, isEduDomain);
+            // 🔒 ETHICAL: Search Google for org info (never read blocked site content)
+            console.log(`      🔍 Searching Google for organization info...`);
+            const webOrgInfo = await scanner.getOrgInfoViaGoogle(null, `https://${candidate.domain}`, candidate.title);
             result.orgName = webOrgInfo.orgName || candidate.domain;
             result.orgType = webOrgInfo.orgType || '';
-            result.aiSummary = webOrgInfo.summary || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
+            result.description = webOrgInfo.description || '';
+            result.aiSummary = webOrgInfo.description || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
             
             // Search for POC via Google (tech blocked)
             result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
@@ -778,28 +789,29 @@ async function performInitialOrgScan(fetch, candidate) {
             console.log(`      ⚠️ Homepage returned ${response.status}`);
             result.touNotes = `Homepage returned ${response.status} ${response.statusText}`;
             
-            // Try web search for info
-            const webOrgInfo = await searchForOrgInfo(fetch, candidate.domain, candidate.title, isEduDomain);
+            // 🔒 ETHICAL: Search Google for org info
+            const webOrgInfo = await scanner.getOrgInfoViaGoogle(null, `https://${candidate.domain}`, candidate.title);
             result.orgName = webOrgInfo.orgName || candidate.domain;
             result.orgType = webOrgInfo.orgType || '';
-            result.aiSummary = webOrgInfo.summary || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
+            result.description = webOrgInfo.description || '';
+            result.aiSummary = webOrgInfo.description || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
         } else {
             homepageHtml = await response.text();
             console.log(`      ✅ Homepage fetched (${homepageHtml.length} bytes)`);
-            
-            // Get basic info from meta tags (fallback)
-            result.description = extractMetaDescription(homepageHtml);
+            // NOTE: Homepage HTML used ONLY for TOU scanning (Step B2) and POC gathering (Step B3)
+            // Description comes from Google Search (Step B4)
         }
         
     } catch (error) {
         console.log(`      ⚠️ Homepage fetch error: ${error.message}`);
         result.touNotes = `Homepage fetch error: ${error.message}`;
         
-        // Try web search for info
-        const webOrgInfo = await searchForOrgInfo(fetch, candidate.domain, candidate.title, isEduDomain);
+        // 🔒 ETHICAL: Search Google for org info
+        const webOrgInfo = await scanner.getOrgInfoViaGoogle(null, `https://${candidate.domain}`, candidate.title);
         result.orgName = webOrgInfo.orgName || candidate.domain;
         result.orgType = webOrgInfo.orgType || '';
-        result.aiSummary = webOrgInfo.summary || `Unable to analyze - fetch error: ${error.message}. Discovered via event: "${candidate.title}"`;
+        result.description = webOrgInfo.description || '';
+        result.aiSummary = webOrgInfo.description || `Unable to analyze - fetch error: ${error.message}. Discovered via event: "${candidate.title}"`;
         result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
         return result;
     }
@@ -904,20 +916,18 @@ async function performInitialOrgScan(fetch, candidate) {
     }
     
     // ─────────────────────────────────────────────────────────────────────
-    // B4: AI Analysis for org name and summary
+    // B4: Organization Info via Google Search (UPDATED 2026-02-05)
+    // 🔒 ETHICAL: Uses Google Search snippets ONLY - never reads org website content
+    // Replaces analyzeOrgWithAI() which read homepage HTML
     // ─────────────────────────────────────────────────────────────────────
     
-    console.log(`   📡 B4: AI analysis for org name and summary...`);
+    console.log(`   📡 B4: Organization info via Google Search...`);
     
-    if (homepageHtml) {
-        const aiAnalysis = await analyzeOrgWithAI(fetch, homepageHtml, candidate.domain, candidate.title, isEduDomain);
-        result.orgName = aiAnalysis.orgName;
-        result.orgType = aiAnalysis.orgType;
-        result.aiSummary = aiAnalysis.summary;
-    } else {
-        result.orgName = candidate.domain;
-        result.aiSummary = `Unable to analyze homepage. Discovered via event: "${candidate.title}"`;
-    }
+    const googleInfo = await scanner.getOrgInfoViaGoogle(null, `https://${candidate.domain}`, candidate.title);
+    result.orgName = googleInfo.orgName || candidate.domain;
+    result.orgType = googleInfo.orgType || '';
+    result.description = googleInfo.description || '';
+    result.aiSummary = googleInfo.description || `Discovered via event: "${candidate.title}"`;
     
     return result;
 }
@@ -993,7 +1003,12 @@ function scanForRestrictions(html) {
 /**
  * Extract meta description from HTML
  */
-function extractMetaDescription(html) {
+/**
+ * extractMetaDescription() - ⛔ DEPRECATED 2026-02-05
+ * Reads org website content (crossed scanner/scraper boundary).
+ * Descriptions now sourced from Google Search via scanner.getOrgInfoViaGoogle()
+ */
+function extractMetaDescription_DEPRECATED(html) {
     const match = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
     if (match) {
         return match[1].trim().substring(0, 500);
@@ -1016,7 +1031,12 @@ function extractMetaDescription(html) {
 /**
  * Search web for org info when site is blocked (403/401)
  */
-async function searchForOrgInfo(fetch, domain, triggeringEventTitle, isEduDomain = false) {
+/**
+ * searchForOrgInfo() - ⛔ DEPRECATED 2026-02-05
+ * Replaced by scanner.getOrgInfoViaGoogle()
+ * Kept for reference only.
+ */
+async function searchForOrgInfo_DEPRECATED(fetch, domain, triggeringEventTitle, isEduDomain = false) {
     console.log(`      🔍 Searching web for organization info...`);
     
     try {
@@ -1096,9 +1116,12 @@ Return ONLY valid JSON:
 // savePocContact() removed - now using scanner.savePocContact()
 
 /**
- * Use AI to analyze homepage and extract org name + summary
+ * analyzeOrgWithAI() - ⛔ DEPRECATED 2026-02-05
+ * 🔒 This function read org homepage HTML (crossed scanner/scraper boundary).
+ * Replaced by scanner.getOrgInfoViaGoogle()
+ * Kept for reference only.
  */
-async function analyzeOrgWithAI(fetch, html, domain, triggeringEventTitle, isEduDomain = false) {
+async function analyzeOrgWithAI_DEPRECATED(fetch, html, domain, triggeringEventTitle, isEduDomain = false) {
     console.log(`      🤖 Analyzing with AI...`);
     
     const textContent = extractTextFromHtml(html);
