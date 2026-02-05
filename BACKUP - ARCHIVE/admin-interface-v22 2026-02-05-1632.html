@@ -4500,8 +4500,8 @@ Regards,`;
                     filterValue = `(status='Mission Approved (Request Not Sent)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && (permission_requested_date='' || permission_requested_date=null))`;
                     filterLabel = 'Ready for Outreach';
                 } else if (outreachFilter === 'ready-for-followup') {
-                    // Permission Requested + permission_requested_date is 7+ days ago (includes flagged orgs)
-                    filterValue = `(status='Permission Requested (Pending Org Response)' && permission_requested_date!='' && permission_requested_date<='${sevenDaysAgoISO}')`;
+                    // Permission Requested + No flags + permission_requested_date is 7+ days ago
+                    filterValue = `(status='Permission Requested (Pending Org Response)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && permission_requested_date!='' && permission_requested_date<='${sevenDaysAgoISO}')`;
                     filterLabel = 'Ready for Follow-up (7+ days)';
                 }
 
@@ -4687,9 +4687,9 @@ Regards,`;
             if (isNominated) {
                 html += `<button class="btn btn-small btn-success" onclick="quickApprove('${org.id}')">✅ Approve Mission</button>`;
             }
-            // Show Generate Correspondence button for active workflow statuses
-            if (isMissionApproved || org.status === 'Permission Requested (Pending Org Response)' || org.status === 'Permission Granted (Not Live)' || org.status === 'Live (Scraping Active)') {
-                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Correspondence</button>`;
+            // Show Generate Request button for mission approved orgs
+            if (isMissionApproved) {
+                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Request</button>`;
             }
 
             // Delete button always last (far right)

@@ -72,39 +72,98 @@
         .stat-card p { font-size: 1em; opacity: 0.9; }
         .stat-card .click-hint { font-size: 0.75em; opacity: 0.6; margin-top: 4px; }
 
-        /* Dashboard Section Labels */
-        .dash-section-label {
-            font-size: 0.8em;
-            font-weight: 700;
-            color: #6c757d;
-            letter-spacing: 1.5px;
-            margin-bottom: 10px;
-            margin-top: 8px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #e9ecef;
+        /* Attention Alerts Section */
+        .attention-section { margin-top: 10px; margin-bottom: 20px; }
+        .attention-section h3 { font-size: 1.2em; color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #e9ecef; }
+        .alert-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-
-        /* Red "New" Bubble on stat cards */
-        .new-bubble {
-            display: inline-block;
-            background: #ff2d2d;
-            color: white;
-            font-size: 0.55em;
-            font-weight: 800;
-            padding: 2px 8px;
+        .alert-card.alert-urgent { border-left: 4px solid #e67e22; }
+        .alert-card.alert-new { border-left: 4px solid #8e44ad; }
+        .alert-card.alert-ready { border-left: 4px solid #27ae60; }
+        .alert-card.alert-events { border-left: 4px solid #3498db; }
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .alert-header:hover { background: #f8f9fa; }
+        .alert-header-left { display: flex; align-items: center; gap: 12px; }
+        .alert-header-left .alert-icon { font-size: 1.4em; }
+        .alert-header-left .alert-title { font-weight: 600; color: #333; font-size: 0.95em; }
+        .alert-header-right { display: flex; align-items: center; gap: 12px; }
+        .alert-count-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 3px 10px;
             border-radius: 12px;
-            position: relative;
-            top: -2px;
-            margin-left: 4px;
-            animation: bubble-pulse 2s ease-in-out infinite;
-            box-shadow: 0 2px 8px rgba(255, 45, 45, 0.4);
+            font-size: 0.85em;
+            font-weight: 700;
         }
-        .new-bubble.hidden { display: none; }
-        @keyframes bubble-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
+        .alert-card.alert-urgent .alert-count-badge { background: #fdebd0; color: #a04000; }
+        .alert-card.alert-new .alert-count-badge { background: #e8daef; color: #6c3483; }
+        .alert-card.alert-ready .alert-count-badge { background: #d5f5e3; color: #196f3d; }
+        .alert-card.alert-events .alert-count-badge { background: #d6eaf8; color: #1a5276; }
+        .alert-expand-icon { font-size: 0.9em; color: #adb5bd; transition: transform 0.2s ease; }
+        .alert-card.expanded .alert-expand-icon { transform: rotate(180deg); }
+        .alert-details {
+            display: none;
+            border-top: 1px solid #eee;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
         }
-
+        .alert-card.expanded .alert-details { display: block; }
+        .alert-detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 18px;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: 0.9em;
+            transition: background 0.1s ease;
+        }
+        .alert-detail-item:last-child { border-bottom: none; }
+        .alert-detail-item:hover { background: #f8f9fa; }
+        .alert-detail-item .org-name { color: #2c3e50; font-weight: 500; cursor: pointer; }
+        .alert-detail-item .org-name:hover { color: #667eea; text-decoration: underline; }
+        .alert-detail-item .detail-meta { color: #888; font-size: 0.85em; }
+        .alert-detail-actions { display: flex; gap: 6px; }
+        .alert-detail-actions .btn-tiny {
+            padding: 3px 8px;
+            font-size: 0.78em;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+        .alert-detail-actions .btn-tiny:hover { background: #667eea; color: white; border-color: #667eea; }
+        .alert-footer {
+            padding: 10px 18px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        .alert-footer .btn-view-all {
+            font-size: 0.85em;
+            color: #667eea;
+            cursor: pointer;
+            font-weight: 600;
+            border: none;
+            background: none;
+            padding: 4px 12px;
+        }
+        .alert-footer .btn-view-all:hover { text-decoration: underline; }
         .alert-zero { color: #adb5bd; font-style: italic; padding: 14px 18px; font-size: 0.9em; }
 
         /* Cards */
@@ -1022,40 +1081,26 @@
             <div id="mainContent">
                 <!-- Dashboard Tab -->
                 <div id="dashboard" class="tab-content active">
-                    <!-- Org Stats Row -->
-                    <div class="dash-section-label">🏛️ ORGANIZATIONS</div>
                     <div class="stats-grid">
-                        <div class="stat-card" onclick="dashNav('organizations')"><h3 id="statOrgs">-</h3><p>Total Orgs</p><p class="click-hint">→ View All</p></div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);" onclick="dashNavByRestriction('restricted-nominated')"><h3 id="statTouRestrictions">-</h3><p>⚠️ TOU Restrictions</p><p class="click-hint">→ View Restricted</p></div>
-                        <div class="stat-card danger" onclick="dashNavByStatus('Rejected by Org')"><h3 id="statTechBlocked">-</h3><p>⛔ Tech Blocks</p><p class="click-hint">→ View Blocked</p></div>
-                        <div class="stat-card info" onclick="dashNav('organizations')"><h3 id="statTechRendering">-</h3><p>⚙️ Tech Rendering</p><p class="click-hint">→ View Orgs</p></div>
+                        <div class="stat-card" onclick="dashNav('organizations')"><h3 id="statOrgs">-</h3><p>Total Organizations</p><p class="click-hint">→ View All</p></div>
+                        <div class="stat-card info" onclick="dashNav('events')"><h3 id="statEvents">-</h3><p>Events</p><p class="click-hint">→ View Events</p></div>
+                        <div class="stat-card success" onclick="dashNav('contacts')"><h3 id="statContacts">-</h3><p>👤 Contacts</p><p class="click-hint">→ View Contacts</p></div>
+                        <div class="stat-card warning" onclick="dashNavByStatus('Nominated (Pending Mission Review)')"><h3 id="statPending">-</h3><p>🟣 Nominated</p><p class="click-hint">→ Filter by Status</p></div>
+                        <div class="stat-card success" onclick="dashNavByStatus('Live (Scraping Active)')"><h3 id="statLive">-</h3><p>✅ Live (Scraping)</p><p class="click-hint">→ Filter by Status</p></div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); cursor: pointer;" onclick="dashNavByRestriction('restricted-nominated')"><h3 id="statRestrictions">-</h3><p>🟠 Has Restrictions</p><p class="click-hint">→ View Restricted</p></div>
+                        <div class="stat-card danger" onclick="dashNavByStatus('Rejected by Org')"><h3 id="statTechBlocked">-</h3><p>⛔ Tech Blocked</p><p class="click-hint">→ Filter by Status</p></div>
+                        <div class="stat-card danger" onclick="dashNavByStatus('Rejected by Org')"><h3 id="statPermissionDenied">-</h3><p>🚫 Declined</p><p class="click-hint">→ Filter by Status</p></div>
+                        <div class="stat-card danger" onclick="dashNav('organizations', 'noContacts')"><h3 id="statNoContacts">-</h3><p>❌ No Contacts</p><p class="click-hint">→ View Orgs</p></div>
+                        <div class="stat-card warning" onclick="dashNavByStatus('duplicates')"><h3 id="statDuplicates">-</h3><p>🔁 Duplicates</p><p class="click-hint">→ View Duplicates</p></div>
                     </div>
 
-                    <!-- Workflow Pipeline Row -->
-                    <div class="dash-section-label">📋 WORKFLOW PIPELINE</div>
-                    <div class="stats-grid">
-                        <div class="stat-card warning" onclick="dashNavByStatus('Nominated (Pending Mission Review)')"><h3 id="statNominated">-</h3><p>🟣 Nominated</p><span id="bubbleNominated" class="new-bubble hidden">0</span><p class="click-hint">→ Filter by Status</p></div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #5b86e5 0%, #36d1dc 100%);" onclick="dashNavByStatus('Mission Approved (Request Not Sent)')"><h3 id="statMissionApproved">-</h3><p>🔵 Mission Approved</p><p class="click-hint">→ Filter by Status</p></div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #333;" onclick="dashNavByStatus('Permission Requested (Pending Org Response)')"><h3 id="statPermRequested" style="color:#333;">-</h3><p style="color:#444;">🟡 Permission Requested</p><p class="click-hint" style="color:#555;">→ Filter by Status</p></div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #c0392b 100%);" onclick="dashNavByOutreach('ready-for-followup')"><h3 id="statFollowUp">-</h3><p>📬 Ready for Follow-Up</p><span id="bubbleFollowUp" class="new-bubble hidden">0</span><p class="click-hint">→ View Follow-Ups</p></div>
-                        <div class="stat-card success" onclick="dashNavByStatus('Permission Granted (Not Live)')"><h3 id="statPermGranted">-</h3><p>🟢 Permission Granted</p><p class="click-hint">→ Filter by Status</p></div>
-                        <div class="stat-card success" style="background: linear-gradient(135deg, #1e8449 0%, #27ae60 100%);" onclick="dashNavByStatus('Live (Scraping Active)')"><h3 id="statLive">-</h3><p>✅ Live Orgs</p><p class="click-hint">→ Filter by Status</p></div>
-                        <div class="stat-card danger" onclick="dashNavByStatus('Rejected by Org')"><h3 id="statRejectedOrg">-</h3><p>⛔ Rejected by Org</p><span id="bubbleRejected" class="new-bubble hidden">0</span><p class="click-hint">→ Filter by Status</p></div>
+                    <!-- 🚨 Attention Alerts -->
+                    <div class="attention-section">
+                        <h3>🚨 Needs Your Attention</h3>
+                        <div id="attentionAlerts"><div class="loading">Loading alerts...</div></div>
                     </div>
 
-                    <!-- Events Row -->
-                    <div class="dash-section-label">🎯 EVENTS</div>
-                    <div class="stats-grid">
-                        <div class="stat-card info" onclick="dashNav('events')"><h3 id="statTotalEvents">-</h3><p>Total Events</p><p class="click-hint">→ View Events</p></div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%);" onclick="dashNav('events')"><h3 id="statUpcomingEvents">-</h3><p>📅 Upcoming Events</p><p class="click-hint">→ View Events</p></div>
-                    </div>
-
-                    <!-- Contacts Row -->
-                    <div class="dash-section-label">👤 CONTACTS</div>
-                    <div class="stats-grid">
-                        <div class="stat-card success" onclick="dashNav('contacts')"><h3 id="statContacts">-</h3><p>👤 Total Contacts</p><p class="click-hint">→ View Contacts</p></div>
-                        <div class="stat-card danger" onclick="dashNav('organizations', 'noContacts')"><h3 id="statNoContacts">-</h3><p>❌ Orgs with No Contacts</p><p class="click-hint">→ View Orgs</p></div>
-                    </div>
+                    <div id="dashboardContent"><div class="loading">Loading dashboard...</div></div>
                 </div>
 
                 <!-- Organization By Status Tab -->
@@ -4158,6 +4203,7 @@ Regards,`;
         // Dashboard navigation helpers
         function dashNav(tabName, filterHint) {
             switchTab(tabName);
+            // After switching, apply filter hints if provided
             if (tabName === 'organizations' && filterHint === 'noContacts') {
                 setTimeout(() => {
                     const contactFilter = document.getElementById('orgFilterByContacts');
@@ -4202,109 +4248,292 @@ Regards,`;
             }, 100);
         }
 
+        function toggleAlertExpand(alertId) {
+            const card = document.getElementById(alertId);
+            if (card) card.classList.toggle('expanded');
+        }
+
+        function formatTimeAgo(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            if (diffDays === 0) return 'today';
+            if (diffDays === 1) return '1 day ago';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffDays < 14) return '1 week ago';
+            if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+            return `${Math.floor(diffDays / 30)} month(s) ago`;
+        }
+
         async function loadDashboard() {
             try {
-                const now = new Date();
-                const sevenDaysAgo = new Date();
-                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                const sevenDaysAgoISO = sevenDaysAgo.toISOString().replace('T', ' ').slice(0, 19);
-                const todayISO = now.toISOString().replace('T', ' ').slice(0, 19);
-
-                // Fetch orgs, contacts, total events, and upcoming events
-                const [orgsRes, contactsRes, eventsRes, upcomingEventsRes] = await Promise.all([
+                // Fetch orgs, events (count only), and all events for nomination counts
+                const [orgsRes, eventsRes, nominatedEventsRes] = await Promise.all([
                     fetch(`${POCKETBASE_URL}/api/collections/organizations/records?perPage=500`, { headers: { 'Authorization': authToken } }),
-                    fetch(`${POCKETBASE_URL}/api/collections/contacts/records?perPage=500`, { headers: { 'Authorization': authToken } }),
                     fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=1`, { headers: { 'Authorization': authToken } }),
-                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=1&filter=${encodeURIComponent(`event_status='approved' && start_date>='${todayISO}'`)}`, { headers: { 'Authorization': authToken } })
+                    fetch(`${POCKETBASE_URL}/api/collections/events/records?perPage=500&filter=${encodeURIComponent("event_status='nominated'")}`, { headers: { 'Authorization': authToken } })
                 ]);
-
                 const orgsData = await orgsRes.json();
-                const contactsData = await contactsRes.json();
                 const eventsData = await eventsRes.json();
-                const upcomingEventsData = await upcomingEventsRes.json();
+                const nominatedEventsData = await nominatedEventsRes.json();
                 const orgs = orgsData.items || [];
+                const nominatedEvents = nominatedEventsData.items || [];
 
-                // ── FIX: Populate global allContacts so other tabs work too ──
-                allContacts = contactsData.items || [];
-
-                // ── Contact stats ──
+                // Calculate contact stats
                 const orgsWithContacts = new Set(allContacts.map(c => c.organization));
                 const orgsNoContacts = orgs.filter(o => !orgsWithContacts.has(o.id)).length;
 
-                // ── ORG STATS ──
+                // ── Populate stat cards ──
                 document.getElementById('statOrgs').textContent = orgsData.totalItems || 0;
-                document.getElementById('statTouRestrictions').textContent = orgs.filter(o => o.tou_flag === true).length;
-                document.getElementById('statTechBlocked').textContent = orgs.filter(o => o.tech_block_flag === true).length;
-                document.getElementById('statTechRendering').textContent = orgs.filter(o => o.tech_rendering_flag === true).length;
-
-                // ── WORKFLOW PIPELINE ──
-                const nominated = orgs.filter(o => o.status === 'Nominated (Pending Mission Review)');
-                const missionApproved = orgs.filter(o => o.status === 'Mission Approved (Request Not Sent)');
-                const permRequested = orgs.filter(o => o.status === 'Permission Requested (Pending Org Response)');
-                const permGranted = orgs.filter(o => o.status === 'Permission Granted (Not Live)');
-                const liveOrgs = orgs.filter(o => o.status === 'Live (Scraping Active)');
-                const rejectedByOrg = orgs.filter(o => o.status === 'Rejected by Org');
-
-                // Ready for Follow-Up: Permission Requested + request date 7+ days ago
-                const followUpOrgs = permRequested.filter(o => {
-                    if (!o.permission_requested_date) return false;
-                    return new Date(o.permission_requested_date) <= sevenDaysAgo;
-                });
-
-                document.getElementById('statNominated').textContent = nominated.length;
-                document.getElementById('statMissionApproved').textContent = missionApproved.length;
-                document.getElementById('statPermRequested').textContent = permRequested.length;
-                document.getElementById('statFollowUp').textContent = followUpOrgs.length;
-                document.getElementById('statPermGranted').textContent = permGranted.length;
-                document.getElementById('statLive').textContent = liveOrgs.length;
-                document.getElementById('statRejectedOrg').textContent = rejectedByOrg.length;
-
-                // ── RED "NEW" BUBBLES ──
-                // Nominated: new in last 7 days
-                const newNominated = nominated.filter(o => new Date(o.created) >= sevenDaysAgo);
-                const bubbleNom = document.getElementById('bubbleNominated');
-                if (newNominated.length > 0) {
-                    bubbleNom.textContent = `${newNominated.length} new`;
-                    bubbleNom.classList.remove('hidden');
-                } else {
-                    bubbleNom.classList.add('hidden');
-                }
-
-                // Follow-Up: newly eligible in last 7 days (requested 7-14 days ago)
-                const fourteenDaysAgo = new Date();
-                fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-                const newFollowUp = followUpOrgs.filter(o => {
-                    const reqDate = new Date(o.permission_requested_date);
-                    return reqDate >= fourteenDaysAgo; // became eligible within last 7 days
-                });
-                const bubbleFollow = document.getElementById('bubbleFollowUp');
-                if (newFollowUp.length > 0) {
-                    bubbleFollow.textContent = `${newFollowUp.length} new`;
-                    bubbleFollow.classList.remove('hidden');
-                } else {
-                    bubbleFollow.classList.add('hidden');
-                }
-
-                // Rejected by Org: updated in last 7 days
-                const newRejected = rejectedByOrg.filter(o => new Date(o.updated) >= sevenDaysAgo);
-                const bubbleRej = document.getElementById('bubbleRejected');
-                if (newRejected.length > 0) {
-                    bubbleRej.textContent = `${newRejected.length} new`;
-                    bubbleRej.classList.remove('hidden');
-                } else {
-                    bubbleRej.classList.add('hidden');
-                }
-
-                // ── EVENTS ──
-                document.getElementById('statTotalEvents').textContent = eventsData.totalItems || 0;
-                document.getElementById('statUpcomingEvents').textContent = upcomingEventsData.totalItems || 0;
-
-                // ── CONTACTS ──
-                document.getElementById('statContacts').textContent = allContacts.length;
+                document.getElementById('statEvents').textContent = eventsData.totalItems || 0;
+                document.getElementById('statContacts').textContent = allContacts.length || 0;
                 document.getElementById('statNoContacts').textContent = orgsNoContacts;
+                document.getElementById('statPending').textContent = orgs.filter(o => o.status === 'Nominated (Pending Mission Review)').length;
+                document.getElementById('statRestrictions').textContent = orgs.filter(o => o.tou_flag === true || o.tech_block_flag === true).length;
+                document.getElementById('statLive').textContent = orgs.filter(o => o.status === 'Live (Scraping Active)').length;
+                document.getElementById('statTechBlocked').textContent = orgs.filter(o => o.tech_block_flag === true).length;
+                document.getElementById('statPermissionDenied').textContent = orgs.filter(o => o.permission_type === 'Denied').length;
+                document.getElementById('statDuplicates').textContent = orgs.filter(o => o.duplicate_flag === true).length;
+
+                // ── Status Overview Card ──
+                const statusCounts = {};
+                orgs.forEach(org => { statusCounts[org.status] = (statusCounts[org.status] || 0) + 1; });
+
+                let summaryHtml = '<h3 style="margin-bottom: 15px;">📊 Status Overview</h3>';
+                for (const [status, count] of Object.entries(statusCounts)) {
+                    const config = STATUS_CONFIG[status] || { icon: '❓' };
+                    summaryHtml += `<p>${config.icon} <strong>${status}:</strong> ${count}</p>`;
+                }
+                
+                const techBlockedCount = orgs.filter(o => o.tech_block_flag === true).length;
+                if (techBlockedCount > 0) {
+                    summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    summaryHtml += `<p>⛔ <strong>Technically Blocked:</strong> ${techBlockedCount}</p>`;
+                }
+                
+                const permissionDeniedCount = orgs.filter(o => o.permission_type === 'Denied').length;
+                if (permissionDeniedCount > 0) {
+                    if (techBlockedCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>🚫 <strong>Permission Denied:</strong> ${permissionDeniedCount}</p>`;
+                }
+                
+                const techRenderingCount = orgs.filter(o => o.tech_rendering_flag === true).length;
+                if (techRenderingCount > 0) {
+                    if (techBlockedCount === 0 && permissionDeniedCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>⚙️ <strong>Tech-Rendered Sites:</strong> ${techRenderingCount}</p>`;
+                }
+                
+                const duplicateCount = orgs.filter(o => o.duplicate_flag === true).length;
+                if (duplicateCount > 0) {
+                    if (techBlockedCount === 0 && permissionDeniedCount === 0 && techRenderingCount === 0) {
+                        summaryHtml += `<hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">`;
+                    }
+                    summaryHtml += `<p>🔁 <strong>Duplicates:</strong> ${duplicateCount}</p>`;
+                }
+                
+                document.getElementById('dashboardContent').innerHTML = `<div class="card">${summaryHtml}</div>`;
+
+                // ── Attention Alerts ──
+                renderAttentionAlerts(orgs, nominatedEvents);
 
             } catch (error) {
-                console.error('Dashboard error:', error);
+                document.getElementById('dashboardContent').innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
+                document.getElementById('attentionAlerts').innerHTML = '';
+            }
+        }
+
+        function renderAttentionAlerts(orgs, nominatedEvents) {
+            const alertsContainer = document.getElementById('attentionAlerts');
+            let alertsHtml = '';
+
+            const now = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            // ── ALERT 1: Ready for Follow-up (Permission Requested 7+ days ago) ──
+            const followUpOrgs = orgs.filter(o => {
+                if (o.status !== 'Permission Requested (Pending Org Response)') return false;
+                if (!o.permission_requested_date) return false;
+                const reqDate = new Date(o.permission_requested_date);
+                return reqDate <= sevenDaysAgo;
+            }).sort((a, b) => new Date(a.permission_requested_date) - new Date(b.permission_requested_date));
+
+            if (followUpOrgs.length > 0) {
+                let detailItems = followUpOrgs.map(org => {
+                    const daysSince = Math.floor((now - new Date(org.permission_requested_date)) / (1000 * 60 * 60 * 24));
+                    const hasFlags = org.tou_flag || org.tech_block_flag;
+                    return `<div class="alert-detail-item">
+                        <div>
+                            <span class="org-name" onclick="openOrgProfile('${org.id}', 'statusHistory')">${org.name}</span>
+                            ${hasFlags ? '<span style="margin-left:6px;">⚠️</span>' : ''}
+                            <span class="detail-meta" style="margin-left: 8px;">📅 Requested ${daysSince} days ago</span>
+                        </div>
+                        <div class="alert-detail-actions">
+                            <button class="btn-tiny" onclick="openOrgProfile('${org.id}', 'statusHistory')">📋 Status</button>
+                            <button class="btn-tiny" onclick="openOrgProfile('${org.id}', 'profileContacts')">👤 Contacts</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                alertsHtml += `<div class="alert-card alert-urgent${followUpOrgs.length > 0 ? '' : ''}" id="alertFollowUp">
+                    <div class="alert-header" onclick="toggleAlertExpand('alertFollowUp')">
+                        <div class="alert-header-left">
+                            <span class="alert-icon">📬</span>
+                            <span class="alert-title">Ready for Follow-up — Permission requested 7+ days ago</span>
+                        </div>
+                        <div class="alert-header-right">
+                            <span class="alert-count-badge">${followUpOrgs.length}</span>
+                            <span class="alert-expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="alert-details">
+                        ${detailItems}
+                        <div class="alert-footer">
+                            <button class="btn-view-all" onclick="dashNavByOutreach('ready-for-followup')">→ View All in Org By Status</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // ── ALERT 2: Recently Nominated Orgs (last 7 days) ──
+            const recentNominated = orgs.filter(o => {
+                if (o.status !== 'Nominated (Pending Mission Review)') return false;
+                const created = new Date(o.created);
+                return created >= sevenDaysAgo;
+            }).sort((a, b) => new Date(b.created) - new Date(a.created));
+
+            if (recentNominated.length > 0) {
+                let detailItems = recentNominated.map(org => {
+                    const method = org.discovery_method || 'unknown';
+                    const methodIcon = method === 'event-based' ? '🎯' : method === 'profile-based' ? '📊' : method === 'manual' ? '✋' : '❓';
+                    const hasFlags = org.tou_flag || org.tech_block_flag;
+                    return `<div class="alert-detail-item">
+                        <div>
+                            <span class="org-name" onclick="openOrgProfile('${org.id}')">${org.name}</span>
+                            ${hasFlags ? '<span style="margin-left:6px;">⚠️</span>' : ''}
+                            <span class="detail-meta" style="margin-left: 8px;">${methodIcon} ${method} · Added ${formatTimeAgo(org.created)}</span>
+                        </div>
+                        <div class="alert-detail-actions">
+                            <button class="btn-tiny" onclick="openOrgProfile('${org.id}')">📝 Review</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                alertsHtml += `<div class="alert-card alert-new" id="alertNewNominated">
+                    <div class="alert-header" onclick="toggleAlertExpand('alertNewNominated')">
+                        <div class="alert-header-left">
+                            <span class="alert-icon">🆕</span>
+                            <span class="alert-title">Recently Nominated Organizations — Last 7 days</span>
+                        </div>
+                        <div class="alert-header-right">
+                            <span class="alert-count-badge">${recentNominated.length}</span>
+                            <span class="alert-expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="alert-details">
+                        ${detailItems}
+                        <div class="alert-footer">
+                            <button class="btn-view-all" onclick="dashNavByStatus('Nominated (Pending Mission Review)')">→ View All Nominated in Org By Status</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // ── ALERT 3: Events Needing Approval ──
+            if (nominatedEvents.length > 0) {
+                // Group nominated events by org
+                const eventsByOrg = {};
+                nominatedEvents.forEach(e => {
+                    if (!eventsByOrg[e.organization]) eventsByOrg[e.organization] = [];
+                    eventsByOrg[e.organization].push(e);
+                });
+
+                // Build org name lookup from orgs array
+                const orgNameMap = {};
+                orgs.forEach(o => { orgNameMap[o.id] = o.name; });
+
+                let detailItems = Object.entries(eventsByOrg).map(([orgId, events]) => {
+                    const orgName = orgNameMap[orgId] || 'Unknown Org';
+                    return `<div class="alert-detail-item">
+                        <div>
+                            <span class="org-name" onclick="openOrgProfile('${orgId}', 'profileEvents')">${orgName}</span>
+                            <span class="detail-meta" style="margin-left: 8px;">📋 ${events.length} event${events.length !== 1 ? 's' : ''} awaiting review</span>
+                        </div>
+                        <div class="alert-detail-actions">
+                            <button class="btn-tiny" onclick="openOrgProfile('${orgId}', 'profileEvents')">👁️ Review</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                alertsHtml += `<div class="alert-card alert-events" id="alertNominatedEvents">
+                    <div class="alert-header" onclick="toggleAlertExpand('alertNominatedEvents')">
+                        <div class="alert-header-left">
+                            <span class="alert-icon">📋</span>
+                            <span class="alert-title">Events Needing Approval</span>
+                        </div>
+                        <div class="alert-header-right">
+                            <span class="alert-count-badge">${nominatedEvents.length}</span>
+                            <span class="alert-expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="alert-details">
+                        ${detailItems}
+                        <div class="alert-footer">
+                            <button class="btn-view-all" onclick="dashNav('events')">→ View All Events</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // ── ALERT 4: Permission Granted but Not Live ──
+            const grantedNotLive = orgs.filter(o => o.status === 'Permission Granted (Not Live)')
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+            if (grantedNotLive.length > 0) {
+                let detailItems = grantedNotLive.map(org => {
+                    const permType = org.permission_type || 'not set';
+                    return `<div class="alert-detail-item">
+                        <div>
+                            <span class="org-name" onclick="openOrgProfile('${org.id}', 'statusHistory')">${org.name}</span>
+                            <span class="detail-meta" style="margin-left: 8px;">🔑 ${permType}</span>
+                        </div>
+                        <div class="alert-detail-actions">
+                            <button class="btn-tiny" onclick="openOrgProfile('${org.id}', 'statusHistory')">🚀 Go Live</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                alertsHtml += `<div class="alert-card alert-ready" id="alertGrantedNotLive">
+                    <div class="alert-header" onclick="toggleAlertExpand('alertGrantedNotLive')">
+                        <div class="alert-header-left">
+                            <span class="alert-icon">🟢</span>
+                            <span class="alert-title">Permission Granted — Ready to Go Live</span>
+                        </div>
+                        <div class="alert-header-right">
+                            <span class="alert-count-badge">${grantedNotLive.length}</span>
+                            <span class="alert-expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="alert-details">
+                        ${detailItems}
+                        <div class="alert-footer">
+                            <button class="btn-view-all" onclick="dashNavByStatus('Permission Granted (Not Live)')">→ View All in Org By Status</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // ── Show results or all-clear message ──
+            if (alertsHtml === '') {
+                alertsContainer.innerHTML = '<p class="alert-zero">✅ No items need attention right now. Nice work!</p>';
+            } else {
+                alertsContainer.innerHTML = alertsHtml;
             }
         }
 
@@ -4500,8 +4729,8 @@ Regards,`;
                     filterValue = `(status='Mission Approved (Request Not Sent)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && (permission_requested_date='' || permission_requested_date=null))`;
                     filterLabel = 'Ready for Outreach';
                 } else if (outreachFilter === 'ready-for-followup') {
-                    // Permission Requested + permission_requested_date is 7+ days ago (includes flagged orgs)
-                    filterValue = `(status='Permission Requested (Pending Org Response)' && permission_requested_date!='' && permission_requested_date<='${sevenDaysAgoISO}')`;
+                    // Permission Requested + No flags + permission_requested_date is 7+ days ago
+                    filterValue = `(status='Permission Requested (Pending Org Response)' && tou_flag=false && tech_block_flag=false && tech_rendering_flag=false && permission_requested_date!='' && permission_requested_date<='${sevenDaysAgoISO}')`;
                     filterLabel = 'Ready for Follow-up (7+ days)';
                 }
 
@@ -4687,9 +4916,9 @@ Regards,`;
             if (isNominated) {
                 html += `<button class="btn btn-small btn-success" onclick="quickApprove('${org.id}')">✅ Approve Mission</button>`;
             }
-            // Show Generate Correspondence button for active workflow statuses
-            if (isMissionApproved || org.status === 'Permission Requested (Pending Org Response)' || org.status === 'Permission Granted (Not Live)' || org.status === 'Live (Scraping Active)') {
-                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Correspondence</button>`;
+            // Show Generate Request button for mission approved orgs
+            if (isMissionApproved) {
+                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Request</button>`;
             }
 
             // Delete button always last (far right)

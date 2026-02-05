@@ -4687,9 +4687,9 @@ Regards,`;
             if (isNominated) {
                 html += `<button class="btn btn-small btn-success" onclick="quickApprove('${org.id}')">✅ Approve Mission</button>`;
             }
-            // Show Generate Correspondence button for active workflow statuses
-            if (isMissionApproved || org.status === 'Permission Requested (Pending Org Response)' || org.status === 'Permission Granted (Not Live)' || org.status === 'Live (Scraping Active)') {
-                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Correspondence</button>`;
+            // Show Generate Request button for mission approved orgs
+            if (isMissionApproved) {
+                html += `<button class="btn btn-small btn-action" onclick="openOrgProfile('${org.id}', 'statusHistory')">📧 Generate Request</button>`;
             }
 
             // Delete button always last (far right)
