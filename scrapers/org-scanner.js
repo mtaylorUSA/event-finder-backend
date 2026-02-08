@@ -3682,6 +3682,80 @@ function matchDomainToOrg(emailDomain, organizations) {
  * @param {string} triggeringEventTitle - Optional event title that triggered discovery
  * @returns {Object} { orgName, orgType, description, source }
  */
+/**
+ * Extract a potential organization name from an event title
+ * Strips common prefixes like "Home - ", "Events | ", page titles, etc.
+ * NEW 2026-02-08: Helps getOrgInfoViaGoogle() when orgName is null
+ */
+function extractOrgNameFromTitle(title, domain) {
+    if (!title) return '';
+    
+    let cleaned = title;
+    
+    // Remove common page-title prefixes/suffixes
+    const stripPatterns = [
+        /^home\s*[-–—|:]\s*/i,
+        /^events\s*[-–—|:]\s*/i,
+        /^about\s*[-–—|:]\s*/i,
+        /^welcome\s*(to\s*)?[-–—|:]\s*/i,
+        /^welcome\s+to\s+/i,
+        /^news\s*[-–—|:]\s*/i,
+        /\s*[-–—|:]\s*home$/i,
+        /\s*[-–—|:]\s*events$/i,
+        /\s*[-–—|:]\s*about$/i,
+        /\s*[-–—|:]\s*news$/i,
+    ];
+    
+    for (const pattern of stripPatterns) {
+        cleaned = cleaned.replace(pattern, '');
+    }
+    
+    // Remove domain if it appears in the title
+    if (domain) {
+        cleaned = cleaned.replace(new RegExp(domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '').trim();
+    }
+    
+    // Remove trailing " | Page Title" or " - Page Title" patterns (common SEO titles)
+    // But only if what's left is substantial
+    const pipeMatch = cleaned.match(/^(.{10,}?)\s*[-–—|]\s*.{3,}$/);
+    if (pipeMatch) {
+        cleaned = pipeMatch[1];
+    }
+    
+    // Trim whitespace and punctuation
+    cleaned = cleaned.replace(/^[-–—|:\s]+|[-–—|:\s]+$/g, '').trim();
+    
+    // If result is too short or looks like a domain, return empty
+    if (cleaned.length < 4 || looksLikeDomain(cleaned)) return '';
+    
+    return cleaned;
+}
+
+/**
+ * Check if a string looks like a domain name (e.g., "quincyinst.org")
+ * NEW 2026-02-08: Prevents saving domains as org names
+ */
+function looksLikeDomain(str) {
+    if (!str) return false;
+    const s = str.trim().toLowerCase();
+    
+    // Check for common TLD patterns with no spaces
+    const domainPattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.(com|org|net|edu|gov|io|ai|us|uk|mil|info|co)$/;
+    if (domainPattern.test(s)) return true;
+    
+    // Check for URL-like strings
+    if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('www.')) return true;
+    
+    // Check: has dots, no spaces, ends with known TLD (catches "sipa.columbia.edu")
+    if (!s.includes(' ') && s.includes('.')) {
+        const tlds = ['com', 'org', 'net', 'edu', 'gov', 'io', 'ai', 'us', 'uk', 'mil', 'info', 'co'];
+        const lastPart = s.split('.').pop();
+        if (tlds.includes(lastPart)) return true;
+    }
+    
+    return false;
+}
+
 async function getOrgInfoViaGoogle(orgName, website, triggeringEventTitle = null) {
     console.log('');
     console.log('   ────────────────────────────────────────────────────────────');
@@ -3727,10 +3801,21 @@ async function getOrgInfoViaGoogle(orgName, website, triggeringEventTitle = null
         `"${searchName}" nonprofit think tank government agency`
     ];
     
-    // If we only have a domain (no org name), add a domain-specific query
+    // If we only have a domain (no org name), use smarter queries
+    // NEW 2026-02-08: Extract potential org name from triggering event title
     if (!orgName && domain) {
         searchQueries[0] = `"${domain}" organization about`;
         searchQueries[1] = `"${domain}" mission nonprofit think tank`;
+        
+        // Try to extract org name from triggering event title
+        if (triggeringEventTitle) {
+            const extractedName = extractOrgNameFromTitle(triggeringEventTitle, domain);
+            if (extractedName && extractedName.length > 3) {
+                // Add a third query using the extracted name (much better than just domain)
+                searchQueries.push(`"${extractedName}" organization about mission`);
+                console.log(`      💡 Extracted name from event title: "${extractedName}"`);
+            }
+        }
     }
     
     let searchSnippets = [];
@@ -3859,6 +3944,22 @@ Return ONLY valid JSON:
             finalOrgName = searchName;
         }
         
+        // NEW 2026-02-08: Check if org name still looks like a domain
+        if (looksLikeDomain(finalOrgName)) {
+            console.log(`      ⚠️ AI returned domain-like name "${finalOrgName}"`);
+            
+            // Try to extract a real name from the triggering event title
+            if (triggeringEventTitle) {
+                const extractedName = extractOrgNameFromTitle(triggeringEventTitle, domain);
+                if (extractedName && extractedName.length > 3 && !looksLikeDomain(extractedName)) {
+                    finalOrgName = extractedName;
+                    console.log(`      ✅ Using name from event title: "${finalOrgName}"`);
+                } else {
+                    console.log(`      ⚠️ Could not extract name from event title either`);
+                }
+            }
+        }
+        
         result.orgName = finalOrgName;
         result.orgType = parsed.org_type || '';
         result.description = parsed.description || '';
@@ -3872,6 +3973,16 @@ Return ONLY valid JSON:
         console.log(`      ⚠️ AI analysis of search results failed: ${error.message}`);
         // Fallback: use raw snippets as description
         result.description = searchSnippets.map(s => s.snippet).join(' ').substring(0, 500);
+        
+        // NEW 2026-02-08: Try to get org name from event title even on AI failure
+        if (looksLikeDomain(result.orgName) && triggeringEventTitle) {
+            const extractedName = extractOrgNameFromTitle(triggeringEventTitle, domain);
+            if (extractedName && extractedName.length > 3 && !looksLikeDomain(extractedName)) {
+                result.orgName = extractedName;
+                console.log(`      ✅ Using name from event title: "${result.orgName}"`);
+            }
+        }
+        
         return result;
     }
 }
@@ -5096,6 +5207,10 @@ module.exports = {
     checkForExcludedContext,
     checkForProhibitionPhrase,
     getContextSnippet,
+    
+    // Org name extraction helpers (NEW 2026-02-08)
+    extractOrgNameFromTitle,
+    looksLikeDomain,
     
     // Database operations
     getOrganization,

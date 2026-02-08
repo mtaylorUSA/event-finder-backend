@@ -387,6 +387,25 @@ async function main() {
     });
     console.log(`   ✅ Tracking ${existingDomains.size} existing domains`);
     console.log(`   ✅ Tracking ${existingRootDomains.size} root domains`);
+    
+    // NEW 2026-02-08: Build set of existing org NAMES for name-based dedup
+    // This catches cases like Billington subdomains where domain doesn't match
+    const existingOrgNames = new Set();
+    const existingOrgNameKeywords = new Set();  // individual significant words
+    existingOrgs.forEach(org => {
+        if (org.name) {
+            existingOrgNames.add(org.name.toLowerCase().trim());
+            // Extract significant keywords (4+ chars, skip common words)
+            const skipWords = ['the', 'for', 'and', 'national', 'center', 'institute', 'foundation', 'association', 'council', 'organization', 'society', 'commission', 'international'];
+            const words = org.name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+            for (const word of words) {
+                if (word.length >= 4 && !skipWords.includes(word)) {
+                    existingOrgNameKeywords.add(word);
+                }
+            }
+        }
+    });
+    console.log(`   ✅ Tracking ${existingOrgNames.size} existing org names`);
 
     // ═══════════════════════════════════════════════════════════════════════
     // PHASE A: WEB SEARCH (No Page Fetching)
@@ -630,6 +649,46 @@ async function main() {
     for (const result of scanResults) {
         console.log(`   💾 Nominating: ${result.orgName || result.domain}`);
         
+        // NEW 2026-02-08: Name-based dedup check (catches Billington-type cases)
+        const candidateName = (result.orgName || '').toLowerCase().trim();
+        if (candidateName && existingOrgNames.has(candidateName)) {
+            console.log(`      ⏭️  Skip (name matches existing org): "${result.orgName}"`);
+            skipCount++;
+            continue;
+        }
+        
+        // Check for partial name match: does any existing org name contain this name or vice versa?
+        let nameMatchFound = false;
+        if (candidateName && candidateName.length > 10) {
+            for (const existingName of existingOrgNames) {
+                if (existingName.length > 10 && (candidateName.includes(existingName) || existingName.includes(candidateName))) {
+                    console.log(`      ⏭️  Skip (name similar to existing): "${result.orgName}" ≈ "${existingName}"`);
+                    nameMatchFound = true;
+                    break;
+                }
+            }
+        }
+        if (nameMatchFound) {
+            skipCount++;
+            continue;
+        }
+        
+        // Check for significant keyword overlap (e.g., "Billington" matches existing "Billington CyberSecurity Summit")
+        if (candidateName) {
+            const candidateWords = candidateName.replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+            const uniqueMatches = candidateWords.filter(w => w.length >= 6 && existingOrgNameKeywords.has(w));
+            if (uniqueMatches.length >= 1) {
+                // Check if matched word is distinctive (6+ chars, not common)
+                const commonWords = ['security', 'defense', 'policy', 'research', 'studies', 'affairs', 'intelligence', 'technology', 'summit', 'conference'];
+                const distinctiveMatches = uniqueMatches.filter(w => !commonWords.includes(w));
+                if (distinctiveMatches.length >= 1) {
+                    console.log(`      ⏭️  Skip (distinctive keyword match: "${distinctiveMatches.join(', ')}"): "${result.orgName}"`);
+                    skipCount++;
+                    continue;
+                }
+            }
+        }
+        
         try {
             // Create organization record with all gathered info
             const orgRecord = {
@@ -702,6 +761,15 @@ async function main() {
             
             // Add to existing domains to prevent duplicates in this run
             existingDomains.add(result.domain.toLowerCase());
+            
+            // NEW 2026-02-08: Also track org name for name-based dedup within this run
+            if (result.orgName) {
+                existingOrgNames.add(result.orgName.toLowerCase().trim());
+                const words = result.orgName.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+                for (const word of words) {
+                    if (word.length >= 4) existingOrgNameKeywords.add(word);
+                }
+            }
             
         } catch (error) {
             console.log(`      ❌ Error: ${error.message}`);
@@ -928,6 +996,19 @@ async function performInitialOrgScan(fetch, candidate) {
     result.orgType = googleInfo.orgType || '';
     result.description = googleInfo.description || '';
     result.aiSummary = googleInfo.description || `Discovered via event: "${candidate.title}"`;
+    
+    // NEW 2026-02-08: Final safety check - if orgName still looks like a domain,
+    // try to extract from event title as last resort
+    if (scanner.looksLikeDomain && scanner.looksLikeDomain(result.orgName)) {
+        console.log(`      ⚠️ B4: orgName still looks like domain: "${result.orgName}"`);
+        if (scanner.extractOrgNameFromTitle) {
+            const extracted = scanner.extractOrgNameFromTitle(candidate.title, candidate.domain);
+            if (extracted && extracted.length > 3) {
+                result.orgName = extracted;
+                console.log(`      ✅ B4: Using extracted name: "${result.orgName}"`);
+            }
+        }
+    }
     
     return result;
 }
