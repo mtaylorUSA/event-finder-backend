@@ -253,7 +253,7 @@
         }
 
         /* ═══════════════════════════════════════════════════════════════════════ */
-        /* v23: CORRESPONDENCE ACCORDION STYLES                                    */
+        /* v22: CORRESPONDENCE ACCORDION STYLES                                    */
         /* ═══════════════════════════════════════════════════════════════════════ */
         
         /* Correspondence Type Accordion */
@@ -1420,16 +1420,49 @@
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label>Recommended Phone Number</label>
-                                    <input type="text" id="phoneRecommendedNumber" readonly style="background: #f0f0f0;">
+                                    <label>Phone Number to Call <span style="font-weight: normal; color: #666;">(auto-filled from contact, editable)</span></label>
+                                    <input type="text" id="phoneRecommendedNumber" placeholder="Enter or verify phone number..." style="font-family: monospace; font-size: 14px;">
                                 </div>
                                 
                                 <div class="draft-generator-box">
-                                    <h6>📝 Call Notes Generator</h6>
-                                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Generate talking points based on this org's restrictions.</p>
+                                    <h6>📝 Talking Points Generator</h6>
+                                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Select the type of call to generate customized talking points:</p>
+                                    
+                                    <!-- Call Type Selector -->
+                                    <div class="call-type-selector" style="background: #f0fff4; border: 1px solid #c3e6cb; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                                        <div style="margin-bottom: 8px;">
+                                            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin-bottom: 10px;">
+                                                <input type="radio" name="callType" value="initial-permission" checked style="margin-top: 3px;">
+                                                <span>
+                                                    <strong>📞 Initial Permission Request</strong><br>
+                                                    <span style="font-size: 12px; color: #666;">First call to request permission to include their events (flag-aware)</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div style="margin-bottom: 8px;">
+                                            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; margin-bottom: 10px;">
+                                                <input type="radio" name="callType" value="followup-no-response" style="margin-top: 3px;">
+                                                <span>
+                                                    <strong>📞 Follow-Up (No Email Response)</strong><br>
+                                                    <span style="font-size: 12px; color: #666;">Following up on a permission email that wasn't answered</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div>
+                                            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+                                                <input type="radio" name="callType" value="followup-post-permission" style="margin-top: 3px;">
+                                                <span>
+                                                    <strong>📞 Follow-Up (Post-Permission)</strong><br>
+                                                    <span style="font-size: 12px; color: #666;">Courtesy call after permission granted or scraping begun</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
                                     <button type="button" class="btn btn-small btn-info" onclick="generateCallNotes()">📝 Generate Talking Points</button>
+                                    <button type="button" class="btn btn-small btn-copy" onclick="copyDraft('phoneCallNotesDraft')" style="margin-left: 5px;">📋 Copy</button>
                                     <div class="form-group" style="margin-top: 10px;">
-                                        <textarea id="phoneCallNotesDraft" class="draft-textarea" style="min-height: 120px;" placeholder="Click 'Generate Talking Points' or type your own notes..."></textarea>
+                                        <textarea id="phoneCallNotesDraft" class="draft-textarea" style="min-height: 200px;" placeholder="Click 'Generate Talking Points' to create customized script..."></textarea>
                                     </div>
                                 </div>
                                 
@@ -2755,7 +2788,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // v23: CORRESPONDENCE ACCORDION FUNCTIONS
+        // v22: CORRESPONDENCE ACCORDION FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════
         
         let currentCorrType = null;
@@ -2850,20 +2883,29 @@
                     'Other': '📧'
                 };
                 
-                // Build options HTML for dropdowns (phone and email-in)
-                let optionsHtml = '<option value="">-- Select contact --</option>';
+                // Build options HTML for phone dropdown (shows phone numbers)
+                let phoneOptionsHtml = '<option value="">-- Select contact --</option>';
+                orgContacts.forEach(c => {
+                    const icon = typeIcon[c.contact_type] || '📧';
+                    const phoneDisplay = c.phone ? `📞 ${c.phone}` : '⚠️ no phone';
+                    const label = `${icon} ${c.name || 'Unknown'} (${c.contact_type}) - ${phoneDisplay}`;
+                    phoneOptionsHtml += `<option value="${c.id}" data-name="${escapeHtml(c.name || '')}" data-email="${escapeHtml(c.email || '')}" data-phone="${escapeHtml(c.phone || '')}" data-type="${escapeHtml(c.contact_type || '')}">${escapeHtml(label)}</option>`;
+                });
+                
+                // Build options HTML for email-in dropdown (shows emails)
+                let emailInOptionsHtml = '<option value="">-- Select contact --</option>';
                 orgContacts.forEach(c => {
                     const icon = typeIcon[c.contact_type] || '📧';
                     const emailDisplay = c.email || 'no email';
                     const label = `${icon} ${c.name || 'Unknown'} (${c.contact_type}) - ${emailDisplay}`;
-                    optionsHtml += `<option value="${c.id}" data-name="${escapeHtml(c.name || '')}" data-email="${escapeHtml(c.email || '')}" data-phone="${escapeHtml(c.phone || '')}" data-type="${escapeHtml(c.contact_type || '')}">${escapeHtml(label)}</option>`;
+                    emailInOptionsHtml += `<option value="${c.id}" data-name="${escapeHtml(c.name || '')}" data-email="${escapeHtml(c.email || '')}" data-phone="${escapeHtml(c.phone || '')}" data-type="${escapeHtml(c.contact_type || '')}">${escapeHtml(label)}</option>`;
                 });
                 
                 // Options with "Other" for email response
-                let optionsWithOther = optionsHtml + '<option value="__other__">➕ Other (enter below)</option>';
+                let optionsWithOther = emailInOptionsHtml + '<option value="__other__">➕ Other (enter below)</option>';
                 
-                // Populate select elements (phone and email-in still use dropdowns)
-                document.getElementById('phoneContactSelect').innerHTML = optionsHtml;
+                // Populate select elements
+                document.getElementById('phoneContactSelect').innerHTML = phoneOptionsHtml;
                 document.getElementById('emailInContactSelect').innerHTML = optionsWithOther;
                 
                 // Build checkboxes HTML for email-out (multi-select)
@@ -3098,48 +3140,319 @@
          * Generate call notes/talking points for phone outreach
          */
         function generateCallNotes() {
+          try {
             const orgName = currentOrg.name;
             const hasTouRestriction = currentOrg.tou_flag;
             const hasTechBlock = currentOrg.tech_block_flag;
+            const hasTechRendering = currentOrg.tech_rendering_flag;
+            const hasAnyRestriction = hasTouRestriction || hasTechBlock || hasTechRendering;
+            const restrictionContext = currentOrg.restriction_context || '';
+            const permissionType = currentOrg.permission_type || '';
             
-            let notes = `CALL NOTES - ${orgName}\n`;
-            notes += `${'═'.repeat(40)}\n\n`;
+            // Get selected call type
+            const callTypeRadio = document.querySelector('input[name="callType"]:checked');
+            const callType = callTypeRadio ? callTypeRadio.value : 'initial-permission';
             
-            notes += `INTRODUCTION:\n`;
-            notes += `• "Hi, my name is [YOUR NAME] from BalanceFWD."\n`;
-            notes += `• "We're building a service to help people find events related to national security and defense."\n`;
-            notes += `• "I'm reaching out about including ${orgName}'s public events in our directory."\n\n`;
+            console.log('[generateCallNotes] Starting — callType:', callType, 'org:', orgName, 'flags:', {hasTouRestriction, hasTechBlock, hasTechRendering});
             
-            if (hasTouRestriction || hasTechBlock) {
-                notes += `REASON FOR CALL:\n`;
-                if (hasTouRestriction) {
-                    notes += `• "We noticed your website terms mention restrictions on automated access."\n`;
-                    notes += `• "We wanted to request permission directly rather than assume it's okay."\n`;
+            let notes = '';
+            
+            // ═══════════════════════════════════════════════════════════════
+            // INITIAL PERMISSION REQUEST CALL
+            // ═══════════════════════════════════════════════════════════════
+            if (callType === 'initial-permission') {
+                notes += `TALKING POINTS — ${orgName}\n`;
+                notes += `Call Type: Initial Permission Request\n`;
+                notes += `${'═'.repeat(50)}\n\n`;
+                
+                // --- INTRO SCRIPT ---
+                notes += `INTRODUCTION SCRIPT:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `"Hi, my name is [YOUR NAME] and I'm calling from BalanceFWD.\n`;
+                notes += `We're building a service called Event Finder that helps\n`;
+                notes += `people discover events in the national security, defense, and\n`;
+                notes += `intelligence community — things like conferences, panels, and\n`;
+                notes += `networking events.\n\n`;
+                notes += `I'm reaching out because we'd love to include ${orgName}'s\n`;
+                notes += `public events in our directory.`;
+                
+                if (hasAnyRestriction) {
+                    notes += ` We noticed some items on your\nwebsite and wanted to reach out directly rather than just proceed."`;
+                } else {
+                    notes += ` We wanted to give you a\nheads-up before we begin and see if you have any questions."`;
                 }
-                if (hasTechBlock) {
-                    notes += `• "We encountered technical blocks when trying to access your events page."\n`;
-                    notes += `• "We're hoping to find a way to work together."\n`;
+                notes += `\n\n`;
+                
+                // --- FLAG-SPECIFIC TALKING POINTS ---
+                if (hasAnyRestriction) {
+                    notes += `FLAG-SPECIFIC TALKING POINTS:\n`;
+                    notes += `${'─'.repeat(40)}\n`;
+                    
+                    if (hasTouRestriction) {
+                        notes += `⚠️ TERMS OF USE RESTRICTION DETECTED:\n`;
+                        if (restrictionContext) {
+                            const contextLines = restrictionContext.split('\n').filter(line => line.trim());
+                            contextLines.forEach(line => {
+                                const parts = line.split(' | ');
+                                if (parts.length >= 3) {
+                                    const [pageType, url, quote] = parts;
+                                    notes += `  • Your ${pageType} states: "${quote.trim()}"\n`;
+                                    notes += `    Source: ${url.trim()}\n`;
+                                } else if (parts.length === 1 && line.trim()) {
+                                    notes += `  • Your website states: "${line.trim()}"\n`;
+                                }
+                            });
+                        } else {
+                            notes += `  • Your website terms appear to restrict automated access.\n`;
+                        }
+                        notes += `\n  SAY: "We noticed your website terms mention restrictions on\n`;
+                        notes += `  automated data collection. That's exactly why we're calling —\n`;
+                        notes += `  we want to do this the right way and get your direct permission\n`;
+                        notes += `  rather than just assume it's okay."\n\n`;
+                    }
+                    
+                    if (hasTechBlock) {
+                        notes += `⚠️ TECHNICAL BLOCK DETECTED (403 Forbidden):\n`;
+                        notes += `  SAY: "We also noticed your website blocks automated access.\n`;
+                        notes += `  We completely respect that. If you do grant permission, we\n`;
+                        notes += `  may need a small technical accommodation — like whitelisting\n`;
+                        notes += `  our service — or we could explore alternative options like\n`;
+                        notes += `  an events feed or calendar file if you have one."\n\n`;
+                    }
+                    
+                    if (hasTechRendering) {
+                        notes += `⚙️ JAVASCRIPT RENDERING REQUIRED:\n`;
+                        notes += `  NOTE: Their events page uses JavaScript to load content.\n`;
+                        notes += `  SAY (only if asked about technical details): "Your events page\n`;
+                        notes += `  uses modern web technology that requires a browser to render.\n`;
+                        notes += `  We have the technical capability to work with that — it's\n`;
+                        notes += `  not a problem on our end, we just wanted you to know."\n\n`;
+                    }
                 }
-                notes += `\n`;
+                
+                // --- OUR COMMITMENTS ---
+                notes += `OUR COMMITMENTS (mention these proactively):\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `• All event listings link directly to YOUR original event pages\n`;
+                notes += `• ${orgName} is clearly credited as the source\n`;
+                notes += `• Our access is rate-limited and happens during off-peak hours\n`;
+                notes += `• We stop immediately if you ever ask us to\n`;
+                notes += `• We do NOT scrape personal data — only public event info\n`;
+                notes += `  (title, date, time, location, description)\n\n`;
+                
+                // --- THE ASK ---
+                notes += `THE ASK:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                if (hasAnyRestriction) {
+                    notes += `"Would you be willing to grant us permission to include your\n`;
+                    notes += `events? A quick email reply saying 'yes' would be all we need.\n`;
+                    notes += `I can also send you a written summary of everything I've\n`;
+                    notes += `described today."\n\n`;
+                } else {
+                    notes += `"We plan to begin including your events in about a week unless\n`;
+                    notes += `we hear otherwise. Would you have any objections or questions?"\n\n`;
+                }
+                
+                // --- FOLLOW-UP ---
+                notes += `WRAP-UP CHECKLIST:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `□ Get contact name and title\n`;
+                notes += `□ Get best email for follow-up\n`;
+                notes += `□ Confirm: Send written summary? (use Email Outreach → Generate Draft)\n`;
+                notes += `□ Note any special requests or conditions they mentioned\n`;
+                notes += `□ Record outcome in Call Notes below\n`;
+                
+            // ═══════════════════════════════════════════════════════════════
+            // FOLLOW-UP: NO EMAIL RESPONSE
+            // ═══════════════════════════════════════════════════════════════
+            } else if (callType === 'followup-no-response') {
+                // Calculate days since permission request
+                const permReqDate = currentOrg.permission_requested_date;
+                let daysSince = '';
+                if (permReqDate) {
+                    const sent = new Date(permReqDate);
+                    const now = new Date();
+                    const diff = Math.floor((now - sent) / (1000 * 60 * 60 * 24));
+                    daysSince = `(${diff} days ago, on ${sent.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })})`;
+                }
+                
+                notes += `TALKING POINTS — ${orgName}\n`;
+                notes += `Call Type: Follow-Up (No Email Response)\n`;
+                if (daysSince) notes += `Email Sent: ${daysSince}\n`;
+                notes += `${'═'.repeat(50)}\n\n`;
+                
+                notes += `INTRODUCTION SCRIPT:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `"Hi, my name is [YOUR NAME] from BalanceFWD. I sent an email\n`;
+                if (daysSince) {
+                    notes += `${daysSince} regarding including ${orgName}'s public events\n`;
+                } else {
+                    notes += `recently regarding including ${orgName}'s public events\n`;
+                }
+                notes += `in our Event Finder directory. I wanted to follow up and see\n`;
+                notes += `if you had a chance to review it, or if I can answer any\n`;
+                notes += `questions."\n\n`;
+                
+                notes += `IF THEY DIDN'T SEE THE EMAIL:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `"No problem at all! In short, we're building a service that\n`;
+                notes += `helps people find national security and defense events. We'd love\n`;
+                notes += `to include ${orgName}'s public events — with full credit and\n`;
+                notes += `links back to your site. Can I re-send the email to you directly?"\n\n`;
+                
+                notes += `IF THEY NEED MORE TIME:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `"Completely understand. Is there a better time for me to follow\n`;
+                notes += `up? Or would it help if I sent the request to someone else in\n`;
+                notes += `your organization?"\n\n`;
+                
+                notes += `IF THEY HAVE CONCERNS:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `Key reassurances:\n`;
+                notes += `• We only collect public event info (title, date, location)\n`;
+                notes += `• All listings link directly to your event pages\n`;
+                notes += `• One light daily check, off-peak hours\n`;
+                notes += `• You can opt out anytime, no questions asked\n\n`;
+                
+                notes += `WRAP-UP CHECKLIST:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `□ Did they receive the original email?\n`;
+                notes += `□ Do they need it re-sent to a different address?\n`;
+                notes += `□ Is there a better person to talk to?\n`;
+                notes += `□ When should we follow up next?\n`;
+                notes += `□ Record outcome in Call Notes below\n`;
+                
+            // ═══════════════════════════════════════════════════════════════
+            // FOLLOW-UP: POST-PERMISSION / POST-GO-LIVE
+            // ═══════════════════════════════════════════════════════════════
+            } else if (callType === 'followup-post-permission') {
+                notes += `TALKING POINTS — ${orgName}\n`;
+                notes += `Call Type: Follow-Up (Post-Permission)\n`;
+                if (permissionType) notes += `Permission Type: ${permissionType}\n`;
+                notes += `${'═'.repeat(50)}\n\n`;
+                
+                notes += `INTRODUCTION SCRIPT:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `"Hi, this is [YOUR NAME] from BalanceFWD. I'm calling to follow\n`;
+                notes += `up on our Event Finder service — we've started including\n`;
+                notes += `${orgName}'s events and I wanted to make sure everything looks\n`;
+                notes += `good on your end and see if you have any questions or feedback."\n\n`;
+                
+                notes += `THINGS TO MENTION:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `• "Your events are now live on our site and linking to your pages"\n`;
+                notes += `• "We're seeing [X] events currently listed from ${orgName}"\n`;
+                notes += `  (check the Events tab before calling)\n`;
+                notes += `• "Everything is working smoothly on our end"\n\n`;
+                
+                notes += `OFFER ONGOING PARTNERSHIP:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `• "If you ever want to highlight a specific event, just let us know"\n`;
+                notes += `• "If anything changes on your website, we'll adapt automatically"\n`;
+                notes += `• "You can always reach out if you want changes or have questions"\n\n`;
+                
+                notes += `IF THEY HAVE CONCERNS:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `• Event info displayed incorrectly → "I'll fix that right away"\n`;
+                notes += `• Want an event removed → "Done. Which event?"\n`;
+                notes += `• Want to opt out entirely → "We'll stop immediately, no problem"\n`;
+                notes += `• Want to review what's shown → Give them the public URL\n\n`;
+                
+                notes += `WRAP-UP CHECKLIST:\n`;
+                notes += `${'─'.repeat(40)}\n`;
+                notes += `□ Are they happy with how events appear?\n`;
+                notes += `□ Any events they want added/removed/changed?\n`;
+                notes += `□ Any preferred contact for ongoing communication?\n`;
+                notes += `□ Record feedback in Call Notes below\n`;
             }
             
-            notes += `OUR COMMITMENT:\n`;
-            notes += `• All event listings will link directly to your pages\n`;
-            notes += `• ${orgName} will be clearly credited as the source\n`;
-            notes += `• We'll respect your servers (rate-limited, off-peak access)\n`;
-            notes += `• We'll stop immediately if you ever request it\n\n`;
+            // ═══════════════════════════════════════════════════════════════
+            // Q&A SECTION — APPENDED TO ALL CALL TYPES
+            // ═══════════════════════════════════════════════════════════════
+            notes += `\n`;
+            notes += `ANTICIPATED Q&A:\n`;
+            notes += `${'═'.repeat(50)}\n\n`;
             
-            notes += `ASK:\n`;
-            notes += `• "Would you be able to grant us permission to include your events?"\n`;
-            notes += `• "Is there someone specific I should follow up with?"\n`;
-            notes += `• "Would you prefer I send this request via email?"\n\n`;
+            notes += `Q: "What exactly is Event Finder?"\n`;
+            notes += `A: "It's a searchable directory of events in the national\n`;
+            notes += `   security, defense, and intelligence space. Think of it like a\n`;
+            notes += `   community calendar — people come to one place to find events\n`;
+            notes += `   across many organizations instead of checking dozens of websites."\n\n`;
             
-            notes += `FOLLOW-UP:\n`;
-            notes += `• Get contact name and email for follow-up\n`;
-            notes += `• Offer to send written confirmation of our commitments\n`;
+            notes += `Q: "What data do you collect?"\n`;
+            notes += `A: "Only publicly-listed event information — title, date, time,\n`;
+            notes += `   location, and description. We don't collect personal data,\n`;
+            notes += `   attendee information, or anything behind a login."\n\n`;
+            
+            notes += `Q: "How do you access our website?"\n`;
+            notes += `A: "We check your public events page periodically — about once a\n`;
+            notes += `   day — with built-in delays so it's no different than a person\n`;
+            notes += `   browsing your site. We only access the events page, not the\n`;
+            notes += `   whole site."\n\n`;
+            
+            notes += `Q: "Will this affect our servers / website performance?"\n`;
+            notes += `A: "No. We make one visit per day during off-peak hours, with\n`;
+            notes += `   rate-limiting built in. It's lighter traffic than a single\n`;
+            notes += `   visitor browsing your site."\n\n`;
+            
+            notes += `Q: "Do you share or sell our data?"\n`;
+            notes += `A: "No. Event info is only displayed on our site, with links back\n`;
+            notes += `   to your original event pages. We're trying to drive more\n`;
+            notes += `   visitors TO your events, not away from them."\n\n`;
+            
+            notes += `Q: "What if we want you to stop?"\n`;
+            notes += `A: "Just say the word — email, phone, anytime — and we stop\n`;
+            notes += `   immediately. No questions asked."\n\n`;
+            
+            if (hasAnyRestriction) {
+                notes += `Q: "Why should we give you an exception to our TOU?"\n`;
+                notes += `A: "We understand your terms are there for a reason. What we do\n`;
+                notes += `   is different from typical scraping — we're promoting your\n`;
+                notes += `   events and linking back to your site. Many organizations in\n`;
+                notes += `   this space have been happy to participate. But we completely\n`;
+                notes += `   understand if you'd rather not — no hard feelings."\n\n`;
+            }
+            
+            notes += `Q: "Who else uses your service?"\n`;
+            notes += `A: "We aggregate events from organizations across the national\n`;
+            notes += `   security community — think tanks, professional associations,\n`;
+            notes += `   defense-focused groups. We're in the early stages and growing."\n\n`;
+            
+            notes += `Q: "Is this commercial? Are you making money off our events?"\n`;
+            notes += `A: "Our goal is to build something useful for the national security\n`;
+            notes += `   community. We're not reselling your content — we're helping people\n`;
+            notes += `   find your events and driving traffic to your pages."\n\n`;
+            
+            notes += `Q: "Can you send me something in writing?"\n`;
+            notes += `A: "Absolutely — I'll send you an email today with everything\n`;
+            notes += `   I've described, including our commitments. What's the best\n`;
+            notes += `   email address to use?"\n`;
             
             document.getElementById('phoneCallNotesDraft').value = notes;
-            showMessage('profileMessage', '📝 Call talking points generated!', 'success');
+            
+            console.log('[generateCallNotes] Done! Notes length:', notes.length, 'Has Q&A:', notes.includes('ANTICIPATED Q&A'), 'Has WRAP-UP:', notes.includes('WRAP-UP CHECKLIST'));
+            
+            // Build status message
+            let detectedFlags = [];
+            if (hasTouRestriction) detectedFlags.push('TOU');
+            if (hasTechBlock) detectedFlags.push('Tech Block');
+            if (hasTechRendering) detectedFlags.push('JS Rendering');
+            
+            const callTypeLabels = {
+                'initial-permission': '📞 Initial Permission',
+                'followup-no-response': '📞 Follow-Up (No Response)',
+                'followup-post-permission': '📞 Post-Permission Follow-Up'
+            };
+            
+            const flagText = detectedFlags.length > 0 
+                ? ` — ⚠️ Flags: ${detectedFlags.join(', ')}` 
+                : ' — ✅ No restrictions detected';
+            
+            showMessage('profileMessage', `${callTypeLabels[callType]} talking points generated!${flagText}`, 'success');
+          } catch (err) {
+            console.error('[generateCallNotes] ERROR:', err.message, err.stack);
+            showMessage('profileMessage', `❌ Error generating talking points: ${err.message}`, 'error');
+          }
         }
         
         /**
@@ -3342,6 +3655,16 @@ Regards,`;
                 const contactOther = document.getElementById('phoneContactOther').value;
                 const draftNotes = document.getElementById('phoneCallNotesDraft').value;
                 const callNotes = document.getElementById('phoneCallNotes').value;
+                const phoneNumber = document.getElementById('phoneRecommendedNumber').value;
+                
+                // Get call type
+                const callTypeRadio = document.querySelector('input[name="callType"]:checked');
+                const callSubType = callTypeRadio ? callTypeRadio.value : 'initial-permission';
+                const callTypeLabels = {
+                    'initial-permission': 'Initial Permission Request',
+                    'followup-no-response': 'Follow-Up (No Email Response)',
+                    'followup-post-permission': 'Follow-Up (Post-Permission)'
+                };
                 
                 if (!date || !callNotes) {
                     showMessage('profileMessage', '⚠️ Please enter the date and call notes.', 'warning');
@@ -3354,7 +3677,9 @@ Regards,`;
                 entry.contactId = contactSelect.value || null;
                 entry.contactName = selectedOption?.dataset?.name || contactOther || 'Unknown';
                 entry.contactEmail = selectedOption?.dataset?.email || '';
-                entry.subject = 'Phone Call';
+                entry.contactPhone = phoneNumber || selectedOption?.dataset?.phone || '';
+                entry.callSubType = callSubType;
+                entry.subject = `📞 ${callTypeLabels[callSubType] || 'Phone Call'}`;
                 entry.draftNotes = draftNotes;
                 entry.text = callNotes;
                 
@@ -3460,7 +3785,7 @@ Regards,`;
         }
 
         /**
-         * Load and display the correspondence timeline (v23 - updated for new entry types)
+         * Load and display the correspondence timeline (v22 - updated for new entry types)
          */
         function loadCorrespondenceTimeline() {
             const container = document.getElementById('correspondenceTimeline');
@@ -3515,7 +3840,8 @@ Regards,`;
                 if (entry.contactName) {
                     const recipientCount = entry.recipientCount || 1;
                     const countBadge = recipientCount > 1 ? ` <span style="background: #667eea; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px;">${recipientCount} recipients</span>` : '';
-                    recipientDisplay = `<p class="corr-entry-contact">👤 ${escapeHtml(entry.contactName)}${countBadge}</p>`;
+                    const phoneBadge = entry.contactPhone ? ` <span style="color: #28a745; font-size: 12px;">📞 ${escapeHtml(entry.contactPhone)}</span>` : '';
+                    recipientDisplay = `<p class="corr-entry-contact">👤 ${escapeHtml(entry.contactName)}${countBadge}${phoneBadge}</p>`;
                 }
                 
                 return `
@@ -4581,29 +4907,19 @@ Regards,`;
             
             let html = `<div class="card ${cardClass}">`;
             
-            // Show tech block alert first (takes precedence)
-            if (org.tech_block_flag) {
-                html += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests (403 Forbidden).</p></div>`;
-            } else if (org.tou_flag) {
-                html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
-            }
-            
-            // Permission denied alert
-            if (org.permission_type === 'Denied') {
-                html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
-            }
-            
-            // Tech rendering alert (can appear alongside other warnings)
-            if (org.tech_rendering_flag) {
-                html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires headless browser (Puppeteer) for scraping.</p></div>`;
-            }
-            
             // Duplicate alert
             if (org.duplicate_flag) {
                 html += `<div class="info-box" style="background: #f3e8ff; border-color: #6f42c1;"><p>🔁 <strong>Duplicate:</strong> This org is flagged as a duplicate. Check duplicate_of field for the primary org.</p></div>`;
             }
 
-            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge} ${duplicateBadge}</h3>`;
+            html += `<h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a></h3>`;
+            
+            // Flag badges row
+            const flagBadges = [techBlockBadge, touBadge, permissionDeniedBadge, techRenderingBadge, duplicateBadge].filter(b => b).join(' ');
+            if (flagBadges) {
+                html += `<div style="margin: 6px 0 10px 0; display: flex; flex-wrap: wrap; gap: 6px;">${flagBadges}</div>`;
+            }
+
             html += `<p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>`;
             
             if (org.description) {
@@ -4901,23 +5217,16 @@ Regards,`;
 
                 let html = `<div class="card ${cardClass}" id="org-${org.id}">`;
 
-                if (org.tech_block_flag) {
-                    html += `<div class="info-box danger"><p>⛔ <strong>Technical Block:</strong> This organization actively blocks automated requests.</p></div>`;
-                } else if (org.tou_flag) {
-                    html += `<div class="info-box warning"><p>⚠️ <strong>TOU Warning:</strong> ${escapeHtml(org.tou_notes) || 'May prohibit scraping'}</p></div>`;
-                }
-                if (org.permission_type === 'Denied') {
-                    html += `<div class="info-box danger"><p>🚫 <strong>Permission Denied:</strong> Organization explicitly declined permission to scrape.</p></div>`;
-                }
-                if (org.tech_rendering_flag) {
-                    html += `<div class="info-box" style="background: #e9ecef; border-color: #6c757d;"><p>⚙️ <strong>Tech-Rendered Site:</strong> Requires headless browser (Puppeteer) to scrape events.</p></div>`;
-                }
-                if (org.duplicate_flag) {
-                    html += `<div class="info-box" style="background: #f3e8ff; border-color: #6f42c1;"><p>🔁 <strong>Duplicate:</strong> This org is flagged as a duplicate.</p></div>`;
+                html += `
+                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${contactBadge}</h3>`;
+                
+                // Flag badges row
+                const flagBadges = [techBlockBadge, touBadge, permissionDeniedBadge, techRenderingBadge, duplicateBadge].filter(b => b).join(' ');
+                if (flagBadges) {
+                    html += `<div style="margin: 6px 0 10px 0; display: flex; flex-wrap: wrap; gap: 6px;">${flagBadges}</div>`;
                 }
 
                 html += `
-                    <h3><a href="#" onclick="openOrgProfile('${org.id}'); return false;">${escapeHtml(org.name)}</a> ${contactBadge} ${techBlockBadge} ${touBadge} ${permissionDeniedBadge} ${techRenderingBadge} ${duplicateBadge}</h3>
                     <p><strong>Status:</strong> <span class="badge ${config.badge}">${config.icon} ${org.status}</span></p>
                     ${org.description ? `<p><strong>Description:</strong> ${escapeHtml(org.description).substring(0, 150)}${org.description.length > 150 ? '...' : ''}</p>` : ''}
                     ${org.website ? `<p><strong>Website:</strong> <a href="${escapeHtml(org.website)}" target="_blank">${escapeHtml(org.website)}</a></p>` : ''}
