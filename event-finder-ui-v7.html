@@ -1281,6 +1281,105 @@
                 padding: 16px;
             }
         }
+
+        /* ============================================
+           COOKIE CONSENT BANNER
+           ============================================ */
+        .cookie-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            color: var(--gray-300);
+            padding: 16px 24px;
+            z-index: 3000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        .cookie-banner.visible {
+            display: block;
+        }
+
+        .cookie-banner-content {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .cookie-banner-text {
+            flex: 1;
+            min-width: 250px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .cookie-banner-text a {
+            color: var(--primary-light);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .cookie-banner-text a:hover {
+            color: var(--white);
+        }
+
+        .cookie-banner-buttons {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .cookie-btn {
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .cookie-btn-accept {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .cookie-btn-accept:hover {
+            background: var(--primary-dark);
+        }
+
+        .cookie-btn-essential {
+            background: transparent;
+            color: var(--gray-300);
+            border: 1px solid var(--gray-500);
+        }
+
+        .cookie-btn-essential:hover {
+            background: var(--gray-700);
+            color: var(--white);
+        }
+
+        @media (max-width: 550px) {
+            .cookie-banner {
+                padding: 14px 12px;
+            }
+
+            .cookie-banner-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .cookie-banner-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1432,6 +1531,7 @@
             <div class="footer-links">
                 <a onclick="openLegalModal('privacy')">Privacy Policy</a>
                 <a onclick="openLegalModal('terms')">Terms of Use</a>
+                <a onclick="showCookieBanner()">Cookie Preferences</a>
             </div>
         </div>
     </footer>
@@ -1616,6 +1716,26 @@
 
                 <h2>17. Contact Us</h2>
                 <p>If you have any questions about these Terms, please contact us through the contact form on our website.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MORE FILTERS MODAL
+         ============================================ -->
+
+    <!-- ============================================
+         COOKIE CONSENT BANNER
+         ============================================ -->
+    <div class="cookie-banner" id="cookieBanner">
+        <div class="cookie-banner-content">
+            <div class="cookie-banner-text">
+                We use essential cookies to make this site work. We may also use analytics cookies to improve your experience.
+                See our <a onclick="openLegalModal('privacy')">Privacy Policy</a> for details.
+            </div>
+            <div class="cookie-banner-buttons">
+                <button class="cookie-btn cookie-btn-essential" onclick="setCookieConsent('essential')">Essential Only</button>
+                <button class="cookie-btn cookie-btn-accept" onclick="setCookieConsent('all')">Accept All</button>
             </div>
         </div>
     </div>
@@ -2696,6 +2816,45 @@
             document.getElementById(modalId).classList.remove('active');
             document.body.style.overflow = '';
         }
+
+        // ============================================================================
+        // COOKIE CONSENT
+        // ============================================================================
+
+        function setCookieConsent(level) {
+            // level = 'all' or 'essential'
+            localStorage.setItem('cookie_consent', level);
+            localStorage.setItem('cookie_consent_date', new Date().toISOString());
+            document.getElementById('cookieBanner').classList.remove('visible');
+
+            if (level === 'all') {
+                // FUTURE: Initialize analytics, ad tracking, etc. here
+                // Example: loadGoogleAnalytics();
+                console.log('✅ Cookie consent: All cookies accepted');
+            } else {
+                console.log('✅ Cookie consent: Essential only');
+            }
+        }
+
+        function showCookieBanner() {
+            document.getElementById('cookieBanner').classList.add('visible');
+        }
+
+        function checkCookieConsent() {
+            const consent = localStorage.getItem('cookie_consent');
+            if (!consent) {
+                // No choice made yet — show the banner
+                showCookieBanner();
+            } else if (consent === 'all') {
+                // FUTURE: Initialize analytics, ad tracking, etc. here
+                console.log('🍪 Returning user — all cookies accepted');
+            } else {
+                console.log('🍪 Returning user — essential only');
+            }
+        }
+
+        // Check consent on page load
+        checkCookieConsent();
 
         // Close modals on escape or backdrop click
         document.addEventListener('keydown', (e) => {
