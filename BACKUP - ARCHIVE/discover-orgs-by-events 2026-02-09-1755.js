@@ -620,8 +620,12 @@ async function main() {
         if (scanResult.touNotes) {
             console.log(`      • TOU Notes: ${scanResult.touNotes.substring(0, 100)}...`);
         }
-        // UPDATED 2026-02-09: Contacts gathered after mission approval, not during discovery
-        console.log(`      • POC: ⏭️ Gathered after mission approval`);
+        // FIX 2026-02-08: pocInfo is { contacts: [...], skipped } - display from contacts array
+        if (scanResult.pocInfo && scanResult.pocInfo.contacts && scanResult.pocInfo.contacts.length > 0) {
+            console.log(`      • POC Found: ${scanResult.pocInfo.contacts.length} contact(s) - ${scanResult.pocInfo.contacts[0].email || scanResult.pocInfo.contacts[0].name || 'Partial info'}`);
+        } else if (scanResult.pocInfo && scanResult.pocInfo.skipped) {
+            console.log(`      • POC Skipped: ${scanResult.pocInfo.reason}`);
+        }
         if (scanResult.aiSummary) {
             console.log(`      • 🤖 AI Summary: ${scanResult.aiSummary.substring(0, 150)}...`);
         }
@@ -737,8 +741,20 @@ async function main() {
             
             const savedOrg = await saveResponse.json();
             
-            // UPDATED 2026-02-09: Contacts no longer gathered during discovery
-            // Contacts gathered after mission approval via [🔍 Scan] button or batch scan
+            // Save POC contacts if we have any
+            // FIX 2026-02-08: pocInfo is { contacts: [...], skipped } wrapper - loop through contacts array
+            // Pattern matches scanOrganization() in org-scanner.js (lines 4830-4845)
+            if (result.pocInfo && result.pocInfo.contacts && result.pocInfo.contacts.length > 0) {
+                console.log(`      💾 Saving ${result.pocInfo.contacts.length} contact(s)...`);
+                for (const contact of result.pocInfo.contacts) {
+                    await scanner.savePocContact(savedOrg.id, {
+                        email: contact.email,
+                        name: contact.name,
+                        phone: contact.phone,
+                        source: contact.source || 'google_search'
+                    }, 'discover-orgs-by-events.js');
+                }
+            }
             
             // Log result with flags
             let flagStatus = '';
@@ -844,9 +860,10 @@ async function performInitialOrgScan(fetch, candidate) {
             result.description = webOrgInfo.description || '';
             result.aiSummary = webOrgInfo.description || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
             
-            // UPDATED 2026-02-09: Skip contact gathering during discovery (saves Google quota)
-            // Contacts gathered later via [🔍 Scan] button or batch scan after mission approval
-            console.log(`      ⏭️ Skipping contacts (gathered after mission approval)`);
+            // Search for POC via Google (tech blocked)
+            // FIX 2026-02-08: gatherPOCViaGoogleSearch returns flat array - wrap in standard format
+            const techBlockContacts = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
+            result.pocInfo = { contacts: techBlockContacts, skipped: false, reason: null, existingCount: 0 };
             return result;
         }
         
@@ -877,9 +894,9 @@ async function performInitialOrgScan(fetch, candidate) {
         result.orgType = webOrgInfo.orgType || '';
         result.description = webOrgInfo.description || '';
         result.aiSummary = webOrgInfo.description || `Unable to analyze - fetch error: ${error.message}. Discovered via event: "${candidate.title}"`;
-        // UPDATED 2026-02-09: Skip contact gathering during discovery (saves Google quota)
-        // Contacts gathered later via [🔍 Scan] button or batch scan after mission approval
-        console.log(`      ⏭️ Skipping contacts (gathered after mission approval)`);
+        // FIX 2026-02-08: gatherPOCViaGoogleSearch returns flat array - wrap in standard format
+        const fetchErrorContacts = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
+        result.pocInfo = { contacts: fetchErrorContacts, skipped: false, reason: null, existingCount: 0 };
         return result;
     }
     
@@ -962,12 +979,26 @@ async function performInitialOrgScan(fetch, candidate) {
     }
     
     // ─────────────────────────────────────────────────────────────────────
-    // B3: POC Gathering - SKIPPED DURING DISCOVERY (UPDATED 2026-02-09)
-    // Contacts are gathered AFTER mission approval to conserve Google quota
-    // Use [🔍 Scan] button in Admin Interface or batch scan approved orgs
+    // B3: Gather POC info
+    // UPDATED 2026-01-31: Uses org-scanner.js smart POC gathering
     // ─────────────────────────────────────────────────────────────────────
     
-    console.log(`   ⏭️ B3: Skipping POC gathering (gathered after mission approval)`);
+    console.log(`   📡 B3: Gathering POC info...`);
+    
+    // Use org-scanner's smart POC gathering (respects flags)
+    result.pocInfo = await scanner.gatherPOC(homepageHtml, baseUrl, {
+        touFlag: result.touFlag,
+        techBlockFlag: result.techBlockFlag,
+        techRenderingFlag: false,  // Not checked in discovery phase
+        orgName: result.orgName || candidate.domain
+    });
+    
+    // FIX 2026-02-08: gatherPOC returns { contacts: [...], skipped } - check contacts array
+    if (result.pocInfo && result.pocInfo.contacts && result.pocInfo.contacts.length > 0) {
+        console.log(`      ✅ POC found: ${result.pocInfo.contacts.length} contact(s) - ${result.pocInfo.contacts[0].email}`);
+    } else {
+        console.log(`      ℹ️ No POC email found`);
+    }
     
     // ─────────────────────────────────────────────────────────────────────
     // B4: Organization Info via Google Search (UPDATED 2026-02-05)

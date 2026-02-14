@@ -387,25 +387,6 @@ async function main() {
     });
     console.log(`   ✅ Tracking ${existingDomains.size} existing domains`);
     console.log(`   ✅ Tracking ${existingRootDomains.size} root domains`);
-    
-    // NEW 2026-02-08: Build set of existing org NAMES for name-based dedup
-    // This catches cases like Billington subdomains where domain doesn't match
-    const existingOrgNames = new Set();
-    const existingOrgNameKeywords = new Set();  // individual significant words
-    existingOrgs.forEach(org => {
-        if (org.name) {
-            existingOrgNames.add(org.name.toLowerCase().trim());
-            // Extract significant keywords (4+ chars, skip common words)
-            const skipWords = ['the', 'for', 'and', 'national', 'center', 'institute', 'foundation', 'association', 'council', 'organization', 'society', 'commission', 'international'];
-            const words = org.name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-            for (const word of words) {
-                if (word.length >= 4 && !skipWords.includes(word)) {
-                    existingOrgNameKeywords.add(word);
-                }
-            }
-        }
-    });
-    console.log(`   ✅ Tracking ${existingOrgNames.size} existing org names`);
 
     // ═══════════════════════════════════════════════════════════════════════
     // PHASE A: WEB SEARCH (No Page Fetching)
@@ -620,8 +601,9 @@ async function main() {
         if (scanResult.touNotes) {
             console.log(`      • TOU Notes: ${scanResult.touNotes.substring(0, 100)}...`);
         }
-        // UPDATED 2026-02-09: Contacts gathered after mission approval, not during discovery
-        console.log(`      • POC: ⏭️ Gathered after mission approval`);
+        if (scanResult.pocInfo) {
+            console.log(`      • POC Found: ${scanResult.pocInfo.email || scanResult.pocInfo.name || 'Partial info'}`);
+        }
         if (scanResult.aiSummary) {
             console.log(`      • 🤖 AI Summary: ${scanResult.aiSummary.substring(0, 150)}...`);
         }
@@ -647,46 +629,6 @@ async function main() {
     
     for (const result of scanResults) {
         console.log(`   💾 Nominating: ${result.orgName || result.domain}`);
-        
-        // NEW 2026-02-08: Name-based dedup check (catches Billington-type cases)
-        const candidateName = (result.orgName || '').toLowerCase().trim();
-        if (candidateName && existingOrgNames.has(candidateName)) {
-            console.log(`      ⏭️  Skip (name matches existing org): "${result.orgName}"`);
-            skipCount++;
-            continue;
-        }
-        
-        // Check for partial name match: does any existing org name contain this name or vice versa?
-        let nameMatchFound = false;
-        if (candidateName && candidateName.length > 10) {
-            for (const existingName of existingOrgNames) {
-                if (existingName.length > 10 && (candidateName.includes(existingName) || existingName.includes(candidateName))) {
-                    console.log(`      ⏭️  Skip (name similar to existing): "${result.orgName}" ≈ "${existingName}"`);
-                    nameMatchFound = true;
-                    break;
-                }
-            }
-        }
-        if (nameMatchFound) {
-            skipCount++;
-            continue;
-        }
-        
-        // Check for significant keyword overlap (e.g., "Billington" matches existing "Billington CyberSecurity Summit")
-        if (candidateName) {
-            const candidateWords = candidateName.replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-            const uniqueMatches = candidateWords.filter(w => w.length >= 6 && existingOrgNameKeywords.has(w));
-            if (uniqueMatches.length >= 1) {
-                // Check if matched word is distinctive (6+ chars, not common)
-                const commonWords = ['security', 'defense', 'policy', 'research', 'studies', 'affairs', 'intelligence', 'technology', 'summit', 'conference'];
-                const distinctiveMatches = uniqueMatches.filter(w => !commonWords.includes(w));
-                if (distinctiveMatches.length >= 1) {
-                    console.log(`      ⏭️  Skip (distinctive keyword match: "${distinctiveMatches.join(', ')}"): "${result.orgName}"`);
-                    skipCount++;
-                    continue;
-                }
-            }
-        }
         
         try {
             // Create organization record with all gathered info
@@ -737,8 +679,11 @@ async function main() {
             
             const savedOrg = await saveResponse.json();
             
-            // UPDATED 2026-02-09: Contacts no longer gathered during discovery
-            // Contacts gathered after mission approval via [🔍 Scan] button or batch scan
+            // Save POC contact if we have info
+            // UPDATED 2026-01-31: Uses org-scanner.js savePocContact
+            if (result.pocInfo && (result.pocInfo.email || result.pocInfo.name)) {
+                await scanner.savePocContact(savedOrg.id, result.pocInfo, 'discover-orgs-by-events.js');
+            }
             
             // Log result with flags
             let flagStatus = '';
@@ -757,15 +702,6 @@ async function main() {
             
             // Add to existing domains to prevent duplicates in this run
             existingDomains.add(result.domain.toLowerCase());
-            
-            // NEW 2026-02-08: Also track org name for name-based dedup within this run
-            if (result.orgName) {
-                existingOrgNames.add(result.orgName.toLowerCase().trim());
-                const words = result.orgName.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-                for (const word of words) {
-                    if (word.length >= 4) existingOrgNameKeywords.add(word);
-                }
-            }
             
         } catch (error) {
             console.log(`      ❌ Error: ${error.message}`);
@@ -844,9 +780,8 @@ async function performInitialOrgScan(fetch, candidate) {
             result.description = webOrgInfo.description || '';
             result.aiSummary = webOrgInfo.description || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
             
-            // UPDATED 2026-02-09: Skip contact gathering during discovery (saves Google quota)
-            // Contacts gathered later via [🔍 Scan] button or batch scan after mission approval
-            console.log(`      ⏭️ Skipping contacts (gathered after mission approval)`);
+            // Search for POC via Google (tech blocked)
+            result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
             return result;
         }
         
@@ -877,9 +812,7 @@ async function performInitialOrgScan(fetch, candidate) {
         result.orgType = webOrgInfo.orgType || '';
         result.description = webOrgInfo.description || '';
         result.aiSummary = webOrgInfo.description || `Unable to analyze - fetch error: ${error.message}. Discovered via event: "${candidate.title}"`;
-        // UPDATED 2026-02-09: Skip contact gathering during discovery (saves Google quota)
-        // Contacts gathered later via [🔍 Scan] button or batch scan after mission approval
-        console.log(`      ⏭️ Skipping contacts (gathered after mission approval)`);
+        result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
         return result;
     }
     
@@ -962,12 +895,25 @@ async function performInitialOrgScan(fetch, candidate) {
     }
     
     // ─────────────────────────────────────────────────────────────────────
-    // B3: POC Gathering - SKIPPED DURING DISCOVERY (UPDATED 2026-02-09)
-    // Contacts are gathered AFTER mission approval to conserve Google quota
-    // Use [🔍 Scan] button in Admin Interface or batch scan approved orgs
+    // B3: Gather POC info
+    // UPDATED 2026-01-31: Uses org-scanner.js smart POC gathering
     // ─────────────────────────────────────────────────────────────────────
     
-    console.log(`   ⏭️ B3: Skipping POC gathering (gathered after mission approval)`);
+    console.log(`   📡 B3: Gathering POC info...`);
+    
+    // Use org-scanner's smart POC gathering (respects flags)
+    result.pocInfo = await scanner.gatherPOC(homepageHtml, baseUrl, {
+        touFlag: result.touFlag,
+        techBlockFlag: result.techBlockFlag,
+        techRenderingFlag: false,  // Not checked in discovery phase
+        orgName: result.orgName || candidate.domain
+    });
+    
+    if (result.pocInfo && result.pocInfo.email) {
+        console.log(`      ✅ POC found: ${result.pocInfo.email}`);
+    } else {
+        console.log(`      ℹ️ No POC email found`);
+    }
     
     // ─────────────────────────────────────────────────────────────────────
     // B4: Organization Info via Google Search (UPDATED 2026-02-05)
@@ -982,19 +928,6 @@ async function performInitialOrgScan(fetch, candidate) {
     result.orgType = googleInfo.orgType || '';
     result.description = googleInfo.description || '';
     result.aiSummary = googleInfo.description || `Discovered via event: "${candidate.title}"`;
-    
-    // NEW 2026-02-08: Final safety check - if orgName still looks like a domain,
-    // try to extract from event title as last resort
-    if (scanner.looksLikeDomain && scanner.looksLikeDomain(result.orgName)) {
-        console.log(`      ⚠️ B4: orgName still looks like domain: "${result.orgName}"`);
-        if (scanner.extractOrgNameFromTitle) {
-            const extracted = scanner.extractOrgNameFromTitle(candidate.title, candidate.domain);
-            if (extracted && extracted.length > 3) {
-                result.orgName = extracted;
-                console.log(`      ✅ B4: Using extracted name: "${result.orgName}"`);
-            }
-        }
-    }
     
     return result;
 }

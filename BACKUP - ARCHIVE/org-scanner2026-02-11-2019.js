@@ -3037,50 +3037,20 @@ async function gatherPOCViaClaude(orgName, domain, options = {}) {
     
     console.log('      🤖 Searching for contacts via Claude AI + web search...');
     
-    // ─────────────────────────────────────────────────────────────────────────
-    // System prompt: Sets expectations for phone number priority
-    // UPDATED 2026-02-11: Added system prompt to prioritize phone numbers
-    // ─────────────────────────────────────────────────────────────────────────
-    const systemPrompt = `You are a research assistant helping find professional contact information for organizations. Your task is to find email addresses AND phone numbers for professional outreach.
-
-IMPORTANT - PHONE NUMBERS ARE A TOP PRIORITY:
-- Always search specifically for the organization's main office phone number
-- Search for "[org name] phone number" and "[org name] contact us" to find phone numbers
-- Include the organization's main switchboard/office phone on EVERY contact if you find it
-- Check the organization's Contact Us page, About page, and footer for phone numbers
-- Phone numbers are just as important as email addresses
-- US phone format examples: (202) 555-1234, 202-555-1234, +1-202-555-1234
-
-Return ONLY a valid JSON array. No markdown, no explanation, no extra text.
-If you find no contacts at all, return: []`;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // User prompt: Explicit instructions for both email AND phone discovery
-    // UPDATED 2026-02-11: Rewrote as 3-step process with phone emphasis
-    // ─────────────────────────────────────────────────────────────────────────
+    // Build the natural language query — same approach as typing into Google
     const domainHint = domain ? ` Their website is ${domain}.` : '';
-    const userMessage = `Find contact information for ${shortName}.${domainHint}
+    const userMessage = `Who are good points of contact for events, sponsorship, and general inquiries at ${shortName}?${domainHint}
 
-I need BOTH email addresses AND phone numbers for professional outreach about event partnerships.
+I need their contact information for professional outreach about event partnerships. Please find:
+- Email addresses (especially events, communications, media, legal, general inquiry)
+- Phone numbers
+- Names and titles/roles where available
+- Department-level contacts (e.g., "Events & Registration: events@org.com")
 
-STEP 1 - Find the organization's main phone number:
-- Search for "${shortName} phone number" or "${shortName} contact us"
-- Look for their main office, switchboard, or general phone number
-- This number should be included on every contact you return
+Return ONLY a JSON array with no other text. Each contact should have:
+{"name": "person or department name", "email": "address", "phone": "number or empty", "title": "role/department or empty"}
 
-STEP 2 - Find key contacts:
-- Events team (events@, programs@, conferences@)
-- Media/Communications (media@, press@, communications@)
-- General inquiries (info@, contact@)
-- Legal/Permissions (legal@, permissions@)
-- Leadership with direct phone numbers if available
-
-STEP 3 - For each contact, include ALL available info.
-
-Return a JSON array where each contact has:
-{"name": "person or department name", "email": "address", "phone": "(202) 555-1234 or empty string", "title": "role or department"}
-
-IMPORTANT: If you find the org's main phone number, include it in the "phone" field for ALL contacts — even department emails like info@ or events@. An email with a phone number attached is far more valuable than an email alone.`;
+If you cannot find any contacts, return an empty array: []`;
 
     try {
         const response = await fetchModule('https://api.anthropic.com/v1/messages', {
@@ -3093,7 +3063,6 @@ IMPORTANT: If you find the org's main phone number, include it in the "phone" fi
             body: JSON.stringify({
                 model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1500,
-                system: systemPrompt,
                 tools: [{
                     type: 'web_search_20250305',
                     name: 'web_search'
@@ -3168,22 +3137,6 @@ IMPORTANT: If you find the org's main phone number, include it in the "phone" fi
         
         const validatedContacts = [];
         const seenEmails = new Set();
-        
-        // ─────────────────────────────────────────────────────────────────
-        // NEW 2026-02-11: Extract org-wide phone from any contact that has one
-        // If Claude found the org's main phone, propagate it to all contacts
-        // ─────────────────────────────────────────────────────────────────
-        let orgPhone = '';
-        for (const contact of contacts) {
-            const phone = (contact.phone || '').trim();
-            if (phone && phone.length >= 10) {
-                orgPhone = phone;
-                break;  // Use the first valid phone found
-            }
-        }
-        if (orgPhone) {
-            console.log(`      📞 Org phone found: ${orgPhone} — will apply to all contacts`);
-        }
         
         for (const contact of contacts) {
             // Must have an email
@@ -3260,15 +3213,11 @@ IMPORTANT: If you find the org's main phone number, include it in the "phone" fi
             const emailType = detectEmailType(contact.email);
             const contactType = mapEmailTypeToContactType(emailType);
             
-            // ── NEW 2026-02-11: Phone — use contact's own phone, or fall back to org-wide phone ──
-            const contactPhone = (contact.phone || '').trim();
-            const finalPhone = contactPhone.length >= 10 ? contactPhone : orgPhone;
-            
             const validated = {
                 email: contact.email.trim(),
                 name: (contact.name || '').trim(),
                 title: (contact.title || '').trim(),
-                phone: finalPhone,
+                phone: (contact.phone || '').trim(),
                 source: 'claude_web_search',
                 contactType: contactType,
                 categoryType: emailType,
@@ -3278,16 +3227,14 @@ IMPORTANT: If you find the org's main phone number, include it in the "phone" fi
             validatedContacts.push(validated);
             const titleStr = validated.title ? ` (${validated.title})` : '';
             const nameStr = validated.name ? ` - ${validated.name}` : '';
-            const phoneStr = validated.phone ? ` 📞 ${validated.phone}` : '';
-            console.log(`      ✅ Found ${emailType}: ${validated.email}${nameStr}${titleStr}${phoneStr} (${validationReason})`);
+            console.log(`      ✅ Found ${emailType}: ${validated.email}${nameStr}${titleStr} (${validationReason})`);
         }
         
         // Track usage for logging
         const usage = data.usage || {};
         const inputTokens = usage.input_tokens || 0;
         const outputTokens = usage.output_tokens || 0;
-        const phonesFound = validatedContacts.filter(c => c.phone).length;
-        console.log(`      📊 Found ${validatedContacts.length} validated contacts via Claude (${phonesFound} with phone numbers)`);
+        console.log(`      📊 Found ${validatedContacts.length} validated contacts via Claude`);
         console.log(`      💰 Tokens: ${inputTokens} in / ${outputTokens} out (~$${((inputTokens/1000000) + (outputTokens*5/1000000)).toFixed(4)})`);
         
         return validatedContacts;
@@ -5603,17 +5550,13 @@ async function scanOrganization(org, options = {}) {
     console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
     console.log(`   Events URL: ${result.eventsUrl || 'Not found'} ${result.eventsUrlValidated ? '✅' : '⚠️'}`);
     
-    // Updated POC display for multi-contact support (UPDATED 2026-02-11: shows phone, name, title)
+    // Updated POC display for multi-contact support
     if (result.pocSkipped) {
         console.log(`   POC Contacts: ⏭️ Skipped (${result.pocInfo?.reason || 'already have contacts'})`);
     } else if (result.pocContacts && result.pocContacts.length > 0) {
-        const phonesFound = result.pocContacts.filter(c => c.phone).length;
-        console.log(`   POC Contacts: ${result.pocContacts.length} found (${phonesFound} with phone)`);
+        console.log(`   POC Contacts: ${result.pocContacts.length} found`);
         for (const c of result.pocContacts) {
-            const nameStr = c.name ? ` - ${c.name}` : '';
-            const titleStr = c.title ? ` (${c.title})` : '';
-            const phoneStr = c.phone ? ` 📞 ${c.phone}` : '';
-            console.log(`      • ${c.categoryType || c.contactType}: ${c.email}${nameStr}${titleStr}${phoneStr}`);
+            console.log(`      • ${c.categoryType || c.contactType}: ${c.email}`);
         }
     } else {
         console.log(`   POC Contacts: None found`);

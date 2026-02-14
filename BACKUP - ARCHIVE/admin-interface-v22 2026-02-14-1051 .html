@@ -3963,16 +3963,6 @@ Regards,`;
 
         async function changeOrgStatus() {
             const newStatus = document.getElementById('statusDropdown').value;
-
-            // Check if Event Policy is set before allowing mission approval
-            if (newStatus === 'Mission Approved (Request Not Sent)') {
-                const currentPolicy = currentOrg.event_policy || document.getElementById('profileEventPolicy')?.value;
-                if (!currentPolicy) {
-                    alert('⚠️ Cannot approve: Event Policy must be set before mission approval.\n\nPlease set the Event Policy to "Accept All" or "Propose Events" first.');
-                    document.getElementById('statusDropdown').value = currentOrg.status;
-                    return;
-                }
-            }
             
             // Safety check: warn if trying to go Live with restriction flags
             if (newStatus === 'Live (Scraping Active)') {
@@ -4531,7 +4521,7 @@ Regards,`;
                 setTimeout(() => {
                     const contactFilter = document.getElementById('orgFilterByContacts');
                     if (contactFilter) {
-                        contactFilter.value = 'none';
+                        contactFilter.value = 'no-contacts';
                         filterOrgsByContacts();
                     }
                 }, 300);
@@ -4598,14 +4588,7 @@ Regards,`;
 
                 // ── Contact stats ──
                 const orgsWithContacts = new Set(allContacts.map(c => c.organization));
-                // Only count mission-approved orgs (exclude Nominated, Rejected by Mission, Rejected by Org)
-                const missionApprovedStatuses = [
-                    'Mission Approved (Request Not Sent)',
-                    'Permission Requested (Pending Org Response)',
-                    'Permission Granted (Not Live)',
-                    'Live (Scraping Active)'
-                ];
-                const orgsNoContacts = orgs.filter(o => missionApprovedStatuses.includes(o.status) && !orgsWithContacts.has(o.id)).length;
+                const orgsNoContacts = orgs.filter(o => !orgsWithContacts.has(o.id)).length;
 
                 // ── ORG STATS ──
                 document.getElementById('statOrgs').textContent = orgsData.totalItems || 0;
@@ -5298,20 +5281,6 @@ Regards,`;
         }
 
         async function quickStatusChange(orgId, newStatus) {
-            // Check if Event Policy is set before allowing mission approval
-            if (newStatus === 'Mission Approved (Request Not Sent)') {
-                try {
-                    const orgRes = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
-                        headers: { 'Authorization': authToken }
-                    });
-                    const orgData = await orgRes.json();
-                    if (!orgData.event_policy) {
-                        alert('⚠️ Cannot approve: Event Policy must be set before mission approval.\n\nPlease set the Event Policy to "Accept All" or "Propose Events" first.');
-                        loadByStatus(); // Reset dropdown to original value
-                        return;
-                    }
-                } catch (error) { alert('Error checking org: ' + error.message); return; }
-            }
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
                     method: 'PATCH',
@@ -5346,18 +5315,6 @@ Regards,`;
         }
 
         async function quickApprove(orgId) {
-            // Check if Event Policy is set before allowing mission approval
-            try {
-                const orgRes = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
-                    headers: { 'Authorization': authToken }
-                });
-                const orgData = await orgRes.json();
-                if (!orgData.event_policy) {
-                    alert('⚠️ Cannot approve: Event Policy must be set before mission approval.\n\nPlease set the Event Policy to "Accept All" or "Propose Events" first.');
-                    return;
-                }
-            } catch (error) { alert('Error checking org: ' + error.message); return; }
-
             if (!confirm('Approve this organization for mission?')) return;
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
@@ -5575,20 +5532,6 @@ Regards,`;
         }
 
         async function quickStatusChangeFromOrgs(orgId, newStatus) {
-            // Check if Event Policy is set before allowing mission approval
-            if (newStatus === 'Mission Approved (Request Not Sent)') {
-                try {
-                    const orgRes = await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
-                        headers: { 'Authorization': authToken }
-                    });
-                    const orgData = await orgRes.json();
-                    if (!orgData.event_policy) {
-                        alert('⚠️ Cannot approve: Event Policy must be set before mission approval.\n\nPlease set the Event Policy to "Accept All" or "Propose Events" first.');
-                        loadOrganizations(); // Reset dropdown to original value
-                        return;
-                    }
-                } catch (error) { alert('Error checking org: ' + error.message); return; }
-            }
             try {
                 await fetch(`${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`, {
                     method: 'PATCH',
@@ -5742,17 +5685,9 @@ Regards,`;
             // Build contact lookup
             const orgsWithContacts = new Set(allContacts.map(c => c.organization));
             
-            // Mission-approved statuses (exclude Nominated, Rejected by Mission, Rejected by Org)
-            const missionApprovedStatuses = [
-                'Mission Approved (Request Not Sent)',
-                'Permission Requested (Pending Org Response)',
-                'Permission Granted (Not Live)',
-                'Live (Scraping Active)'
-            ];
-
             let filtered;
             if (filter === 'none') {
-                filtered = allOrganizations.filter(o => missionApprovedStatuses.includes(o.status) && !orgsWithContacts.has(o.id));
+                filtered = allOrganizations.filter(o => !orgsWithContacts.has(o.id));
             } else if (filter === 'has') {
                 filtered = allOrganizations.filter(o => orgsWithContacts.has(o.id));
             }

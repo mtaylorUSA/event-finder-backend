@@ -323,9 +323,8 @@ function displayContactResults(result, googleQueryCount) {
     }
     
     const contacts = result.pocContacts || [];
-    const phonesFound = contacts.filter(c => c.phone).length;
     console.log(`   📊 Google Queries Used: ${googleQueryCount}`);
-    console.log(`   📊 Contacts Found: ${contacts.length} (${phonesFound} with phone)`);
+    console.log(`   📊 Contacts Found: ${contacts.length}`);
     
     if (contacts.length === 0) {
         console.log('   ℹ️ No new contacts discovered');
@@ -339,8 +338,6 @@ function displayContactResults(result, googleQueryCount) {
         const source = c.source || 'website';
         console.log(`      ✅ [${type}] ${c.email}`);
         if (c.name) console.log(`         Name: ${c.name}`);
-        if (c.title) console.log(`         Title: ${c.title}`);
-        if (c.phone) console.log(`         📞 Phone: ${c.phone}`);
         console.log(`         Source: ${source}`);
     }
     
@@ -479,8 +476,7 @@ async function main() {
     
     const newContacts = result.pocContacts?.length || 0;
     const savedContacts = result.contactsSaved?.length || 0;
-    const phonesFound = (result.pocContacts || []).filter(c => c.phone).length;
-    console.log(`   Contacts Found: ${newContacts} (${phonesFound} with phone)`);
+    console.log(`   Contacts Found: ${newContacts}`);
     console.log(`   Contacts Saved: ${savedContacts}`);
     console.log(`   Google Queries: ${googleQueryCount}`);
     console.log('════════════════════════════════════════════════════════════════');

@@ -620,8 +620,9 @@ async function main() {
         if (scanResult.touNotes) {
             console.log(`      • TOU Notes: ${scanResult.touNotes.substring(0, 100)}...`);
         }
-        // UPDATED 2026-02-09: Contacts gathered after mission approval, not during discovery
-        console.log(`      • POC: ⏭️ Gathered after mission approval`);
+        if (scanResult.pocInfo) {
+            console.log(`      • POC Found: ${scanResult.pocInfo.email || scanResult.pocInfo.name || 'Partial info'}`);
+        }
         if (scanResult.aiSummary) {
             console.log(`      • 🤖 AI Summary: ${scanResult.aiSummary.substring(0, 150)}...`);
         }
@@ -737,8 +738,11 @@ async function main() {
             
             const savedOrg = await saveResponse.json();
             
-            // UPDATED 2026-02-09: Contacts no longer gathered during discovery
-            // Contacts gathered after mission approval via [🔍 Scan] button or batch scan
+            // Save POC contact if we have info
+            // UPDATED 2026-01-31: Uses org-scanner.js savePocContact
+            if (result.pocInfo && (result.pocInfo.email || result.pocInfo.name)) {
+                await scanner.savePocContact(savedOrg.id, result.pocInfo, 'discover-orgs-by-events.js');
+            }
             
             // Log result with flags
             let flagStatus = '';
@@ -844,9 +848,8 @@ async function performInitialOrgScan(fetch, candidate) {
             result.description = webOrgInfo.description || '';
             result.aiSummary = webOrgInfo.description || `Unable to analyze - site returned ${response.status} error. Discovered via event: "${candidate.title}"`;
             
-            // UPDATED 2026-02-09: Skip contact gathering during discovery (saves Google quota)
-            // Contacts gathered later via [🔍 Scan] button or batch scan after mission approval
-            console.log(`      ⏭️ Skipping contacts (gathered after mission approval)`);
+            // Search for POC via Google (tech blocked)
+            result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
             return result;
         }
         
@@ -877,9 +880,7 @@ async function performInitialOrgScan(fetch, candidate) {
         result.orgType = webOrgInfo.orgType || '';
         result.description = webOrgInfo.description || '';
         result.aiSummary = webOrgInfo.description || `Unable to analyze - fetch error: ${error.message}. Discovered via event: "${candidate.title}"`;
-        // UPDATED 2026-02-09: Skip contact gathering during discovery (saves Google quota)
-        // Contacts gathered later via [🔍 Scan] button or batch scan after mission approval
-        console.log(`      ⏭️ Skipping contacts (gathered after mission approval)`);
+        result.pocInfo = await scanner.gatherPOCViaGoogleSearch(result.orgName || candidate.domain, candidate.domain);
         return result;
     }
     
@@ -962,12 +963,25 @@ async function performInitialOrgScan(fetch, candidate) {
     }
     
     // ─────────────────────────────────────────────────────────────────────
-    // B3: POC Gathering - SKIPPED DURING DISCOVERY (UPDATED 2026-02-09)
-    // Contacts are gathered AFTER mission approval to conserve Google quota
-    // Use [🔍 Scan] button in Admin Interface or batch scan approved orgs
+    // B3: Gather POC info
+    // UPDATED 2026-01-31: Uses org-scanner.js smart POC gathering
     // ─────────────────────────────────────────────────────────────────────
     
-    console.log(`   ⏭️ B3: Skipping POC gathering (gathered after mission approval)`);
+    console.log(`   📡 B3: Gathering POC info...`);
+    
+    // Use org-scanner's smart POC gathering (respects flags)
+    result.pocInfo = await scanner.gatherPOC(homepageHtml, baseUrl, {
+        touFlag: result.touFlag,
+        techBlockFlag: result.techBlockFlag,
+        techRenderingFlag: false,  // Not checked in discovery phase
+        orgName: result.orgName || candidate.domain
+    });
+    
+    if (result.pocInfo && result.pocInfo.email) {
+        console.log(`      ✅ POC found: ${result.pocInfo.email}`);
+    } else {
+        console.log(`      ℹ️ No POC email found`);
+    }
     
     // ─────────────────────────────────────────────────────────────────────
     // B4: Organization Info via Google Search (UPDATED 2026-02-05)

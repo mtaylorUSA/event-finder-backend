@@ -142,7 +142,6 @@ const POCKETBASE_ADMIN_PASSWORD = process.env.POCKETBASE_ADMIN_PASSWORD;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
 const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;  // NEW 2026-02-10: For Claude-powered contact discovery
 
 // User agent for requests
 const USER_AGENT = 'EventFinderBot/1.0 (Research tool; Contact: matthew_e_taylor@hotmail.com)';
@@ -3001,303 +3000,6 @@ function extractShortOrgName(orgName) {
     return stripped;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// CLAUDE-POWERED CONTACT DISCOVERY (NEW 2026-02-10)
-//
-// Uses Anthropic Claude API with web search to find contacts.
-// Benefits over Google Custom Search:
-//   - AI synthesizes data from multiple pages (like Google AI Overview)
-//   - Returns structured name, email, phone, title — not just snippets
-//   - Natural language query: "Who are good contacts at ORG?" 
-//   - One API call replaces 2-10 Google queries
-//
-// 🔒 ETHICAL: Claude's web search reads publicly indexed pages.
-//    Our code never touches org websites directly.
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Gather contacts via Claude AI with web search
- * NEW 2026-02-10: Replaces gatherPOCViaGoogleSearch as primary contact method
- * 
- * @param {string} orgName - Organization name
- * @param {string} domain - Organization domain
- * @param {Object} options - Options (skipCategories, parentOrgWebsite)
- * @returns {Array} Array of contact objects matching gatherPOCViaGoogleSearch format
- */
-async function gatherPOCViaClaude(orgName, domain, options = {}) {
-    if (!ANTHROPIC_API_KEY) {
-        console.log('      ⚠️ Anthropic API key not configured - skipping Claude search');
-        return [];
-    }
-    
-    const shortName = extractShortOrgName(orgName);
-    if (shortName !== orgName) {
-        console.log(`      📛 Search name: "${shortName}" (from "${orgName.substring(0, 50)}${orgName.length > 50 ? '...' : ''}")`);
-    }
-    
-    console.log('      🤖 Searching for contacts via Claude AI + web search...');
-    
-    // ─────────────────────────────────────────────────────────────────────────
-    // System prompt: Sets expectations for phone number priority
-    // UPDATED 2026-02-11: Added system prompt to prioritize phone numbers
-    // ─────────────────────────────────────────────────────────────────────────
-    const systemPrompt = `You are a research assistant helping find professional contact information for organizations. Your task is to find email addresses AND phone numbers for professional outreach.
-
-IMPORTANT - PHONE NUMBERS ARE A TOP PRIORITY:
-- Always search specifically for the organization's main office phone number
-- Search for "[org name] phone number" and "[org name] contact us" to find phone numbers
-- Include the organization's main switchboard/office phone on EVERY contact if you find it
-- Check the organization's Contact Us page, About page, and footer for phone numbers
-- Phone numbers are just as important as email addresses
-- US phone format examples: (202) 555-1234, 202-555-1234, +1-202-555-1234
-
-Return ONLY a valid JSON array. No markdown, no explanation, no extra text.
-If you find no contacts at all, return: []`;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // User prompt: Explicit instructions for both email AND phone discovery
-    // UPDATED 2026-02-11: Rewrote as 3-step process with phone emphasis
-    // ─────────────────────────────────────────────────────────────────────────
-    const domainHint = domain ? ` Their website is ${domain}.` : '';
-    const userMessage = `Find contact information for ${shortName}.${domainHint}
-
-I need BOTH email addresses AND phone numbers for professional outreach about event partnerships.
-
-STEP 1 - Find the organization's main phone number:
-- Search for "${shortName} phone number" or "${shortName} contact us"
-- Look for their main office, switchboard, or general phone number
-- This number should be included on every contact you return
-
-STEP 2 - Find key contacts:
-- Events team (events@, programs@, conferences@)
-- Media/Communications (media@, press@, communications@)
-- General inquiries (info@, contact@)
-- Legal/Permissions (legal@, permissions@)
-- Leadership with direct phone numbers if available
-
-STEP 3 - For each contact, include ALL available info.
-
-Return a JSON array where each contact has:
-{"name": "person or department name", "email": "address", "phone": "(202) 555-1234 or empty string", "title": "role or department"}
-
-IMPORTANT: If you find the org's main phone number, include it in the "phone" field for ALL contacts — even department emails like info@ or events@. An email with a phone number attached is far more valuable than an email alone.`;
-
-    try {
-        const response = await fetchModule('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 1500,
-                system: systemPrompt,
-                tools: [{
-                    type: 'web_search_20250305',
-                    name: 'web_search'
-                }],
-                messages: [{
-                    role: 'user',
-                    content: userMessage
-                }]
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.log(`      ⚠️ Claude API error (${response.status}): ${JSON.stringify(errorData.error || errorData).substring(0, 200)}`);
-            return [];
-        }
-        
-        const data = await response.json();
-        
-        // Extract text from response (may contain multiple content blocks)
-        const textBlocks = (data.content || [])
-            .filter(block => block.type === 'text')
-            .map(block => block.text);
-        
-        const fullText = textBlocks.join('\n');
-        
-        if (!fullText.trim()) {
-            console.log('      ⚠️ Claude returned no text content');
-            return [];
-        }
-        
-        // Parse JSON from response — handle markdown fences and extra text
-        let contacts = [];
-        try {
-            // Try to find JSON array in the response
-            const jsonMatch = fullText.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-                contacts = JSON.parse(jsonMatch[0]);
-            } else {
-                console.log('      ⚠️ No JSON array found in Claude response');
-                console.log(`      📝 Raw response: ${fullText.substring(0, 300)}...`);
-                return [];
-            }
-        } catch (parseError) {
-            console.log(`      ⚠️ Failed to parse Claude response as JSON: ${parseError.message}`);
-            console.log(`      📝 Raw response: ${fullText.substring(0, 300)}...`);
-            return [];
-        }
-        
-        if (!Array.isArray(contacts) || contacts.length === 0) {
-            console.log('      ℹ️ Claude found no contacts for this organization');
-            return [];
-        }
-        
-        console.log(`      📋 Claude found ${contacts.length} potential contact(s) — validating...`);
-        
-        // ─────────────────────────────────────────────────────────────────
-        // Validate and format contacts (same rules as Google approach)
-        // ─────────────────────────────────────────────────────────────────
-        
-        // Build accepted domains (same logic as Google function)
-        const acceptedDomains = new Set();
-        if (domain) {
-            acceptedDomains.add(getBaseDomain(domain));
-        }
-        if (options.parentOrgWebsite) {
-            try {
-                const parentDomain = new URL(options.parentOrgWebsite).hostname.replace(/^www\./, '');
-                acceptedDomains.add(getBaseDomain(parentDomain));
-            } catch (e) { /* ignore */ }
-        }
-        
-        const validatedContacts = [];
-        const seenEmails = new Set();
-        
-        // ─────────────────────────────────────────────────────────────────
-        // NEW 2026-02-11: Extract org-wide phone from any contact that has one
-        // If Claude found the org's main phone, propagate it to all contacts
-        // ─────────────────────────────────────────────────────────────────
-        let orgPhone = '';
-        for (const contact of contacts) {
-            const phone = (contact.phone || '').trim();
-            if (phone && phone.length >= 10) {
-                orgPhone = phone;
-                break;  // Use the first valid phone found
-            }
-        }
-        if (orgPhone) {
-            console.log(`      📞 Org phone found: ${orgPhone} — will apply to all contacts`);
-        }
-        
-        for (const contact of contacts) {
-            // Must have an email
-            if (!contact.email || !contact.email.includes('@')) {
-                // Log contacts with phone but no email (still useful info)
-                if (contact.phone && contact.name) {
-                    console.log(`      ℹ️ Skipping (no email): ${contact.name} - ${contact.phone}`);
-                }
-                continue;
-            }
-            
-            const emailLower = contact.email.toLowerCase().trim();
-            
-            // Skip duplicates
-            if (seenEmails.has(emailLower)) continue;
-            
-            // Skip obvious junk
-            if (emailLower.includes('example.com') || emailLower.includes('domain.com')) continue;
-            
-            // ── Domain validation (same order as Google function) ──
-            const emailDomain = emailLower.split('@')[1];
-            const baseDomain = getBaseDomain(emailDomain);
-            let isValid = false;
-            let validationReason = '';
-            
-            // Check 1: Accepted domain match
-            if (acceptedDomains.has(baseDomain)) {
-                isValid = true;
-                validationReason = 'domain_match';
-            }
-            
-            // Check 2: Org name in domain
-            if (!isValid && shortName) {
-                const nameAsLower = shortName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (nameAsLower.length >= 3 && baseDomain.includes(nameAsLower)) {
-                    isValid = true;
-                    validationReason = 'name_in_domain';
-                }
-            }
-            
-            // Check 3: Blacklist (only if not matched to org)
-            if (!isValid && isBlacklistedEmailDomain(contact.email)) {
-                console.log(`      ⏭️ Skipping blacklisted: ${contact.email}`);
-                continue;
-            }
-            
-            // Check 4: Personal email (gmail etc.) - allow
-            if (!isValid && isPersonalEmailDomain(contact.email)) {
-                isValid = true;
-                validationReason = 'personal_email';
-            }
-            
-            // Check 5: Claude found it via web search — trust it if domain looks reasonable
-            // Unlike Google snippets, Claude has already evaluated relevance
-            if (!isValid) {
-                // Accept if the email domain contains words from the org name
-                const orgWords = shortName.toLowerCase().split(/\s+/).filter(w => w.length >= 4);
-                const domainMatchesOrgWord = orgWords.some(word => baseDomain.includes(word));
-                if (domainMatchesOrgWord) {
-                    isValid = true;
-                    validationReason = 'org_word_in_domain';
-                }
-            }
-            
-            // Check 6: If still not validated, reject (avoid false positives)
-            if (!isValid) {
-                console.log(`      ❌ Rejected (unrelated domain): ${contact.email}`);
-                continue;
-            }
-            
-            seenEmails.add(emailLower);
-            
-            // Auto-categorize by email prefix (reuse existing logic)
-            const emailType = detectEmailType(contact.email);
-            const contactType = mapEmailTypeToContactType(emailType);
-            
-            // ── NEW 2026-02-11: Phone — use contact's own phone, or fall back to org-wide phone ──
-            const contactPhone = (contact.phone || '').trim();
-            const finalPhone = contactPhone.length >= 10 ? contactPhone : orgPhone;
-            
-            const validated = {
-                email: contact.email.trim(),
-                name: (contact.name || '').trim(),
-                title: (contact.title || '').trim(),
-                phone: finalPhone,
-                source: 'claude_web_search',
-                contactType: contactType,
-                categoryType: emailType,
-                validationReason: validationReason
-            };
-            
-            validatedContacts.push(validated);
-            const titleStr = validated.title ? ` (${validated.title})` : '';
-            const nameStr = validated.name ? ` - ${validated.name}` : '';
-            const phoneStr = validated.phone ? ` 📞 ${validated.phone}` : '';
-            console.log(`      ✅ Found ${emailType}: ${validated.email}${nameStr}${titleStr}${phoneStr} (${validationReason})`);
-        }
-        
-        // Track usage for logging
-        const usage = data.usage || {};
-        const inputTokens = usage.input_tokens || 0;
-        const outputTokens = usage.output_tokens || 0;
-        const phonesFound = validatedContacts.filter(c => c.phone).length;
-        console.log(`      📊 Found ${validatedContacts.length} validated contacts via Claude (${phonesFound} with phone numbers)`);
-        console.log(`      💰 Tokens: ${inputTokens} in / ${outputTokens} out (~$${((inputTokens/1000000) + (outputTokens*5/1000000)).toFixed(4)})`);
-        
-        return validatedContacts;
-        
-    } catch (error) {
-        console.log(`      ⚠️ Claude API call failed: ${error.message}`);
-        return [];
-    }
-}
-
 async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
     if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
         console.log('      ⚠️ Google Search API not configured - skipping');
@@ -3315,39 +3017,12 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
     }
     
     // ═══════════════════════════════════════════════════════════════════════
-    // UPDATED 2026-02-10: Broad query + collect ALL contacts approach
-    // 
-    // Key improvements:
-    //   1. One broad query finds multiple contacts (1-2 queries vs 5-10)
-    //   2. Collect ALL valid emails, not just one per category
-    //   3. Accept emails from parent org domain (microsites)
-    //   4. Cache domain validation to avoid repeated checks
-    //   5. Capture title/role context from snippets
+    // UPDATED 2026-02-10: Broad query approach
+    // Instead of 5 narrow category queries (5-10 Google queries), we use
+    // 1-2 broad queries and extract ALL emails, then auto-categorize them.
+    // Inspired by: "what is a good point of contact at AFCEA" returns
+    // events@, legal@, info@, mcs@, etc. all in one search.
     // ═══════════════════════════════════════════════════════════════════════
-    
-    // Build list of accepted domains (org domain + parent org domain if microsite)
-    const acceptedDomains = new Set();
-    if (domain) {
-        acceptedDomains.add(getBaseDomain(domain));
-    }
-    // Accept parent org domain for microsites (e.g., afcea.org for intelsummit.org)
-    if (options.parentOrgWebsite) {
-        try {
-            const parentDomain = new URL(options.parentOrgWebsite).hostname.replace(/^www\./, '');
-            acceptedDomains.add(getBaseDomain(parentDomain));
-            console.log(`      🏢 Also accepting emails from parent domain: ${parentDomain}`);
-        } catch (e) { /* ignore parse errors */ }
-    }
-    // Also accept domains that match the short org name (e.g., "AFCEA" → afcea.org)
-    if (shortName) {
-        const nameAsLower = shortName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (nameAsLower.length >= 3) {
-            acceptedDomains.add(nameAsLower);  // Will match via includes check below
-        }
-    }
-    
-    // Cache for domain validation results (avoid burning queries re-checking same domain)
-    const domainValidationCache = new Map();
     
     const broadQueries = [
         `"${shortName}" contact email phone`,
@@ -3383,12 +3058,15 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
             const data = await response.json();
             const items = data.items || [];
             
-            // Extract ALL contacts from ALL snippets
+            // Extract ALL emails from ALL snippets
             for (const item of items) {
                 const snippet = (item.snippet || '') + ' ' + (item.title || '');
                 
                 // Find all emails in snippet
                 const emailMatches = snippet.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+                
+                // Find all phone numbers in snippet
+                const phoneMatches = snippet.match(/(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g) || [];
                 
                 for (const email of emailMatches) {
                     const emailLower = email.toLowerCase();
@@ -3402,165 +3080,79 @@ async function gatherPOCViaGoogleSearch(orgName, domain, options = {}) {
                         continue;
                     }
                     
-                    // ═══════════════════════════════════════════════════════════
-                    // UPDATED 2026-02-10: Smart domain validation with caching
-                    // Check org domain match FIRST, then blacklist (so org's own
-                    // domain isn't blocked even if it's on the vendor blacklist)
-                    // ═══════════════════════════════════════════════════════════
-                    
-                    const emailDomain = emailLower.split('@')[1];
-                    const baseDomain = getBaseDomain(emailDomain);
-                    let isValid = false;
-                    let validationReason = '';
-                    
-                    // Check 1: Does email domain match any accepted domain?
-                    if (acceptedDomains.has(baseDomain)) {
-                        isValid = true;
-                        validationReason = 'domain_match';
-                    }
-                    
-                    // Check 2: Does org short name appear in the email domain?
-                    // e.g., shortName="AFCEA" → afcea.org, afcea-la.org
-                    // e.g., shortName="TeleStrategies" → telestrategies.com
-                    if (!isValid && shortName) {
-                        const nameAsLower = shortName.toLowerCase().replace(/[^a-z0-9]/g, '');
-                        if (nameAsLower.length >= 3 && baseDomain.includes(nameAsLower)) {
-                            isValid = true;
-                            validationReason = 'name_in_domain';
-                        }
-                    }
-                    
-                    // Check 3: Blacklist - BUT only if not already matched to org
-                    // This prevents org's own domain from being blocked when it's
-                    // also used as a vendor (e.g., telestrategies.com)
-                    if (!isValid && isBlacklistedEmailDomain(email)) {
+                    // Check blacklist (silently skip)
+                    if (isBlacklistedEmailDomain(email)) {
                         console.log(`      ⏭️ Skipping blacklisted domain: ${email}`);
                         continue;
                     }
                     
-                    // Check 3: Personal email domains (gmail, yahoo, etc.) - allow
-                    if (!isValid && isPersonalEmailDomain(email)) {
-                        isValid = true;
-                        validationReason = 'personal_email';
-                    }
+                    // Validate domain relationship
+                    const validation = await validateContactDomain(email, domain, orgName);
                     
-                    // Check 4: Cached domain check (don't re-query same domain)
-                    if (!isValid && domainValidationCache.has(baseDomain)) {
-                        const cached = domainValidationCache.get(baseDomain);
-                        isValid = cached.valid;
-                        validationReason = cached.reason;
-                        if (!isValid) {
-                            continue;  // Already checked and rejected this domain
+                    if (!validation.valid) {
+                        if (validation.reason === 'domain_mismatch') {
+                            console.log(`      ❌ Rejected (domain mismatch): ${email}`);
                         }
+                        continue;
                     }
                     
-                    // Check 5: Full domain validation (uses Google query - expensive)
-                    if (!isValid && !domainValidationCache.has(baseDomain)) {
-                        const validation = await validateContactDomain(email, domain, orgName);
-                        // Cache result for this domain
-                        domainValidationCache.set(baseDomain, { valid: validation.valid, reason: validation.reason });
-                        isValid = validation.valid;
-                        validationReason = validation.reason;
-                        
-                        if (!isValid) {
-                            console.log(`      ❌ Rejected (${validation.reason}): ${email}`);
-                            continue;
-                        }
+                    // Auto-categorize by email prefix using existing detectEmailType()
+                    const emailType = detectEmailType(email);
+                    const contactType = mapEmailTypeToContactType(emailType);
+                    
+                    // Skip if we already have this category (from skipCategories or found earlier)
+                    if (skipCategories.includes(contactType) || skipCategories.includes(emailType)) {
+                        continue;
                     }
                     
-                    if (!isValid) continue;
+                    // Skip if we already found a contact of this type in this run
+                    const alreadyHaveType = foundContacts.some(c => 
+                        c.categoryType === emailType || c.contactType === contactType
+                    );
+                    if (alreadyHaveType) {
+                        continue;
+                    }
                     
                     seenEmails.add(emailLower);
                     
-                    // ═══════════════════════════════════════════════════════════
-                    // UPDATED 2026-02-10: Better name & title extraction
-                    // Captures: "Sandy Campbell (Senior Director, Customer Service Center)"
-                    // ═══════════════════════════════════════════════════════════
-                    
+                    // Try to find name near email
                     let name = '';
-                    let title = '';
-                    
-                    const titlePatterns = [
-                        // "Sandy Campbell (Senior Director, Customer Service Center): (703) 631-6105"
-                        /([A-Z][a-z]+\s+[A-Z][a-z]+)\s*\(([^)]+)\)/,
-                        // "Sandy Campbell, Senior Director: sandy@..."
-                        /([A-Z][a-z]+\s+[A-Z][a-z]+),?\s+((?:Senior\s|Executive\s|Associate\s|Assistant\s|Vice\s|Deputy\s)?(?:Director|Manager|Coordinator|Chief|VP|President|Officer|Secretary|Counsel|Chair|Lead|Head|Specialist|Analyst)[^,.\n]{0,50})/i,
-                        // "contact Sandy Campbell at sandy@..."
+                    const namePatterns = [
                         /(?:contact|email|reach)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
-                        // "Sandy Campbell at sandy@..." or "Sandy Campbell, sandy@..."
                         /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+at\s+|\s*[,\-]\s*)/,
+                        /([A-Z][a-z]+\s+[A-Z][a-z]+),?\s+(?:Director|Manager|Coordinator|Chief|VP|President)/i
                     ];
-                    
-                    for (const pattern of titlePatterns) {
-                        const match = snippet.match(pattern);
-                        if (match) {
-                            name = match[1].trim();
-                            if (match[2]) {
-                                title = match[2].trim();
-                            }
+                    for (const pattern of namePatterns) {
+                        const nameMatch = snippet.match(pattern);
+                        if (nameMatch) {
+                            name = nameMatch[1].trim();
                             break;
                         }
                     }
                     
-                    // Extract label from context like "Events & Registration: events@afcea.org"
-                    // or "General Membership & Information: mcs@afcea.org"
-                    if (!title) {
-                        const labelPattern = new RegExp(`([A-Z][A-Za-z &/]+):\\s*${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-                        const labelMatch = snippet.match(labelPattern);
-                        if (labelMatch) {
-                            title = labelMatch[1].trim();
-                        }
-                    }
-                    
-                    // Find phone near this email in the snippet
+                    // Try to associate a phone number from the same snippet
                     let phone = '';
-                    const phoneMatches = snippet.match(/(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g) || [];
                     if (phoneMatches.length > 0) {
-                        // Try to find the phone closest to this email in the text
-                        const emailPos = snippet.indexOf(email);
-                        if (emailPos >= 0) {
-                            let closestPhone = '';
-                            let closestDist = Infinity;
-                            for (const ph of phoneMatches) {
-                                const phPos = snippet.indexOf(ph);
-                                const dist = Math.abs(phPos - emailPos);
-                                if (dist < closestDist) {
-                                    closestDist = dist;
-                                    closestPhone = ph;
-                                }
-                            }
-                            if (closestDist < 200) {  // Within ~200 chars of the email
-                                phone = closestPhone;
-                            }
-                        } else {
-                            phone = phoneMatches[0];
-                        }
+                        phone = phoneMatches[0];
                     }
-                    
-                    // Auto-categorize by email prefix
-                    const emailType = detectEmailType(email);
-                    const contactType = mapEmailTypeToContactType(emailType);
                     
                     const contact = {
                         email: email,
                         name: name,
-                        title: title,
                         phone: phone,
                         source: 'google_search',
                         contactType: contactType,
                         categoryType: emailType,
-                        validationReason: validationReason
+                        validationReason: validation.reason
                     };
                     
                     foundContacts.push(contact);
-                    const titleStr = title ? ` (${title})` : '';
-                    const nameStr = name ? ` - ${name}` : '';
-                    console.log(`      ✅ Found ${emailType}: ${email}${nameStr}${titleStr} (${validationReason})`);
+                    console.log(`      ✅ Found ${emailType}: ${email} (${validation.reason})`);
                 }
             }
             
-            // If first query found 3+ contacts, skip the second query (save quota)
-            if (foundContacts.length >= 3 && qi === 0) {
+            // If first query found contacts, skip the second query (save quota)
+            if (foundContacts.length > 0 && qi === 0) {
                 console.log(`      💡 Found ${foundContacts.length} contact(s) on first query - skipping backup query`);
                 break;
             }
@@ -3621,8 +3213,7 @@ async function gatherPOC(html, baseUrl, options = {}) {
         techRenderingFlag, 
         orgName, 
         orgId,
-        forceAggressive = false,
-        parentOrgWebsite = null  // NEW 2026-02-10: For microsite domain acceptance
+        forceAggressive = false 
     } = options;
     
     const hasRestrictions = touFlag || techBlockFlag || techRenderingFlag;
@@ -3679,19 +3270,15 @@ async function gatherPOC(html, baseUrl, options = {}) {
     
     let allContacts = [];
     
-    // UPDATED 2026-02-10: Use Claude AI + web search for contact discovery
-    // Claude synthesizes data from multiple pages (like Google AI Overview)
-    // Returns structured name, email, phone, title — much richer than Google snippets
-    // 🔒 ETHICAL: Claude's web search reads publicly indexed pages — our code never touches org sites
+    // SECURITY: Always use Google Search for contact gathering
+    // Even if no restrictions are detected, we cannot guarantee we haven't missed something
+    // Google Search is always safe - it only returns publicly indexed information
+    console.log('      🔒 Using Google Search for contacts (respects all TOU policies)');
     
-    if (ANTHROPIC_API_KEY) {
-        console.log('      🤖 Using Claude AI for contacts (web search + synthesis)');
-        allContacts = await gatherPOCViaClaude(orgName || domain, domain, { skipCategories, parentOrgWebsite });
-    } else if (GOOGLE_SEARCH_API_KEY) {
-        console.log('      🔍 Using Google Search for contacts (Claude API key not configured)');
-        allContacts = await gatherPOCViaGoogleSearch(orgName || domain, domain, { skipCategories, parentOrgWebsite });
+    if (GOOGLE_SEARCH_API_KEY) {
+        allContacts = await gatherPOCViaGoogleSearch(orgName || domain, domain, { skipCategories });
     } else {
-        console.log('      ⚠️ No search API configured - cannot gather contacts');
+        console.log('      ⚠️ Google Search API not configured - cannot gather contacts safely');
     }
     
     // ─────────────────────────────────────────────────────────────────────────
@@ -3858,13 +3445,7 @@ async function savePocContact(orgId, pocInfo, scanSource = 'org-scanner.js') {
     
     // Create new contact
     const emailType = detectEmailType(pocInfo.email);
-    const contactType = pocInfo.contactType || mapEmailTypeToContactType(emailType);  // UPDATED 2026-02-10: Use pre-categorized type if available
-    
-    // UPDATED 2026-02-10: Include title in notes if available
-    let notes = `Auto-discovered by ${scanSource}`;
-    if (pocInfo.title) {
-        notes = `${pocInfo.title} | ${notes}`;
-    }
+    const contactType = mapEmailTypeToContactType(emailType);
     
     const contactRecord = {
         // Original fields
@@ -3874,7 +3455,7 @@ async function savePocContact(orgId, pocInfo, scanSource = 'org-scanner.js') {
         organization: orgId,
         contact_type: contactType,
         source: pocInfo.source || 'website',
-        notes: notes,
+        notes: `Auto-discovered by ${scanSource}`,
         last_verified: new Date().toISOString(),
         
         // New schema fields
@@ -5300,8 +4881,7 @@ async function scanOrganization(org, options = {}) {
             techRenderingFlag: result.techRenderingFlag,
             orgName: org.name || org.source_id,
             orgId: org.id,
-            forceAggressive: options.forceAggressive || false,
-            parentOrgWebsite: result.parentOrgWebsite || null  // NEW 2026-02-10: For microsite domain acceptance
+            forceAggressive: options.forceAggressive || false
         });
         
         // Store results
@@ -5319,9 +4899,7 @@ async function scanOrganization(org, options = {}) {
                     email: contact.email,
                     name: contact.name,
                     phone: contact.phone,
-                    source: contact.source,
-                    title: contact.title || '',         // NEW 2026-02-10: Role/title from Google
-                    contactType: contact.contactType || ''  // NEW 2026-02-10: Pre-categorized type
+                    source: contact.source
                 }, 'org-scanner.js');
                 
                 if (saved) {
@@ -5603,17 +5181,13 @@ async function scanOrganization(org, options = {}) {
     console.log(`   False Positives Filtered: ${result.falsePositivesSkipped}`);
     console.log(`   Events URL: ${result.eventsUrl || 'Not found'} ${result.eventsUrlValidated ? '✅' : '⚠️'}`);
     
-    // Updated POC display for multi-contact support (UPDATED 2026-02-11: shows phone, name, title)
+    // Updated POC display for multi-contact support
     if (result.pocSkipped) {
         console.log(`   POC Contacts: ⏭️ Skipped (${result.pocInfo?.reason || 'already have contacts'})`);
     } else if (result.pocContacts && result.pocContacts.length > 0) {
-        const phonesFound = result.pocContacts.filter(c => c.phone).length;
-        console.log(`   POC Contacts: ${result.pocContacts.length} found (${phonesFound} with phone)`);
+        console.log(`   POC Contacts: ${result.pocContacts.length} found`);
         for (const c of result.pocContacts) {
-            const nameStr = c.name ? ` - ${c.name}` : '';
-            const titleStr = c.title ? ` (${c.title})` : '';
-            const phoneStr = c.phone ? ` 📞 ${c.phone}` : '';
-            console.log(`      • ${c.categoryType || c.contactType}: ${c.email}${nameStr}${titleStr}${phoneStr}`);
+            console.log(`      • ${c.categoryType || c.contactType}: ${c.email}`);
         }
     } else {
         console.log(`   POC Contacts: None found`);
@@ -5656,7 +5230,6 @@ module.exports = {
     extractEventsUrlFromTriggeringUrl,
     validateEventsUrl,
     gatherPOC,
-    gatherPOCViaClaude,        // NEW 2026-02-10: Claude AI + web search for contact discovery
     gatherPOCViaGoogleSearch,  // UPDATED 2026-02-04: Now validates contact domains
     gatherPOCDirectFetch: gatherPOCDirectFetch_DEPRECATED,  // ⛔ DEPRECATED 2026-02-01: Security risk
     getOrgInfoViaGoogle,  // NEW 2026-02-05: Google-based org info (replaces analyzeWithAI)
