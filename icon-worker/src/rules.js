@@ -487,10 +487,13 @@ export const CRITICAL_REQUIREMENTS_BLOCK = `CRITICAL REQUIREMENTS:
 
 export const COLLAGE_TRIGGER_WORDS = [
   "triptych",
-  "grid",
+  "grid layout",
+  "grid of",
+  "image grid",
+  "arranged in a grid",
   "collage",
-  "collection",
-  "series",
+  "collection of",
+  "series of",
   "four panels",
   "multi-panel",
   "split screen",

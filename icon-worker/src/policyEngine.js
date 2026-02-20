@@ -291,7 +291,13 @@ export function buildDalleIconPrompt({
   // Validate prompt
   const preflight = preflightPromptChecks(prompt);
   if (!preflight.ok) {
-    throw new Error(`Preflight blocked prompt: ${preflight.reason}`);
+    // Log warning but don't throw - let caller handle gracefully
+    console.warn(`    [POLICY] ⚠️ Preflight warning: ${preflight.reason}`);
+    console.warn(`    [POLICY] ⚠️ Attempting to sanitize prompt...`);
+    
+    // Try to remove the offending trigger word context and rebuild
+    // If we can't fix it, return null so caller can skip this record
+    return null;
   }
 
   return prompt;

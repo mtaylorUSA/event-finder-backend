@@ -1,7 +1,9 @@
 // =============================================================================
 // GENERATE-TOPIC-ICONS.JS
 // Main worker script for icon generation using DALL·E 3
-// Version: 2.0
+// Version: 2.1
+// FIXES: Per-record error handling (one failure no longer crashes entire run)
+// FIXES: Handles null prompt from policyEngine gracefully
 // IMPROVEMENTS: Passes recordId for uniqueness, configurable style/quality
 // NOTE: .env is loaded by config.js from PROJECT ROOT (not icon-worker folder)
 // =============================================================================
@@ -49,12 +51,12 @@ async function generateValidatedIcon({
   countries,
   regions,
   transnational_org,
-  recordId,           // NEW: Pass record ID for extra uniqueness
+  recordId,           // Pass record ID for extra uniqueness
   maxAttempts,
   downscaleAuditEnabled,
   downscaleThresholds,
-  imageStyle,         // NEW: Configurable style (vivid/natural)
-  imageQuality        // NEW: Configurable quality (standard/hd)
+  imageStyle,         // Configurable style (vivid/natural)
+  imageQuality        // Configurable quality (standard/hd)
 }) {
   let lastFailure = null;
 
@@ -68,8 +70,15 @@ async function generateValidatedIcon({
       regions,
       transnational_org,
       attemptIndex: attempt,
-      recordId: recordId  // NEW: Adds per-record variation
+      recordId: recordId
     });
+
+    // FIX: Handle null prompt (policyEngine couldn't build a valid prompt)
+    if (!prompt) {
+      console.log(`    [GEN] ⚠️ Prompt builder returned null on attempt ${attempt + 1} — skipping attempt`);
+      lastFailure = { type: "preflight", reason: "Prompt builder returned null (preflight or sanitization failure)" };
+      continue;
+    }
 
     // Log a snippet of the prompt for debugging
     const promptSnippet = prompt.split('\n').slice(0, 8).join(' | ').slice(0, 150);
@@ -80,8 +89,8 @@ async function generateValidatedIcon({
       model, 
       prompt, 
       size: "1024x1024",
-      style: imageStyle,      // NEW: Pass through style
-      quality: imageQuality   // NEW: Pass through quality
+      style: imageStyle,
+      quality: imageQuality
     });
     
     const pngBuffer = Buffer.from(b64, "base64");
@@ -157,112 +166,144 @@ async function main() {
   console.log(`📋 Found ${records.length} records to process.\n`);
 
   // Get style and quality from environment (with improved defaults)
-  const imageStyle = process.env.DALLE_STYLE || "vivid";      // NEW: Default vivid
+  const imageStyle = process.env.DALLE_STYLE || "vivid";
   const imageQuality = process.env.DALLE_QUALITY || "standard";
   
   console.log(`🎨 Image settings: style=${imageStyle}, quality=${imageQuality}\n`);
 
   let saved = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const r of records) {
-    const topics = normalizeArrayField(r.topics);
-    const countries = normalizeArrayField(r.countries);
-    const regions = normalizeArrayField(r.regions);
-    const transnational_org = normalizeArrayField(r.transnational_org);
+    // =========================================================================
+    // FIX: Wrap each record in try/catch so one failure doesn't crash the run
+    // =========================================================================
+    try {
+      const topics = normalizeArrayField(r.topics);
+      const countries = normalizeArrayField(r.countries);
+      const regions = normalizeArrayField(r.regions);
+      const transnational_org = normalizeArrayField(r.transnational_org);
 
-    const fallback =
-      (!topics.length && !countries.length && !regions.length && !transnational_org.length)
-        ? parseTopicCombinationFallback(r.topic_combination)
-        : null;
+      const fallback =
+        (!topics.length && !countries.length && !regions.length && !transnational_org.length)
+          ? parseTopicCombinationFallback(r.topic_combination)
+          : null;
 
-    const finalTopics = topics.length ? topics : (fallback?.topics || []);
-    const finalCountries = countries.length ? countries : (fallback?.countries || []);
-    const finalRegions = regions.length ? regions : (fallback?.regions || []);
-    const finalOrgs = transnational_org.length ? transnational_org : (fallback?.transnational_org || []);
+      const finalTopics = topics.length ? topics : (fallback?.topics || []);
+      const finalCountries = countries.length ? countries : (fallback?.countries || []);
+      const finalRegions = regions.length ? regions : (fallback?.regions || []);
+      const finalOrgs = transnational_org.length ? transnational_org : (fallback?.transnational_org || []);
 
-    if (!finalTopics.length) {
-      console.log(`⚠️ Skipping record ${r.id}: no topics found`);
-      continue;
-    }
+      if (!finalTopics.length) {
+        console.log(`⚠️ Skipping record ${r.id}: no topics found`);
+        skipped++;
+        continue;
+      }
 
-    console.log(`────────────────────────────────────────`);
-    console.log(`📡 Processing: record=${r.id}`);
-    console.log(`   Topics: ${finalTopics.join(", ")}`);
-    if (finalRegions.length) console.log(`   Regions: ${finalRegions.join(", ")}`);
-    if (finalCountries.length) console.log(`   Countries: ${finalCountries.join(", ")}`);
-    if (finalOrgs.length) console.log(`   Orgs: ${finalOrgs.join(", ")}`);
+      console.log(`────────────────────────────────────────`);
+      console.log(`📡 Processing: record=${r.id}`);
+      console.log(`   Topics: ${finalTopics.join(", ")}`);
+      if (finalRegions.length) console.log(`   Regions: ${finalRegions.join(", ")}`);
+      if (finalCountries.length) console.log(`   Countries: ${finalCountries.join(", ")}`);
+      if (finalOrgs.length) console.log(`   Orgs: ${finalOrgs.join(", ")}`);
 
-    const result = await generateValidatedIcon({
-      apiKey: cfg.OPENAI_API_KEY,
-      model: cfg.OPENAI_IMAGE_MODEL,
-      topics: finalTopics,
-      countries: finalCountries,
-      regions: finalRegions,
-      transnational_org: finalOrgs,
-      recordId: r.id,                    // NEW: Pass record ID
-      maxAttempts: cfg.MAX_ATTEMPTS,
-      downscaleAuditEnabled: cfg.ENABLE_DOWNSCALE_AUDIT,
-      downscaleThresholds: {
-        minForegroundRatio: cfg.DOWNSCALE_MIN_FOREGROUND_RATIO,
-        minStddev: cfg.DOWNSCALE_MIN_STDDEV
-      },
-      imageStyle: imageStyle,            // NEW: Pass style
-      imageQuality: imageQuality         // NEW: Pass quality
-    });
+      const result = await generateValidatedIcon({
+        apiKey: cfg.OPENAI_API_KEY,
+        model: cfg.OPENAI_IMAGE_MODEL,
+        topics: finalTopics,
+        countries: finalCountries,
+        regions: finalRegions,
+        transnational_org: finalOrgs,
+        recordId: r.id,
+        maxAttempts: cfg.MAX_ATTEMPTS,
+        downscaleAuditEnabled: cfg.ENABLE_DOWNSCALE_AUDIT,
+        downscaleThresholds: {
+          minForegroundRatio: cfg.DOWNSCALE_MIN_FOREGROUND_RATIO,
+          minStddev: cfg.DOWNSCALE_MIN_STDDEV
+        },
+        imageStyle: imageStyle,
+        imageQuality: imageQuality
+      });
 
-    if (!result.ok) {
-      console.log(`❌ Failed record=${r.id}: ${result.error}`);
-      failed++;
+      if (!result.ok) {
+        console.log(`❌ Failed record=${r.id}: ${result.error}`);
+        failed++;
+        await pbUpdateTopicIconRecord({
+          baseUrl: cfg.POCKETBASE_URL,
+          token,
+          recordId: r.id,
+          data: {
+            prompt_used: `[FAILED]\n${String(result.error || "unknown")}\nlastFailure=${JSON.stringify(result.lastFailure || null)}`
+          }
+        });
+        continue;
+      }
+
+      const filename = `${safeSlug(finalTopics.join("-"))}__${Date.now()}.png`;
+
+      await pbUploadTopicIconFile({
+        baseUrl: cfg.POCKETBASE_URL,
+        token,
+        recordId: r.id,
+        filename,
+        pngBuffer: result.pngBuffer
+      });
+
       await pbUpdateTopicIconRecord({
         baseUrl: cfg.POCKETBASE_URL,
         token,
         recordId: r.id,
         data: {
-          prompt_used: `[FAILED]\n${String(result.error || "unknown")}\nlastFailure=${JSON.stringify(result.lastFailure || null)}`
+          prompt_used: result.promptUsed,
+          compliance_notes: JSON.stringify({
+            policyVersion: "4.1",
+            attempts: result.attempts,
+            style: imageStyle,
+            quality: imageQuality,
+            downscaleAudit: cfg.ENABLE_DOWNSCALE_AUDIT ? (result.downscaleMetrics || null) : null,
+            topics: finalTopics,
+            countries: finalCountries,
+            regions: finalRegions,
+            transnational_org: finalOrgs
+          })
         }
       });
+
+      saved++;
+      console.log(`💾 Saved icon ${saved}: record=${r.id} (${result.attempts} attempt(s))`);
+
+    } catch (recordErr) {
+      // =====================================================================
+      // FIX: Catch per-record errors — log and continue to next record
+      // =====================================================================
+      console.log(`❌ Error processing record=${r.id}: ${recordErr?.message || recordErr}`);
+      failed++;
+
+      // Try to mark the record as failed in PocketBase (best-effort)
+      try {
+        await pbUpdateTopicIconRecord({
+          baseUrl: cfg.POCKETBASE_URL,
+          token,
+          recordId: r.id,
+          data: {
+            prompt_used: `[ERROR]\n${String(recordErr?.message || recordErr)}`
+          }
+        });
+      } catch (updateErr) {
+        console.log(`   ⚠️ Could not update failure status: ${updateErr?.message}`);
+      }
+      
+      // Continue to the next record instead of crashing
       continue;
     }
-
-    const filename = `${safeSlug(finalTopics.join("-"))}__${Date.now()}.png`;
-
-    await pbUploadTopicIconFile({
-      baseUrl: cfg.POCKETBASE_URL,
-      token,
-      recordId: r.id,
-      filename,
-      pngBuffer: result.pngBuffer
-    });
-
-    await pbUpdateTopicIconRecord({
-      baseUrl: cfg.POCKETBASE_URL,
-      token,
-      recordId: r.id,
-      data: {
-        prompt_used: result.promptUsed,
-        compliance_notes: JSON.stringify({
-          policyVersion: "4.0",          // UPDATED version
-          attempts: result.attempts,
-          style: imageStyle,             // NEW: Track style used
-          quality: imageQuality,         // NEW: Track quality used
-          downscaleAudit: cfg.ENABLE_DOWNSCALE_AUDIT ? (result.downscaleMetrics || null) : null,
-          topics: finalTopics,
-          countries: finalCountries,
-          regions: finalRegions,
-          transnational_org: finalOrgs
-        })
-      }
-    });
-
-    saved++;
-    console.log(`💾 Saved icon ${saved}: record=${r.id} (${result.attempts} attempt(s))`);
   }
 
   console.log(`\n════════════════════════════════════════`);
   console.log(`✅ Done!`);
   console.log(`   💾 Saved: ${saved} new icons`);
   if (failed > 0) console.log(`   ❌ Failed: ${failed} icons`);
+  if (skipped > 0) console.log(`   ⚠️ Skipped: ${skipped} records (no topics)`);
   console.log(`════════════════════════════════════════`);
 }
 
