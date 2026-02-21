@@ -142,6 +142,35 @@
         /* Info boxes */
         .info-box { background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px; padding: 12px; margin: 10px 0; }
         .info-box.warning { background: #fff3cd; border-color: #ffc107; }
+
+        /* Correspondence Summary on Org Cards */
+        .corr-summary {
+            background: #f0f4ff;
+            border: 1px solid #c5d2f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 8px 0;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .corr-summary .corr-line {
+            display: flex;
+            gap: 6px;
+            align-items: baseline;
+        }
+        .corr-summary .corr-label {
+            color: #555;
+            white-space: nowrap;
+        }
+        .corr-summary .corr-value {
+            font-weight: 600;
+            color: #333;
+        }
+        .corr-summary .corr-na {
+            color: #999;
+            font-style: italic;
+            font-weight: normal;
+        }
         .info-box.success { background: #d1e7dd; border-color: #198754; }
         .info-box.danger { background: #f8d7da; border-color: #dc3545; }
         .info-box p { margin: 4px 0; font-size: 13px; }
@@ -1820,14 +1849,14 @@
                     </div>
                     <div class="info-box success" style="margin-top: 15px;">
                         <p><strong>🔒 Safety Guarantee:</strong></p>
-                        <p>• Contact gathering ALWAYS uses Google Search only</p>
+                        <p>• Contact gathering ALWAYS uses Claude AI web search</p>
                         <p>• We NEVER scrape org websites for contacts</p>
                         <p>• TOU/tech scans only check their policy pages (not content)</p>
                     </div>
                 </div>
 
                 <div class="info-box warning" style="margin-top: 20px;">
-                    <p><strong>⚠️ Google API Quota:</strong> Contact gathering uses up to 5 Google queries per scan. Daily free limit is 100 queries.</p>
+                    <p><strong>💰 Claude AI Cost:</strong> Contact gathering uses Claude AI web search (~$0.02 per org, no daily quota). Google queries are only used for org info and location checks.</p>
                 </div>
 
                 <div class="card-actions" style="margin-top: 20px;">
@@ -1858,6 +1887,25 @@
             'Rejected by Org': { icon: '⛔', badge: 'badge-rejected', cardClass: 'status-rejected' },
             'Live (Scraping Active)': { icon: '✅', badge: 'badge-live', cardClass: 'status-live' }
         };
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DATE HELPERS — Fix timezone shift when parsing YYYY-MM-DD strings
+        // JavaScript treats "2026-02-12" as UTC midnight, which displays as
+        // Feb 11 in US timezones. These helpers ensure dates stay correct.
+        // ═══════════════════════════════════════════════════════════════════════
+        function parseLocalDate(dateStr) {
+            if (!dateStr) return null;
+            const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (match) {
+                return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+            }
+            return new Date(dateStr);
+        }
+
+        function todayLocalStr() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
 
         // ═══════════════════════════════════════════════════════════════════════
         // AUTHENTICATION
@@ -2213,7 +2261,7 @@
                 if (data.status === 'Permission Requested (Pending Org Response)' && currentOrgId) {
                     const wasSet = await autoSetPermissionRequestedDate(currentOrgId);
                     if (wasSet) {
-                        currentOrg.permission_requested_date = new Date().toISOString().split('T')[0];
+                        currentOrg.permission_requested_date = todayLocalStr();
                         showMessage('profileMessage', '✅ Overview saved! 📅 Permission Requested Date auto-set to today.', 'success');
                     } else {
                         showMessage('profileMessage', '✅ Overview saved!', 'success');
@@ -2431,7 +2479,7 @@
          */
         function parseTouRestriction(org) {
             const result = {
-                scanDate: org.tou_scanned_date ? new Date(org.tou_scanned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown',
+                scanDate: org.tou_scanned_date ? parseLocalDate(org.tou_scanned_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown',
                 pages: [],
                 keywords: [],
                 keyQuote: '',
@@ -2830,7 +2878,7 @@
                 document.querySelectorAll('.corr-type-btn').forEach(btn => btn.classList.remove('active'));
                 document.querySelectorAll('.corr-panel').forEach(panel => panel.classList.remove('active'));
                 // Set default dates to today
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayLocalStr();
                 document.getElementById('phoneCallDate').value = today;
                 document.getElementById('emailOutDate').value = today;
                 document.getElementById('emailInDate').value = today;
@@ -3294,7 +3342,7 @@
                 const permReqDate = currentOrg.permission_requested_date;
                 let daysSince = '';
                 if (permReqDate) {
-                    const sent = new Date(permReqDate);
+                    const sent = parseLocalDate(permReqDate);
                     const now = new Date();
                     const diff = Math.floor((now - sent) / (1000 * 60 * 60 * 24));
                     daysSince = `(${diff} days ago, on ${sent.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })})`;
@@ -3715,6 +3763,10 @@ Regards,`;
                 const draft = document.getElementById('emailOutDraft').value;
                 const finalText = document.getElementById('emailOutFinal').value;
                 
+                // Capture email subtype (introduction or scraping-announcement)
+                const emailTypeRadio = document.querySelector('input[name="emailType"]:checked');
+                const emailSubType = emailTypeRadio ? emailTypeRadio.value : 'introduction';
+                
                 if (!date || !finalText) {
                     showMessage('profileMessage', '⚠️ Please enter the date and final email text.', 'warning');
                     return;
@@ -3727,6 +3779,7 @@ Regards,`;
                 
                 entry.date = date;
                 entry.followupDate = followup || null;
+                entry.emailSubType = emailSubType;
                 // Store all recipient info
                 entry.recipients = recipients; // Full recipient objects array
                 entry.recipientCount = recipients.length;
@@ -3795,7 +3848,7 @@ Regards,`;
                     if (type === 'email-out' && currentOrgId) {
                         const wasSet = await autoSetPermissionRequestedDate(currentOrgId);
                         if (wasSet) {
-                            currentOrg.permission_requested_date = entry.date || new Date().toISOString().split('T')[0];
+                            currentOrg.permission_requested_date = entry.date || todayLocalStr();
                             console.log('📅 Auto-set permission_requested_date from email outreach');
                         }
                     }
@@ -3838,7 +3891,7 @@ Regards,`;
             }
             
             // Sort by date (newest first)
-            log.sort((a, b) => new Date(b.date) - new Date(a.date));
+            log.sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date));
             
             // Type configurations
             const typeConfig = {
@@ -3854,12 +3907,12 @@ Regards,`;
             container.innerHTML = log.map(entry => {
                 const entryType = entry.type || entry.direction || 'note';
                 const config = typeConfig[entryType] || typeConfig['note'];
-                const dateStr = new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                const dateStr = parseLocalDate(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
                 
                 // Check for follow-up date
                 let followupBadge = '';
                 if (entry.followupDate) {
-                    const followupDate = new Date(entry.followupDate);
+                    const followupDate = parseLocalDate(entry.followupDate);
                     const today = new Date();
                     today.setHours(0,0,0,0);
                     const isOverdue = followupDate < today;
@@ -4048,7 +4101,7 @@ Regards,`;
                 // Auto-set TOU Scanned Date to today if not already set
                 const touDateField = document.getElementById('touScannedDate');
                 if (!touDateField.value) {
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = todayLocalStr();
                     touDateField.value = today;
                     console.log('Set TOU Scanned Date to:', today);
                 }
@@ -4077,7 +4130,7 @@ Regards,`;
             if (techBlockFlag) {
                 // Auto-set TOU Scanned Date to today if not already set
                 const touDateField = document.getElementById('touScannedDate');
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayLocalStr();
                 if (!touDateField.value) {
                     touDateField.value = today;
                     console.log('Set TOU Scanned Date to:', today);
@@ -4161,7 +4214,7 @@ Regards,`;
             
             // Set TOU scanned date if TOU or tech block flag is checked
             if (touFlag || techBlockFlag) {
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayLocalStr();
                 const touDateField = document.getElementById('touScannedDate');
                 if (!touDateField.value) {
                     touDateField.value = today;
@@ -4207,7 +4260,7 @@ Regards,`;
                 return;
             }
             
-            const today = new Date().toISOString().split('T')[0];
+            const today = todayLocalStr();
             const touScannedDate = document.getElementById('touScannedDate').value || today;
             
             const data = {
@@ -4280,7 +4333,7 @@ Regards,`;
 
             const orgName = currentOrg.name;
             const blockMessage = `❌ ${orgName} is actively blocking automated requests (403 Forbidden).`;
-            const today = new Date().toISOString().split('T')[0];
+            const today = todayLocalStr();
 
             if (!confirm(`Mark "${orgName}" as technically blocked?\n\nThis will:\n• Set status to "Rejected by Org"\n• Set Technical Block flag to true\n• Set TOU flag to true\n• Update TOU Notes and Permission Response\n• Set Permission Response Date to today`)) {
                 return;
@@ -4438,7 +4491,7 @@ Regards,`;
                 </div>`;
 
                 container.innerHTML = summaryHtml + events.map(e => {
-                    const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    const startDate = e.start_date ? parseLocalDate(e.start_date).toLocaleDateString() : 'TBD';
                     
                     // Event status dropdown
                     const eventStatus = e.event_status || 'nominated';
@@ -4525,16 +4578,13 @@ Regards,`;
         // ═══════════════════════════════════════════════════════════════════════
 
         // Dashboard navigation helpers
+        // Pending filter to apply after loadOrganizations completes
+        let pendingOrgFilter = null;
+
         function dashNav(tabName, filterHint) {
             switchTab(tabName);
             if (tabName === 'organizations' && filterHint === 'noContacts') {
-                setTimeout(() => {
-                    const contactFilter = document.getElementById('orgFilterByContacts');
-                    if (contactFilter) {
-                        contactFilter.value = 'none';
-                        filterOrgsByContacts();
-                    }
-                }, 300);
+                pendingOrgFilter = 'noContacts';
             }
         }
 
@@ -4625,14 +4675,14 @@ Regards,`;
                 // Group A: Permission Requested + request date 7+ days ago
                 const followUpByDate = permRequested.filter(o => {
                     if (!o.permission_requested_date) return false;
-                    return new Date(o.permission_requested_date) <= sevenDaysAgo;
+                    return parseLocalDate(o.permission_requested_date) <= sevenDaysAgo;
                 });
                 // Group B: Any org with overdue correspondence follow-up dates
                 const followUpByCorrespondence = orgs.filter(o => {
                     // Skip orgs already in Group A to avoid double-counting
                     if (o.status === 'Permission Requested (Pending Org Response)' &&
                         o.permission_requested_date &&
-                        new Date(o.permission_requested_date) <= sevenDaysAgo) return false;
+                        parseLocalDate(o.permission_requested_date) <= sevenDaysAgo) return false;
                     return getOverdueCorrespondenceFollowups(o).hasOverdue;
                 });
                 const followUpOrgs = [...followUpByDate, ...followUpByCorrespondence];
@@ -4647,7 +4697,7 @@ Regards,`;
 
                 // ── RED "NEW" BUBBLES ──
                 // Nominated: new in last 7 days
-                const newNominated = nominated.filter(o => new Date(o.created) >= sevenDaysAgo);
+                const newNominated = nominated.filter(o => parseLocalDate(o.created) >= sevenDaysAgo);
                 const bubbleNom = document.getElementById('bubbleNominated');
                 if (newNominated.length > 0) {
                     bubbleNom.textContent = `${newNominated.length} new`;
@@ -4661,7 +4711,7 @@ Regards,`;
                 const fourteenDaysAgo = new Date();
                 fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
                 const newFollowUpByDate = followUpByDate.filter(o => {
-                    const reqDate = new Date(o.permission_requested_date);
+                    const reqDate = parseLocalDate(o.permission_requested_date);
                     return reqDate >= fourteenDaysAgo; // became eligible within last 7 days
                 });
                 // Group B: correspondence follow-ups that became overdue in last 7 days
@@ -4680,7 +4730,7 @@ Regards,`;
                 }
 
                 // Rejected by Org: updated in last 7 days
-                const newRejected = rejectedByOrg.filter(o => new Date(o.updated) >= sevenDaysAgo);
+                const newRejected = rejectedByOrg.filter(o => parseLocalDate(o.updated) >= sevenDaysAgo);
                 const bubbleRej = document.getElementById('bubbleRejected');
                 if (newRejected.length > 0) {
                     bubbleRej.textContent = `${newRejected.length} new`;
@@ -4938,7 +4988,7 @@ Regards,`;
                         const isPermRequested7Days = (
                             o.status === 'Permission Requested (Pending Org Response)' &&
                             o.permission_requested_date &&
-                            new Date(o.permission_requested_date) <= sevenDaysAgo
+                            parseLocalDate(o.permission_requested_date) <= sevenDaysAgo
                         );
                         // Group B: Any org with overdue correspondence follow-up dates
                         const hasOverdueFollowup = getOverdueCorrespondenceFollowups(o).hasOverdue;
@@ -5033,9 +5083,48 @@ Regards,`;
                 html += `<div class="info-box"><p>🤖 <strong>AI Reasoning:</strong> ${escapeHtml(org.ai_reasoning).substring(0, 200)}${org.ai_reasoning.length > 200 ? '...' : ''}</p></div>`;
             }
 
-            if ((isMissionApproved || isRequested) && org.permission_requested_date) {
-                const sentDate = new Date(org.permission_requested_date);
-                html += `<p><strong>Request Sent:</strong> ${sentDate.toLocaleDateString()}</p>`;
+            // Correspondence summary — show for any org past Nominated stage
+            if (!isNominated) {
+                const corrSummary = getCorrespondenceSummary(org);
+                const fmtDate = (d) => d ? parseLocalDate(d).toLocaleDateString() : null;
+                
+                // Only show if there's at least one date to display
+                const hasAnyCorr = corrSummary.initialEmailDate || org.permission_requested_date || 
+                                   corrSummary.goLiveAnnouncementDate || corrSummary.lastPhoneDate;
+                
+                if (hasAnyCorr) {
+                    // Determine initial email date: prefer correspondence_log, fall back to permission_requested_date
+                    const initialDate = fmtDate(corrSummary.initialEmailDate) || 
+                                        (org.permission_requested_date ? fmtDate(org.permission_requested_date) : null);
+                    
+                    html += `<div class="corr-summary">`;
+                    
+                    // Line 1: Initial Email Request — always show if we have any date
+                    html += `<div class="corr-line">📤 <span class="corr-label">Initial Email Request Sent:</span> `;
+                    html += initialDate 
+                        ? `<span class="corr-value">${initialDate}</span>` 
+                        : `<span class="corr-na">N/A</span>`;
+                    html += `</div>`;
+                    
+                    // Line 2: Latest Email Request — only if different from initial
+                    if (corrSummary.latestEmailDate) {
+                        html += `<div class="corr-line">📤 <span class="corr-label">Latest Email Request Sent:</span> <span class="corr-value">${fmtDate(corrSummary.latestEmailDate)}</span></div>`;
+                    }
+                    
+                    // Line 3: Go-Live Announcement — only if exists
+                    if (corrSummary.goLiveAnnouncementDate) {
+                        html += `<div class="corr-line">🚀 <span class="corr-label">Go-Live Announcement Sent:</span> <span class="corr-value">${fmtDate(corrSummary.goLiveAnnouncementDate)}</span></div>`;
+                    }
+                    
+                    // Line 4: Last Phone Contact — always show
+                    html += `<div class="corr-line">📞 <span class="corr-label">Last Phone Contact:</span> `;
+                    html += corrSummary.lastPhoneDate 
+                        ? `<span class="corr-value">${fmtDate(corrSummary.lastPhoneDate)}</span>` 
+                        : `<span class="corr-na">N/A</span>`;
+                    html += `</div>`;
+                    
+                    html += `</div>`;
+                }
             }
 
             // Go-Live Date display - only for orgs WITHOUT restrictions
@@ -5049,7 +5138,7 @@ Regards,`;
                     html += `<div class="info-box warning"><p>⚠️ <strong>Explicit Permission Required</strong> - No auto go-live date (${restrictionTypes.join(', ')})</p></div>`;
                 } else {
                     // No restrictions - show calculated go-live date
-                    const sentDate = new Date(org.permission_requested_date);
+                    const sentDate = parseLocalDate(org.permission_requested_date);
                     const goLiveDate = new Date(sentDate);
                     goLiveDate.setDate(goLiveDate.getDate() + 7);
                     html += `<div class="info-box"><p>📅 <strong>Go Live Date:</strong> ${goLiveDate.toLocaleDateString()} (implied permission if no response)</p></div>`;
@@ -5060,10 +5149,10 @@ Regards,`;
             if (filterType === 'ready-for-followup') {
                 const corrInfo = getOverdueCorrespondenceFollowups(org);
                 const is7DayFollowup = isRequested && org.permission_requested_date &&
-                    new Date(org.permission_requested_date) <= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    parseLocalDate(org.permission_requested_date) <= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
                 
                 if (is7DayFollowup) {
-                    const daysSince = Math.floor((Date.now() - new Date(org.permission_requested_date).getTime()) / (1000 * 60 * 60 * 24));
+                    const daysSince = Math.floor((Date.now() - parseLocalDate(org.permission_requested_date).getTime()) / (1000 * 60 * 60 * 24));
                     html += `<div class="info-box" style="background: #fff3cd; border-color: #e67e22;"><p>📬 <strong>7-Day Follow-Up:</strong> Permission requested ${daysSince} days ago — no response yet</p></div>`;
                 }
                 if (corrInfo.hasOverdue) {
@@ -5141,7 +5230,7 @@ Regards,`;
                     const log = JSON.parse(org.correspondence_log);
                     overdueEntries = log.filter(entry => {
                         if (!entry.followupDate) return false;
-                        const fDate = new Date(entry.followupDate);
+                        const fDate = parseLocalDate(entry.followupDate);
                         fDate.setHours(0, 0, 0, 0);
                         return fDate < today;
                     });
@@ -5151,9 +5240,79 @@ Regards,`;
                 hasOverdue: overdueEntries.length > 0,
                 count: overdueEntries.length,
                 earliestOverdue: overdueEntries.length > 0
-                    ? new Date(Math.min(...overdueEntries.map(e => new Date(e.followupDate).getTime())))
+                    ? new Date(Math.min(...overdueEntries.map(e => parseLocalDate(e.followupDate).getTime())))
                     : null
             };
+        }
+
+        /**
+         * Helper: Extract correspondence summary dates from an org's correspondence_log.
+         * Returns { initialEmailDate, latestEmailDate, goLiveAnnouncementDate, lastPhoneDate }
+         * Each value is a date string (YYYY-MM-DD) or null.
+         */
+        function getCorrespondenceSummary(org) {
+            const result = {
+                initialEmailDate: null,
+                latestEmailDate: null,
+                goLiveAnnouncementDate: null,
+                lastPhoneDate: null
+            };
+            
+            try {
+                let log = [];
+                if (org.correspondence_log) {
+                    log = JSON.parse(org.correspondence_log);
+                }
+                if (log.length === 0) return result;
+                
+                // Separate entry types
+                const emailOuts = log
+                    .filter(e => e.type === 'email-out' && e.date)
+                    .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date)); // oldest first
+                
+                const phoneCalls = log
+                    .filter(e => e.type === 'phone' && e.date)
+                    .sort((a, b) => parseLocalDate(b.date) - parseLocalDate(a.date)); // newest first
+                
+                // Identify go-live announcements:
+                // 1. New entries: emailSubType === 'scraping-announcement'
+                // 2. Legacy entries: subject contains "Event Collection Now Active" or "Scraping"
+                const goLiveKeywords = ['event collection now active', 'scraping announcement', 'scraping now active'];
+                const isGoLive = (entry) => {
+                    if (entry.emailSubType === 'scraping-announcement') return true;
+                    if (entry.subject) {
+                        const subjectLower = entry.subject.toLowerCase();
+                        return goLiveKeywords.some(kw => subjectLower.includes(kw));
+                    }
+                    return false;
+                };
+                
+                // Split emails into permission requests vs go-live announcements
+                const goLiveEmails = emailOuts.filter(e => isGoLive(e));
+                const requestEmails = emailOuts.filter(e => !isGoLive(e));
+                
+                // Initial email request = earliest permission request email
+                if (requestEmails.length > 0) {
+                    result.initialEmailDate = requestEmails[0].date;
+                }
+                
+                // Latest email request = most recent permission request email (only if different from initial)
+                if (requestEmails.length > 1) {
+                    result.latestEmailDate = requestEmails[requestEmails.length - 1].date;
+                }
+                
+                // Go-Live announcement = most recent go-live email
+                if (goLiveEmails.length > 0) {
+                    result.goLiveAnnouncementDate = goLiveEmails[goLiveEmails.length - 1].date;
+                }
+                
+                // Last phone contact = most recent phone call
+                if (phoneCalls.length > 0) {
+                    result.lastPhoneDate = phoneCalls[0].date;
+                }
+            } catch (e) { /* ignore parse errors */ }
+            
+            return result;
         }
 
         /**
@@ -5171,7 +5330,7 @@ Regards,`;
                 const org = await res.json();
                 if (org.permission_requested_date) return false; // Already set — don't overwrite
 
-                const todayISO = new Date().toISOString().split('T')[0];
+                const todayISO = todayLocalStr();
                 await fetch(
                     `${POCKETBASE_URL}/api/collections/organizations/records/${orgId}`,
                     {
@@ -5194,14 +5353,14 @@ Regards,`;
          */
         function getBackfillDate(org) {
             let source = 'updated date';
-            let bestDate = org.updated ? org.updated.split(' ')[0] : new Date().toISOString().split('T')[0];
+            let bestDate = org.updated ? org.updated.split(' ')[0] : todayLocalStr();
             
             try {
                 if (org.correspondence_log) {
                     const log = JSON.parse(org.correspondence_log);
                     const emailOuts = log
                         .filter(e => e.type === 'email-out' && e.date)
-                        .map(e => ({ date: e.date, parsed: new Date(e.date) }))
+                        .map(e => ({ date: e.date, parsed: parseLocalDate(e.date) }))
                         .sort((a, b) => a.parsed - b.parsed);
                     
                     if (emailOuts.length > 0) {
@@ -5483,7 +5642,31 @@ Regards,`;
                 jumpToSelect.innerHTML = '<option value="">📍 Jump to Organization...</option>' +
                     allOrganizations.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
 
-                renderOrganizationsList(allOrganizations);
+                // Apply pending filter from dashboard click-through, or preserve current filter
+                const currentContactFilter = document.getElementById('orgFilterByContacts')?.value;
+
+                if (pendingOrgFilter === 'noContacts') {
+                    pendingOrgFilter = null;
+                    const contactFilter = document.getElementById('orgFilterByContacts');
+                    if (contactFilter) {
+                        contactFilter.value = 'none';
+                    }
+                    // Contacts already loaded above — filter directly without re-fetching
+                    const orgsWithContacts = new Set(allContacts.map(c => c.organization));
+                    const missionApprovedStatuses = [
+                        'Mission Approved (Request Not Sent)',
+                        'Permission Requested (Pending Org Response)',
+                        'Permission Granted (Not Live)',
+                        'Live (Scraping Active)'
+                    ];
+                    const filtered = allOrganizations.filter(o => missionApprovedStatuses.includes(o.status) && !orgsWithContacts.has(o.id));
+                    renderOrganizationsList(filtered);
+                } else if (currentContactFilter) {
+                    // Preserve active filter (e.g., after inline status change)
+                    filterOrgsByContacts();
+                } else {
+                    renderOrganizationsList(allOrganizations);
+                }
 
             } catch (error) {
                 container.innerHTML = `<div class="message error">❌ Error: ${error.message}</div>`;
@@ -6120,7 +6303,7 @@ Regards,`;
                     const org = e.expand?.organization;
                     const orgName = org?.name || 'Unknown';
                     const orgStatus = org?.status || 'Unknown';
-                    const startDate = e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD';
+                    const startDate = e.start_date ? parseLocalDate(e.start_date).toLocaleDateString() : 'TBD';
                     
                     // Build org flags badges
                     let orgFlags = '';
