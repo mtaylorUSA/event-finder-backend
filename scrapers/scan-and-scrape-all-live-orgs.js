@@ -1776,4 +1776,12 @@ async function main() {
 }
 
 // Run
-main().catch(console.error);
+main()
+    .then(() => {
+        console.log('✅ Process complete - exiting');
+        process.exit(0);
+    })
+    .catch((error) => {
+        console.error('❌ Fatal error:', error);
+        process.exit(1);
+    });
