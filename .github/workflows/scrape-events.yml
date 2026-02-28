@@ -1,4 +1,7 @@
 name: Scrape Events Daily
+
+# UPDATED 2026-02-21: Added ANTHROPIC_API_KEY for Claude AI web search migration
+
 on:
   schedule:
     # Run daily at 11:30 PM EST (04:30 UTC)
@@ -22,4 +25,5 @@ jobs:
           POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
           POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node scrapers/scan-and-scrape-all-live-orgs.js --all

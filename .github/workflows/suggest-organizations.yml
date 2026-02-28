@@ -1,8 +1,9 @@
 name: Profile-Based Org Discovery (Weekly)
 
 # Runs Monday at 10:00 PM EST (03:00 UTC Tuesday)
-# Uses org-scanner.js with Google Search only for contacts
+# Uses org-scanner.js with Claude AI for contacts, org info, and location check
 # Estimated Google queries: 15-25 (5 per new org suggested)
+# UPDATED 2026-02-21: Added ANTHROPIC_API_KEY for Claude AI web search migration
 
 on:
   schedule:
@@ -38,6 +39,7 @@ jobs:
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
           echo "GOOGLE_SEARCH_API_KEY=${{ secrets.GOOGLE_SEARCH_API_KEY }}" >> .env
           echo "GOOGLE_SEARCH_ENGINE_ID=${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}" >> .env
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
 
       - name: Run Profile-Based Org Discovery
         run: node scrapers/suggest-organizations.js

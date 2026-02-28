@@ -2,8 +2,8 @@ name: Weekly Organization Scanner
 
 # Runs Saturday at 10:00 PM EST (03:00 UTC Sunday)
 # Re-scans all orgs (except "Rejected by Mission") for TOU policy changes
-# Uses org-scanner.js with Google Search only for contacts
-# Estimated Google queries: ~0 (skip logic - existing orgs already have contacts)
+# Uses org-scanner.js with Claude AI for contacts, org info, and location check
+# UPDATED 2026-02-21: Added ANTHROPIC_API_KEY for Claude AI web search migration
 
 on:
   schedule:
@@ -39,6 +39,7 @@ jobs:
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
           echo "GOOGLE_SEARCH_API_KEY=${{ secrets.GOOGLE_SEARCH_API_KEY }}" >> .env
           echo "GOOGLE_SEARCH_ENGINE_ID=${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}" >> .env
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
 
       - name: Run Weekly Organization Scanner
         run: |
