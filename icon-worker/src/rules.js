@@ -288,7 +288,7 @@ export const REGION_STYLE = {
       "Arabian peninsula outline",
       "desert dune waves",
       "crescent moon arc",
-      "ancient mosaic pattern"
+      "ancient geometric tilework"
     ]
   },
   "South Asia": {
@@ -487,13 +487,10 @@ export const CRITICAL_REQUIREMENTS_BLOCK = `CRITICAL REQUIREMENTS:
 
 export const COLLAGE_TRIGGER_WORDS = [
   "triptych",
-  "grid layout",
-  "grid of",
-  "image grid",
-  "arranged in a grid",
+  "grid",
   "collage",
-  "collection of",
-  "series of",
+  "collection",
+  "series",
   "four panels",
   "multi-panel",
   "split screen",
